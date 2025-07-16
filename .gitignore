@@ -17,3 +17,7 @@ db.sqlite3
 
 # Jupyter 자동 저장 체크포인트
 .ipynb_checkpoints/
+
+# Streamlit settings
+
+secrets.toml
