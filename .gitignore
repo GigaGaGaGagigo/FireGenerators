@@ -16,3 +16,6 @@ db.sqlite3
 
 # Jupyter 자동 저장 체크포인트
 .ipynb_checkpoints/
+
+# 모델 경로
+my_app/chat_bot/finance_qa_rag/model/kobert-qa/
