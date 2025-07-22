@@ -19,5 +19,13 @@ db.sqlite3
 .ipynb_checkpoints/
 
 # Streamlit settings
+.streamlit/
 
-secrets.toml
+# Claude code settings
+CLAUDE.md
+
+# mcp server
+.mcp.json
+
+# vscode settings
+.vscode/
