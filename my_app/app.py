@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 # Define available user roles in the system
-ROLES: list[str | None] = [None, "Register", "User", "Admin"]
+ROLES: list[str | None] = [None, "User", "Admin"]
 
 
 @st.cache_resource
@@ -74,7 +74,7 @@ def check_auth_params():
                 if response_user_data.data:
                     st.session_state.role = response_user_data.data[0]["role"]
                 else:
-                    st.session_state.role = "Register"
+                    st.session_state.role = "User"
 
                 # Clean up URL (remove code parameter)
                 st.query_params.clear()
@@ -144,7 +144,7 @@ def login() -> None:
                         f'<meta http-equiv="refresh" content="0;url={response.url}">',
                         unsafe_allow_html=True,
                     )
-                    st.info("Redirecting to Google login...")
+                    st.info("Google Login 중입니다..")
 
             except Exception as e:
                 st.error(f"Login failed: {e}")
@@ -186,7 +186,7 @@ check_auth_params()
 # Display user info - show email if logged in
 if (
     "role" in st.session_state
-    and st.session_state.role in ["User", "Register", "Admin"]
+    and st.session_state.role in ["User", "Admin"]
     and "user" in st.session_state
 ):
     st.sidebar.success(f"Logged in as: {st.session_state.user.email}")
@@ -196,56 +196,38 @@ role = st.session_state.role
 
 # Define navigation pages with icons and access control
 logout_page: Page = st.Page(logout, title="Log out", icon=":material/logout:")
-settings: Page = st.Page("settings.py", title="Settings", icon=":material/settings:")
-register_1: Page = st.Page(
-    "register/register.py",
-    title="Register",
-    icon=":material/person_add:",
-    default=(role == "Register"),
+settings: Page = st.Page(
+    "ui/settings/settings.py",
+    title="Settings",
+    icon=":material/settings:",
 )
-register_2: Page = st.Page(
-    "register/survey.py",
-    title="Survey",
-    icon=":material/help:",
-)
-register_3: Page = st.Page(
-    "register/asset.py",
-    title="Input Asset",
-    icon=":material/wallet:",
-)
-register_4: Page = st.Page(
-    "register/chatbot.py",
+chatbot_1: Page = st.Page(
+    "ui/chatbot/chatbot.py",
     title="Chatbot",
     icon=":material/chat:",
-)
-dashboard_1: Page = st.Page(
-    "dashboard/dashboard_1.py",
-    title="Dashboard 1",
-    icon=":material/healing:",
     default=(role == "User"),
 )
-dashboard_2: Page = st.Page(
-    "dashboard/dashboard_2.py",
-    title="Dashboard 2",
-    icon=":material/handyman:",
+dashboard_1: Page = st.Page(
+    "ui/dashboard/dashboard_1.py",
+    title="Dashboard 1",
+    icon=":material/healing:",
 )
 admin_1: Page = st.Page(
-    "admin/admin_1.py",
+    "ui/admin/admin_1.py",
     title="Admin 1",
     icon=":material/person_add:",
     default=(role == "Admin"),
 )
 admin_2: Page = st.Page(
-    "admin/admin_2.py",
+    "ui/admin/admin_2.py",
     title="Admin 2",
     icon=":material/security:",
-    default=(role == "Admin"),
 )
 
 # Group pages by functionality
 account_pages: list[Page] = [logout_page, settings]
-register_pages: list[Page] = [register_1, register_2, register_3, register_4]
-dashboard_pages: list[Page] = [dashboard_1, dashboard_2]
+chatbot_pages: list[Page] = [chatbot_1]
+dashboard_pages: list[Page] = [dashboard_1]
 admin_pages: list[Page] = [admin_1, admin_2]
 
 
@@ -257,9 +239,9 @@ st.logo(str(logo_path), icon_image=str(icon_path))
 
 # Build navigation dictionary based on user role
 page_dict: dict[str, list[Page]] = {}
-if st.session_state.role in ["Register", "Admin"]:
-    page_dict["Register"] = register_pages
-if st.session_state.role in ["User", "Register", "Admin"]:
+if st.session_state.role in ["User", "Register"]:
+    page_dict["Chatbot"] = chatbot_pages
+if st.session_state.role in ["User", "Register"]:
     page_dict["Dashboard"] = dashboard_pages
 if st.session_state.role == "Admin":
     page_dict["Admin"] = admin_pages
