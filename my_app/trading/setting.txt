@@ -1,0 +1,23 @@
+pip install fastapi uvicorn
+
+
+# 설정 파일 다운
+pip install -r requirements.txt
+
+# 자신의 설정 파일 넣기
+pip freeze > requirements.txt
+
+
+ # 가상환경 활성화 
+.\.venv\Scripts\Activate.ps1
+
+"""
+[Commit]
+feat: 기능 (feature)
+fix: 버그 수정
+docs: 문서 작업 (documentation)
+style: 포맷팅, 세미콜론 누락 등.
+refactor: 리팩터링
+test: 테스트
+chore: 관리(maintain), 핵심 내용은 아닌 가벼운 테스크
+"""
