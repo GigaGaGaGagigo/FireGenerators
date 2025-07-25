@@ -11,6 +11,10 @@ pip freeze > requirements.txt
  # 가상환경 활성화 
 .\.venv\Scripts\Activate.ps1
 
+# 실행
+streamlit run my_app/trading/test/home.py
+
+
 """
 [Commit]
 feat: 기능 (feature)
