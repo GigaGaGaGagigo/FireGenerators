@@ -33,3 +33,6 @@ test.json
 
 # vscode settings
 .vscode/
+
+# Jupyter notebook
+/my_app/ui/chatbot/_tests

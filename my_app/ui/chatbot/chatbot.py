@@ -1,14 +1,13 @@
-from re import I
-import streamlit as st
-from pathlib import Path
-import uuid
 import time
+import uuid
+from pathlib import Path
 
+import streamlit as st
 
 IMAGE_PATH = Path(__file__).parent.parent.parent / "assets" / "FIRE_LOGO_large.png"
 
 
-def stream_data(message: str) -> None:
+def stream_data(message: str):
     for word in message:
         yield word
         time.sleep(0.01)
