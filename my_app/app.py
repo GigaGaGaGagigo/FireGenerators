@@ -1,12 +1,20 @@
+import os
 import streamlit as st
 from streamlit.navigation.page import Page as Page
+from dotenv import load_dotenv # env에서 supabase key 호출
 from supabase import create_client, Client
 from pathlib import Path
 
+# .env 파일 로딩
+load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Define available user roles in the system
 ROLES: list[str | None] = [None, "User", "Admin"]
-
 
 @st.cache_resource
 def init_supabase():
@@ -19,15 +27,19 @@ def init_supabase():
     Raises:
         Exception: If Supabase initialization fails
     """
+    # env에서 url, key 불러올 수 있도록 코드 수정
     try:
-        supabase: Client = create_client(
-            st.secrets["supabase"]["url"], st.secrets["supabase"]["key"]
-        )
+        supabase_url = os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_KEY")
+
+        if not supabase_url or not supabase_key:
+            raise Exception("Missing SUPABASE_URL or SUPABASE_KEY in environment.")
+
+        supabase: Client = create_client(supabase_url, supabase_key)
         return supabase
     except Exception as e:
         st.error(f"Error initializing Supabase: {e}")
         st.stop()
-
 
 def check_auth_params():
     """
