@@ -19,15 +19,15 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 ENV_PATH: Path = Path(__file__).parent.parent.parent.parent.parent / ".env"
 GEMINI_MODEL_NAME: str = "gemini-2.5-flash"
 
-load_dotenv()
+load_dotenv(ENV_PATH)
 
-_llm_clients = {}
+_llm_agents = {}
 api_key: str | None = os.getenv("GEMINI_API_KEY")
 
 
-def get_llm_client(model_name: str):
-    if model_name in _llm_clients:
-        return _llm_clients[model_name]
+def get_llm_agents(model_name: str):
+    if model_name in _llm_agents:
+        return _llm_agents[model_name]
 
     # Factory pattern
     print(f"Creating new LLM client for {model_name}")
@@ -44,5 +44,5 @@ def get_llm_client(model_name: str):
     else:
         raise ValueError(f"Unsupported model: {model_name}")
 
-    _llm_clients[model_name] = llm_client
+    _llm_agents[model_name] = llm_client
     return llm_client

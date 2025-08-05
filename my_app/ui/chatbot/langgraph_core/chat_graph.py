@@ -9,17 +9,19 @@ TODO:
 
 from langgraph.graph import END, START, StateGraph
 
-from my_app.ui.chatbot.langgraph_core.nodes.conversation_node import conversation_node
-from my_app.ui.chatbot.langgraph_core.state.chat_state import ChatState
+from my_app.ui.chatbot.langgraph_core.nodes import (
+    generate_onboarding_response,
+)
+from my_app.ui.chatbot.langgraph_core.state import ChatState
 from my_app.ui.chatbot.utils.draw_graphs import visualize_graph
 
 
 def create_chat_graph():
     workflow = StateGraph(ChatState)
 
-    workflow.add_node("conversation", conversation_node)
-    workflow.add_edge(START, "conversation")
-    workflow.add_edge("conversation", END)
+    workflow.add_node("onboarding", generate_onboarding_response)
+    workflow.add_edge(START, "onboarding")
+    workflow.add_edge("onboarding", END)
 
     return workflow.compile()
 

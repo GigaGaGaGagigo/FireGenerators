@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+from langchain_core.messages import HumanMessage
+
 # 프로젝트 루트를 Python 경로에 추가
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
@@ -23,15 +25,27 @@ if __name__ == "__main__":
         chat_graph_manager = ChatGraphManager()
         print("✅ ChatGraphManager created successfully")
 
-        chat_graph_manager.visualize_graph()
+        # chat_graph_manager.visualize_graph()
 
-        question = "서울의 유명한 맛집 10군데를 추천해주세요"
+        question = "안녕하세요 처음 챗봇을 사용해요. 저는 요셉이라고 해요."
         print(f"📝 Question: {question}")
 
         # 방법 1: 동기 처리 (일반적인 방법)
         print("\n--- Synchronous processing ---")
-        result = chat_graph_manager.process_message({"messages": [("user", question)]})
-        print(f"Result: {result}")
+        result = chat_graph_manager.process_message(
+            {"messages": [HumanMessage(content=question)]}
+        )
+
+        print("✅ 처리 완료!")
+        print("📄 결과:", result)
+
+        # 응답 메시지 추출
+        if "messages" in result and result["messages"]:
+            for msg in result["messages"]:
+                if hasattr(msg, "content"):
+                    print("🤖 AI 응답:", msg.content)
+                else:
+                    print("🤖 AI 응답:", msg)
 
     except Exception as e:
         print(f"❌ Error: {e}")
