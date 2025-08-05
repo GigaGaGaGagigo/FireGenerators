@@ -9,8 +9,6 @@ TODO: Add variables after adding functions.
 
 from typing import Annotated, TypedDict
 
-from langgraph.graph import add_messages
-
 
 class UserState(TypedDict):
     user_email: Annotated[str, "사용자 이메일"]
@@ -25,4 +23,6 @@ class UserState(TypedDict):
 
 
 class ChatState(TypedDict):
-    messages: Annotated[list, add_messages]
+    user_messages: Annotated[list, "사용자 메시지"]
+    ai_messages: Annotated[list, "AI 메시지"]
+    is_analysis_required: Annotated[str, "분석 필요 여부"]

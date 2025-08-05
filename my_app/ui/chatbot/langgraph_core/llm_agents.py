@@ -16,10 +16,12 @@ from pathlib import Path
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-ENV_PATH: Path = Path(__file__).parent.parent.parent.parent.parent / ".env"
+ENV_PATH: Path = Path(__file__).parents[4] / ".env"
 GEMINI_MODEL_NAME: str = "gemini-2.5-flash"
 
-load_dotenv(ENV_PATH)
+# Only load .env file if it exists and we're not in a test environment
+if ENV_PATH.exists():
+    load_dotenv(ENV_PATH)
 
 _llm_agents = {}
 api_key: str | None = os.getenv("GEMINI_API_KEY")

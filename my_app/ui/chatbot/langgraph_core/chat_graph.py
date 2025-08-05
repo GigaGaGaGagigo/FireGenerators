@@ -5,23 +5,22 @@ DESCRIPTION:
 This file defines the chat graph for the chatbot.
 
 TODO:
+
+START - Conversation Node - Analysis_Node - Response_node - END
 """
 
 from langgraph.graph import END, START, StateGraph
 
-from my_app.ui.chatbot.langgraph_core.nodes import (
-    generate_onboarding_response,
-)
+from my_app.ui.chatbot.langgraph_core.nodes import check_analysis_requirements
 from my_app.ui.chatbot.langgraph_core.state import ChatState
-from my_app.ui.chatbot.utils.draw_graphs import visualize_graph
 
 
-def create_chat_graph():
+def create_chatgraph():
     workflow = StateGraph(ChatState)
 
-    workflow.add_node("onboarding", generate_onboarding_response)
-    workflow.add_edge(START, "onboarding")
-    workflow.add_edge("onboarding", END)
+    workflow.add_node("is_analysis_required", check_analysis_requirements)
+    workflow.add_edge(START, "is_analysis_required")
+    workflow.add_edge("is_analysis_required", END)
 
     return workflow.compile()
 
@@ -32,22 +31,12 @@ class ChatGraphManager:
     """
 
     def __init__(self):
-        self.graph = create_chat_graph()
+        self.graph = create_chatgraph()
 
-    def visualize_graph(self):
-        visualize_graph(self.graph)
-
-    def process_message(self, current_state: ChatState):
-        result = self.graph.invoke(current_state)
+    def process_message(self, chatstate: ChatState):
+        result = self.graph.invoke(chatstate)
 
         return result
-
-    def stream_message(self, current_state: ChatState):
-        """
-        메시지를 스트리밍 방식으로 처리
-        """
-        for event in self.graph.stream(current_state):
-            yield event
 
     async def aprocess_message(self, current_state: ChatState):
         # 비동기 그래프 실행

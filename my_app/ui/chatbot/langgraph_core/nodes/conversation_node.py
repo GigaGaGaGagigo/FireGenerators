@@ -9,57 +9,48 @@ TODO:
 
 """
 
-from typing import Any, Dict
+from typing import Literal
 
-from my_app.ui.chatbot.langgraph_core.chains import (
-    onboarding_chain,  # <--- 미리 만들어진 동적 Chain을 import
-)
+from langchain_core.prompts import PromptTemplate
+from pydantic import BaseModel, Field
+
 from my_app.ui.chatbot.langgraph_core.llm_agents import (
     GEMINI_MODEL_NAME,
     get_llm_agents,
 )
+from my_app.ui.chatbot.langgraph_core.prompt_loader import load_prompt
 from my_app.ui.chatbot.langgraph_core.state import ChatState
 
 
-def conversation_node(state: ChatState) -> Dict[str, Any]:
-    llm_client = get_llm_agents(GEMINI_MODEL_NAME)
-
-    return {"messages": [llm_client.invoke(state["messages"])]}
-
-
-# def generate_onboarding_response(state: ChatState) -> dict:
-#     """온보딩 대화 응답을 생성합니다."""
-
-#     # state에서 필요한 모든 정보를 꺼냅니다.
-#     # load_memory_node에서 가져온 db_profile이 user_data가 됩니다.
-#     user_data = state.get("UserState", "user_email")
-#     user_message = state["messages"]
-#     history = state.get("conversation_history", "")
-
-#     # invoke를 호출할 때, 필요한 모든 데이터를 딕셔너리로 전달합니다.
-#     # _render_onboarding_prompt 함수가 이 딕셔너리를 입력받게 됩니다.
-#     response = onboarding_chain.invoke(
-#         {
-#             "user_data": user_data,
-#             "user_message": user_message,
-#             "conversation_history": history,
-#         }
-#     )
-
-#     return {"final_response": response.content}
-
-
-def generate_onboarding_response(state: ChatState) -> dict:
-    user_data = state.get("UserState", {})
-    user_message = state["messages"]
-    history = state.get("conversation_history", "")
-
-    response = onboarding_chain.invoke(
-        {
-            "user_data": user_data,
-            "user_message": user_message,
-            "conversation_history": history,
-        }
+class AnalysisResultStructured(BaseModel):
+    user_message: str = Field(description="Original user message")
+    is_analysis_required: Literal["Skip_Analysis", "Run_Analysis"] = Field(
+        description="Either 'Skip_Analysis' or 'Run_Analysis'"
     )
+    reason: str = Field(description="Brief explanation for the decision")
 
-    return {"messages": [response]}
+
+def check_analysis_requirements(state: ChatState):
+    # if user_messages is empty or llm decideds to analyze
+    if len(state["user_messages"]) == 0:
+        return {"is_analysis_required": "Skip_Analysis"}
+
+    prompt = load_prompt("system_prompts", "analysis_required")
+    prompt_template = PromptTemplate.from_template(prompt)
+
+    llm = get_llm_agents(GEMINI_MODEL_NAME)
+    structured_llm = llm.with_structured_output(AnalysisResultStructured)
+
+    latest_message = state["user_messages"][-1]
+
+    chain = prompt_template | structured_llm
+
+    analysis_result = chain.invoke({"user_message": latest_message})
+
+    analysis_result_dict = analysis_result.model_dump()  # type: ignore
+
+    print(f"➡️ user_message: {analysis_result_dict['user_message']}")
+    print(f"➡️ is_analysis_required: {analysis_result_dict['is_analysis_required']}")
+    print(f"➡️ reason: {analysis_result_dict['reason']}")
+
+    return {"is_analysis_required": analysis_result_dict["is_analysis_required"]}
