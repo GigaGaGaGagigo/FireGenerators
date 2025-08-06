@@ -12,7 +12,7 @@ if not api_key:
 
 # Gemini API 설정
 genai.configure(api_key=api_key)
-model = genai.GenerativeModel("gemini-1.5-flash")  # 필요 시 모델 교체 가능
+model = genai.GenerativeModel("gemini-2.0-flash")  # 필요 시 모델 교체 가능
 
 # 프롬프트 생성
 def build_prompt(term):
@@ -100,8 +100,8 @@ def get_level_from_gemini(term, retries=5):
 
 # 메인 실행 함수
 def main():
-    print("📂 sample.json 파일을 읽는 중...")
-    with open("./sample.json", "r", encoding="utf-8") as infile:
+    print("📂 파일을 읽는 중...")
+    with open("./output_by_category/경제.json", "r", encoding="utf-8") as infile:
         raw_data = json.load(infile)
     
     result = []
@@ -152,15 +152,15 @@ def main():
         print(f"   🏷️  키워드: {', '.join(tags[:5])}{'...' if len(tags) > 5 else ''}")
         print()
         
-        time.sleep(2.0)  # 기본 대기 시간
+        time.sleep(5.0)  # 기본 대기 시간
     
-    # 결과 저장
-    print("💾 contents_gemi.json 파일로 저장 중...")
-    with open("contents_gemi", "w", encoding="utf-8") as outfile:
+    # 결과 저장, 해당 파일명으로 변경
+    print("💾 파일로 저장 중...")
+    with open("contents_경제.json", "w", encoding="utf-8") as outfile:
         json.dump(result, outfile, ensure_ascii=False, indent=2)
     
     print("✅ Gemini 기반 난이도 분류 및 키워드 추출 완료!")
-    print(f"📁 총 {len(result)}개 카드가 contents_gemi.json에 저장되었습니다.")
+    print(f"📁 총 {len(result)}개 카드가 contents_경제.json에 저장되었습니다.")
 
 if __name__ == "__main__":
     main()
