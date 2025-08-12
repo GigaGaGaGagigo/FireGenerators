@@ -1,6 +1,6 @@
 [
   {
-    "card_id": "card_0001",
+    "card_id": "card_2001",
     "title": "1인당 국민소득",
     "tags": [
       "국민소득",
@@ -16,7 +16,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0002",
+    "card_id": "card_2002",
     "title": "OECD(Organization for Economic Cooperation and Development, 경제협력개발기구)",
     "tags": [
       "정책조정",
@@ -35,7 +35,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0003",
+    "card_id": "card_2003",
     "title": "PECC(Pacific Economic Cooperation Council)",
     "tags": [
       "태평양 연안",
@@ -54,7 +54,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0004",
+    "card_id": "card_2004",
     "title": "PIR",
     "tags": [
       "주택 구매능력",
@@ -72,7 +72,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0005",
+    "card_id": "card_2005",
     "title": "SDR(특별인출권)",
     "tags": [
       "IMF",
@@ -90,7 +90,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0006",
+    "card_id": "card_2006",
     "title": "SSNIP Test(Small but Significant Non-transitory Increase in Prices)",
     "tags": [
       "관련시장",
@@ -106,7 +106,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0007",
+    "card_id": "card_2007",
     "title": "TCE",
     "tags": [
       "FTA",
@@ -125,7 +125,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0008",
+    "card_id": "card_2008",
     "title": "가격고정(Price Fixing)",
     "tags": [
       "경쟁자",
@@ -143,7 +143,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0009",
+    "card_id": "card_2009",
     "title": "가격약속",
     "tags": [
       "덤핑 수출",
@@ -159,7 +159,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0010",
+    "card_id": "card_2010",
     "title": "가격통제",
     "tags": [
       "정부",
@@ -177,7 +177,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0011",
+    "card_id": "card_2011",
     "title": "가격하한제(최저 가격제)",
     "tags": [
       "정부 규제",
@@ -195,7 +195,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0012",
+    "card_id": "card_2012",
     "title": "가치의 역설",
     "tags": [
       "사용 가치",
@@ -211,7 +211,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0013",
+    "card_id": "card_2013",
     "title": "간접비",
     "tags": [
       "간접비용",
@@ -229,7 +229,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0014",
+    "card_id": "card_2014",
     "title": "게임이론",
     "tags": [
       "경제주체",
@@ -248,7 +248,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0015",
+    "card_id": "card_2015",
     "title": "경기동행지수(CCI; Coincident Composite Index)",
     "tags": [
       "동행지수",
@@ -266,7 +266,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0016",
+    "card_id": "card_2016",
     "title": "경기선행지수(CLI)",
     "tags": [
       "경기동향",
@@ -284,7 +284,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0017",
+    "card_id": "card_2017",
     "title": "경기순환",
     "tags": [
       "확장",
@@ -303,7 +303,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0018",
+    "card_id": "card_2018",
     "title": "경기종합지수",
     "tags": [
       "경기변동",
@@ -322,7 +322,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0019",
+    "card_id": "card_2019",
     "title": "경매(Auction)",
     "tags": [
       "자원배분",
@@ -341,7 +341,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0020",
+    "card_id": "card_2020",
     "title": "경상경비",
     "tags": [
       "정부",
@@ -360,7 +360,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0021",
+    "card_id": "card_2021",
     "title": "경상수지",
     "tags": [
       "재화",
@@ -378,7 +378,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0022",
+    "card_id": "card_2022",
     "title": "경제성장률",
     "tags": [
       "경제 규모",
@@ -397,7 +397,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0023",
+    "card_id": "card_2023",
     "title": "경제신뢰지수",
     "tags": [
       "경제상황",
@@ -415,7 +415,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0024",
+    "card_id": "card_2024",
     "title": "경제자유구역",
     "tags": [
       "외국인투자",
@@ -433,7 +433,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0025",
+    "card_id": "card_2025",
     "title": "경제적 이윤(Economic Profit)",
     "tags": [
       "총수입",
@@ -451,7 +451,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0026",
+    "card_id": "card_2026",
     "title": "경제활동인구",
     "tags": [
       "생산가능인구",
@@ -467,7 +467,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0027",
+    "card_id": "card_2027",
     "title": "공정무역",
     "tags": [
       "동등한 위치",
@@ -485,7 +485,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0028",
+    "card_id": "card_2028",
     "title": "관세장벽",
     "tags": [
       "수입억제",
@@ -504,7 +504,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0029",
+    "card_id": "card_2029",
     "title": "구두창 비용",
     "tags": [
       "인플레이션",
@@ -522,7 +522,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0030",
+    "card_id": "card_2030",
     "title": "기대효용(Expected Utility)",
     "tags": [
       "효용함수",
@@ -540,7 +540,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0031",
+    "card_id": "card_2031",
     "title": "기본 소득(Basic Income)",
     "tags": [
       "보편성",
@@ -558,7 +558,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0032",
+    "card_id": "card_2032",
     "title": "기술원조",
     "tags": [
       "선진국",
@@ -577,7 +577,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0033",
+    "card_id": "card_2033",
     "title": "기준금리",
     "tags": [
       "금융통화위원회",
@@ -596,7 +596,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0034",
+    "card_id": "card_2034",
     "title": "기축통화(Key Currency)",
     "tags": [
       "국제결제",
@@ -612,7 +612,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0035",
+    "card_id": "card_2035",
     "title": "기회비용",
     "tags": [
       "선택",
@@ -630,7 +630,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0036",
+    "card_id": "card_2036",
     "title": "긱 경제(Gig Economy)",
     "tags": [
       "임시직",
@@ -646,7 +646,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0037",
+    "card_id": "card_2037",
     "title": "긴급수입제한조치(Safe Guards)",
     "tags": [
       "수입제한",
@@ -664,7 +664,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0038",
+    "card_id": "card_2038",
     "title": "긴축정책",
     "tags": [
       "지출",
@@ -682,7 +682,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0039",
+    "card_id": "card_2039",
     "title": "낙수효과(Trickle-down Effect)",
     "tags": [
       "대기업",
@@ -700,7 +700,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0040",
+    "card_id": "card_2040",
     "title": "누진세율",
     "tags": [
       "과세기준",
@@ -718,7 +718,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0041",
+    "card_id": "card_2041",
     "title": "뉴노멀(New Normal)",
     "tags": [
       "경제위기",
@@ -736,7 +736,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0042",
+    "card_id": "card_2042",
     "title": "닉슨쇼크",
     "tags": [
       "달러방어정책",
@@ -754,7 +754,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0043",
+    "card_id": "card_2043",
     "title": "대공황",
     "tags": [
       "경제 침체",
@@ -772,7 +772,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0044",
+    "card_id": "card_2044",
     "title": "디플레이션",
     "tags": [
       "가격수준",
@@ -790,7 +790,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0045",
+    "card_id": "card_2045",
     "title": "레몬마켓(Lemon Market)",
     "tags": [
       "소비자",
@@ -806,7 +806,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0046",
+    "card_id": "card_2046",
     "title": "리코노믹스",
     "tags": [
       "리커창",
@@ -822,7 +822,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0047",
+    "card_id": "card_2047",
     "title": "리플레이션",
     "tags": [
       "디플레이션",
@@ -840,7 +840,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0048",
+    "card_id": "card_2048",
     "title": "립스틱 효과(Lipstick Effect)",
     "tags": [
       "경기 불황",
@@ -858,7 +858,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0049",
+    "card_id": "card_2049",
     "title": "마이너스 금리",
     "tags": [
       "정책 금리",
@@ -874,7 +874,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0050",
+    "card_id": "card_2050",
     "title": "맥락효과(Contextual Effect)",
     "tags": [
       "정보",
@@ -891,7 +891,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0051",
+    "card_id": "card_2051",
     "title": "메뉴비용",
     "tags": [
       "인플레이션",
@@ -909,7 +909,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0052",
+    "card_id": "card_2052",
     "title": "모기지론",
     "tags": [
       "주택담보대출",
@@ -928,7 +928,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0053",
+    "card_id": "card_2053",
     "title": "모라토리엄(Moratorium)",
     "tags": [
       "외채",
@@ -946,7 +946,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0054",
+    "card_id": "card_2054",
     "title": "평가절하/절상",
     "tags": [
       "고정환율제도",
@@ -964,7 +964,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0055",
+    "card_id": "card_2055",
     "title": "풍선효과",
     "tags": [
       "문제",
@@ -982,7 +982,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0056",
+    "card_id": "card_2056",
     "title": "하우스 푸어(House Poor)",
     "tags": [
       "무리한 대출",
@@ -1000,7 +1000,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0057",
+    "card_id": "card_2057",
     "title": "하이퍼인플레이션",
     "tags": [
       "물가인상",
@@ -1016,7 +1016,7 @@
     "topic_id": 2
   },
   {
-    "card_id": "card_0058",
+    "card_id": "card_2058",
     "title": "한계 소비 성향",
     "tags": [
       "처분 가능 소득",
@@ -1028,6 +1028,206 @@
     ],
     "level": "Intermediate",
     "content": "처분 가능 소득이 한 단위 증가할 때 늘어나는 소비의 양으로서 0과 1사이의 값을 갖는다. 일반적으로 소득이 높을수록 저축을 할 수 있는 여유가 많아 한계 소비 성향은 작아진다. 저축은 가처분 소득에서 소비를 뺀 값이기 때문에 한계 소비 성향과 한계 저축 성향의 합계는 항상 1이 된다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2059",
+    "title": "예금",
+    "tags": ["은행", "저축", "이자", "원금보장", "안전자산"],
+    "level": "Beginner",
+    "content": "예금은 은행에 돈을 맡겨 일정 기간 동안 보관하고, 그 대가로 이자를 받는 금융상품입니다. 원금이 보장되며 안정성이 높아 초보자가 시작하기 좋은 금융 수단입니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2060",
+    "title": "적금",
+    "tags": ["은행", "저축습관", "정기납입", "이자", "목돈만들기"],
+    "level": "Beginner",
+    "content": "적금은 매달 일정 금액을 정해진 기간 동안 꾸준히 넣어 목돈을 마련하는 금융상품입니다. 예금보다 이자가 높은 경우가 많아 목표 저축에 유리합니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2061",
+    "title": "이자",
+    "tags": ["금융", "수익", "원금", "이자율", "복리"],
+    "level": "Beginner",
+    "content": "이자는 돈을 빌려준 대가로 받거나, 예금·적금 등 금융상품에 돈을 맡겨서 받는 금액입니다. 이자율이 높을수록 같은 금액을 맡겼을 때 더 많은 수익을 얻을 수 있습니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2062",
+    "title": "복리",
+    "tags": ["금융", "이자", "투자", "장기투자", "이자계산"],
+    "level": "Beginner",
+    "content": "복리는 원금뿐 아니라 이전에 받은 이자에도 다시 이자가 붙는 방식입니다. 시간이 지날수록 자산이 눈덩이처럼 불어나는 효과가 있어 장기 투자에 유리합니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2063",
+    "title": "단리",
+    "tags": ["금융", "이자", "원금기준", "단기투자"],
+    "level": "Beginner",
+    "content": "단리는 원금에 대해서만 이자를 계산하는 방식입니다. 계산이 단순하지만 복리보다 수익이 적어 단기 상품에 주로 사용됩니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2064",
+    "title": "주식",
+    "tags": ["투자", "기업지분", "배당", "시세차익", "리스크"],
+    "level": "Beginner",
+    "content": "주식은 기업의 소유권을 나타내는 증권입니다. 주식을 보유하면 배당금이나 주가 상승에 따른 차익을 얻을 수 있지만, 주가 하락 위험도 있습니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2065",
+    "title": "채권",
+    "tags": ["투자", "대출", "이자수익", "안정성", "국채", "회사채"],
+    "level": "Beginner",
+    "content": "채권은 정부나 기업이 돈을 빌리기 위해 발행하는 증서입니다. 채권을 사면 정해진 이자를 받으며 만기 시 원금을 돌려받습니다. 주식보다 안정적인 편입니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2066",
+    "title": "ETF",
+    "tags": ["투자", "펀드", "주식", "지수추종", "분산투자"],
+    "level": "Beginner",
+    "content": "ETF(상장지수펀드)는 주식처럼 거래되지만, 여러 종목에 분산 투자할 수 있는 펀드입니다. 대표 지수를 추종해 안정성과 수익성을 동시에 노릴 수 있습니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2067",
+    "title": "펀드",
+    "tags": ["투자", "자산운용", "전문가", "분산투자"],
+    "level": "Beginner",
+    "content": "펀드는 여러 투자자의 돈을 모아 전문가가 대신 투자하는 금융상품입니다. 주식, 채권, 부동산 등 다양한 자산에 분산 투자할 수 있습니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2068",
+    "title": "리스크",
+    "tags": ["투자", "위험관리", "손실가능성"],
+    "level": "Beginner",
+    "content": "리스크는 투자에서 발생할 수 있는 손실 가능성을 뜻합니다. 모든 투자에는 리스크가 있으며, 이를 이해하고 관리하는 것이 중요합니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2069",
+    "title": "분산투자",
+    "tags": ["투자전략", "위험분산", "자산관리"],
+    "level": "Beginner",
+    "content": "분산투자는 여러 자산에 나누어 투자하여 위험을 줄이는 전략입니다. 주식, 채권, 부동산 등 다양한 투자처를 활용합니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2070",
+    "title": "달러 예금",
+    "tags": ["외화", "환율", "이자", "자산다각화"],
+    "level": "Beginner",
+    "content": "달러 예금은 미국 달러로 예금하는 상품입니다. 환율 변동에 따라 원화 가치가 변동할 수 있어 환차익 또는 환차손이 발생합니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2071",
+    "title": "환율",
+    "tags": ["외환", "통화", "무역", "환차익", "환차손"],
+    "level": "Beginner",
+    "content": "환율은 한 나라의 화폐를 다른 나라 화폐와 교환할 때의 비율입니다. 환율 변동은 수출입 가격과 해외 투자 수익에 영향을 줍니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2072",
+    "title": "신용점수",
+    "tags": ["신용평가", "대출", "금리", "상환능력"],
+    "level": "Beginner",
+    "content": "신용점수는 개인의 상환 능력과 금융 신뢰도를 수치로 나타낸 것입니다. 신용점수가 높을수록 낮은 금리로 대출받기 쉽습니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2073",
+    "title": "대출",
+    "tags": ["금융", "차입", "원리금상환", "금리"],
+    "level": "Beginner",
+    "content": "대출은 금융기관으로부터 돈을 빌려 쓰고 일정 기간 동안 원금과 이자를 갚는 것을 말합니다. 금리와 상환 조건을 꼼꼼히 확인해야 합니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2074",
+    "title": "변동금리",
+    "tags": ["금리", "대출", "이자", "시장금리연동"],
+    "level": "Beginner",
+    "content": "변동금리는 시장 상황에 따라 금리가 변하는 방식입니다. 금리가 내려가면 이자 부담이 줄지만, 오르면 부담이 커질 수 있습니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2075",
+    "title": "고정금리",
+    "tags": ["금리", "대출", "이자", "예측가능성"],
+    "level": "Beginner",
+    "content": "고정금리는 대출 기간 동안 금리가 변하지 않는 방식입니다. 이자 부담이 예측 가능하다는 장점이 있지만, 시장 금리가 하락하면 불리할 수 있습니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2076",
+    "title": "마이너스통장",
+    "tags": ["대출", "한도", "이자", "편리성"],
+    "level": "Beginner",
+    "content": "마이너스통장은 정해진 한도 내에서 자유롭게 돈을 빌릴 수 있는 대출 방식입니다. 사용한 금액에 대해서만 이자가 부과됩니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2077",
+    "title": "자동이체",
+    "tags": ["금융서비스", "편리성", "연체방지", "계좌관리"],
+    "level": "Beginner",
+    "content": "자동이체는 정해진 날짜에 지정한 금액이 계좌에서 자동으로 이체되는 서비스입니다. 대출 상환, 공과금 납부, 적금 납입 등에 유용합니다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 2
+  },
+  {
+    "card_id": "card_2078",
+    "title": "연금",
+    "tags": ["노후준비", "정기수입", "연금저축", "국민연금"],
+    "level": "Beginner",
+    "content": "연금은 일정 기간 또는 평생 동안 매달 받을 수 있는 금액입니다. 국민연금, 퇴직연금, 개인연금 등 다양한 종류가 있으며 노후 준비에 필수적입니다.",
     "style": "설명형",
     "media_type": "텍스트",
     "topic_id": 2
