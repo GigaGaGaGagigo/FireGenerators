@@ -1,68 +1,147 @@
 import streamlit as st
 from streamlit.navigation.page import Page as Page
+from streamlit_option_menu import option_menu
 from supabase import create_client, Client
 from pathlib import Path
 
+# ========================================
+# 🚀 팀원을 위한 개발 가이드
+# ========================================
 
-# Define available user roles in the system
+# 1. 새로운 페이지 추가하기:
+#    - ui/ 폴더에 새 페이지 파일 생성
+#    - USER_MENUS 딕셔너리에 메뉴 항목 추가
+#    - PAGE_ICONS 딕셔너리에 아이콘 추가
+#    - get_page_config() 함수에 페이지 정의 추가
+
+# 2. 스타일 수정하기:
+#    - apply_global_styles() 함수에서 CSS 수정
+#    - 브랜드 컬러: #FE7743 (주황), #273F4F (남색)
+
+# 3. 메뉴 구조 변경:
+#    - USER_MENUS에서 사용자별 메뉴 수정
+#    - 순서, 이름, 라우팅 키 변경 가능
+
+# 4. 인증 관련:
+#    - check_auth_params(): OAuth 처리
+#    - logout(): 로그아웃 처리
+#    - 새로운 역할 추가시 ROLES 배열 수정
+
+# 5. 디버깅:
+#    - st.session_state를 출력해서 상태 확인
+#    - st.write(st.session_state)로 전체 상태 확인
+
+# 6. 주의사항:
+#    - 세션 상태 변경 후 st.rerun() 필수
+#    - 파일 경로는 Path 객체 사용 권장
+#    - 에러 처리는 try-except로 감싸기
+
+
+# ========================================
+# CONFIGURATION & CONSTANTS
+# ========================================
+
+# 시스템에서 사용가능한 사용자 역할 정의
 ROLES: list[str | None] = [None, "User", "Admin"]
 
+# 페이지별 아이콘 매핑 - 팀원이 쉽게 수정 가능
+PAGE_ICONS = {
+    "chatbot": "chat-dots",
+    "dashboard": "bar-chart-line", 
+    "quiz": "question-circle",
+    "content": "book",
+    "recommendation": "gift",
+    "simulation": "graph-up",
+    "analysis": "bar-chart-line",
+    "admin1": "person-add",
+    "admin2": "security",
+    "settings": "gear",
+    "logout": "box-arrow-right"
+}
+
+# 사용자 역할별 메뉴 구성 - 새로운 메뉴 추가시 여기서 수정
+USER_MENUS = {
+    "User": [
+        ("Chatbot", "chatbot"),
+        ("오늘의 퀴즈", "quiz"),
+        ("오늘의 콘텐츠", "content"),
+        ("맞춤형 상품 추천", "recommendation"),
+        ("투자 시뮬레이션", "simulation"),
+        ("모의 투자 및 분석", "analysis"),
+        ("Settings", "settings"),
+        ("Logout", "logout")
+    ],
+    "Admin": [
+        ("Chatbot", "chatbot"),
+        ("Dashboard", "dashboard"),
+        ("Admin 1", "admin1"),
+        ("Admin 2", "admin2"),
+        ("Settings", "settings"),
+        ("Logout", "logout")
+    ]
+}
+
+# ========================================
+# CORE FUNCTIONS - 핵심 기능
+# ========================================
 
 @st.cache_resource
 def init_supabase():
     """
-    Initialize and cache Supabase client connection
-
+    Supabase 클라이언트 초기화 및 캐싱
+    
     Returns:
-        Client: Supabase client instance for database operations
-
+        Client: 데이터베이스 작업을 위한 Supabase 클라이언트 인스턴스
+        
     Raises:
-        Exception: If Supabase initialization fails
+        Exception: Supabase 초기화 실패시 예외 발생
+        
+    Note:
+        @st.cache_resource 데코레이터로 인해 한 번만 실행되고 캐시됨
     """
     try:
         supabase: Client = create_client(
-            st.secrets["supabase"]["url"], st.secrets["supabase"]["key"]
+            st.secrets["supabase"]["url"], 
+            st.secrets["supabase"]["key"]
         )
         return supabase
     except Exception as e:
-        st.error(f"Error initializing Supabase: {e}")
+        st.error(f"Supabase 초기화 오류: {e}")
         st.stop()
 
 
 def check_auth_params():
     """
-    Handle OAuth callback processing after Google login
-
+    OAuth 콜백 처리 - Google 로그인 후 리다이렉트 처리
+    
     Purpose:
-    - When user completes Google login, Google redirects back to our app
-    - URL contains an 'authorization code' that needs to be exchanged for a session
-    - This function processes that code to create a valid login session
-
+        - Google 로그인 완료 후 앱으로 돌아올 때 실행
+        - URL에 포함된 'authorization code'를 세션으로 교환
+        - 사용자 정보를 세션 스테이트에 저장
+        
     Process:
-    1. Check if 'code' parameter exists in URL
-    2. If found, exchange the code with Supabase for a session
-    3. On success, store user info and complete login
+        1. URL 파라미터에서 'code' 확인
+        2. code가 있으면 Supabase와 세션 교환
+        3. 성공시 사용자 정보 저장 및 로그인 완료
+        4. 실패시 에러 메시지 표시
     """
-    query_params = st.query_params  # Get URL parameters
+    query_params = st.query_params
 
-    # Check if 'code' exists in URL (e.g., http://localhost:8501/?code=abc123)
-    # If code is not exist, it means that the user doesn't click the login button
     if "code" in query_params:
         code = query_params["code"]
         supabase = init_supabase()
         st.session_state.supabase = supabase
 
         try:
-            # Core part: Exchange authorization code for actual session
-            # Convert temporary code from Google to usable session with Supabase
+            # 핵심: Google에서 받은 임시 코드를 실제 세션으로 교환
             response = supabase.auth.exchange_code_for_session({"auth_code": code})
 
             if response.session:
-                # Store user information
-                st.session_state.session = response.session  # Store session token
-                st.session_state.user = response.user  # Store user info
+                # 세션 정보 저장
+                st.session_state.session = response.session
+                st.session_state.user = response.user
 
-                # Load Role Data from DB
+                # 데이터베이스에서 사용자 역할 정보 로드
                 response_user_data = (
                     supabase.table("users")
                     .select("*")
@@ -70,187 +149,387 @@ def check_auth_params():
                     .execute()
                 )
 
-                # Use .data to get the data from the response
+                # 역할 정보 설정 (기본값: User)
                 if response_user_data.data:
                     st.session_state.role = response_user_data.data[0]["role"]
                 else:
                     st.session_state.role = "User"
 
-                # Clean up URL (remove code parameter)
+                # URL 정리 및 페이지 새로고침
                 st.query_params.clear()
-                # Refresh page to reflect logged-in state
                 st.rerun()
 
         except Exception as e:
-            st.error(f"Authentication failed: {e}")
+            st.error(f"인증 실패: {e}")
             st.query_params.clear()
-
-
-def login() -> None:
-    """
-    Handle user login with Google OAuth
-
-    Features:
-    1. Improved button design (Google icon, center alignment)
-    2. Actual OAuth URL redirection handling
-    3. Enhanced error handling
-    """
-    st.markdown(
-        """
-    <center>
-        <h1>FIREgenerator</h1>
-    </center>
-    """,
-        unsafe_allow_html=True,
-    )
-
-    if "user" in st.session_state:
-        st.write(st.session_state.user)
-
-    # Column layout to center the button
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        image_path = Path(__file__).parent / "assets" / "FIRE_LOGO_large.png"
-        st.image(image_path)
-        if st.button("Sign in with Google", use_container_width=True):
-            supabase = init_supabase()
-
-            # Dynamically get current app URL
-            # Use localhost:8501 locally, actual domain when deployed
-            current_url = st.get_option("browser.serverAddress")
-            port = st.get_option("browser.serverPort")
-
-            if not current_url:
-                current_url = "localhost"
-
-            redirect_url = f"http://{current_url}:{port}/"
-
-            try:
-                # Start Google OAuth login process
-                response = supabase.auth.sign_in_with_oauth(
-                    {
-                        "provider": "google",
-                        "options": {
-                            "redirect_to": redirect_url,  # URL to return to after login
-                            "scopes": "email profile",  # Requested permissions
-                        },
-                    }
-                )
-
-                if response and response.url:
-                    # Key modification: Actually redirect to Google login page
-                    # Use HTML meta tag for automatic redirection
-                    st.markdown(
-                        f'<meta http-equiv="refresh" content="0;url={response.url}">',
-                        unsafe_allow_html=True,
-                    )
-                    st.info("Google Login 중입니다..")
-
-            except Exception as e:
-                st.error(f"Login failed: {e}")
 
 
 def logout() -> None:
     """
-    Handle user logout
-
-    Changes:
-    1. Logout from Supabase server as well
-    2. Selectively delete session state (safer approach)
+    사용자 로그아웃 처리
+    
+    Process:
+        1. Supabase 서버에서 로그아웃
+        2. 세션 스테이트에서 인증 관련 정보 삭제
+        3. 페이지 새로고침으로 로그인 페이지로 이동
+        
+    Note:
+        안전한 접근을 위해 선택적으로 세션 정보 삭제
     """
     if "session" in st.session_state and st.session_state.session:
         supabase = init_supabase()
         try:
-            # Logout from Supabase server
             supabase.auth.sign_out()
         except:
-            pass
+            pass  # 서버 로그아웃 실패해도 로컬 로그아웃은 진행
 
-    # Selectively delete authentication-related info from session state
-    for key in ["session", "user", "role"]:
+    # 인증 관련 세션 정보만 선택적으로 삭제
+    auth_keys = ["session", "user", "role", "current_page"]
+    for key in auth_keys:
         if key in st.session_state:
             del st.session_state[key]
 
     st.rerun()
 
 
-# Initialize session state
-if "role" not in st.session_state:
-    st.session_state.role = None
+def login() -> None:
+    """
+    Google OAuth를 통한 사용자 로그인 처리
+    
+    Features:
+        - 중앙 정렬된 로그인 버튼
+        - 동적 리다이렉트 URL 생성
+        - 에러 처리 포함
+    """
+    st.markdown("""
+        <center>
+            <h1>FIREgenerator</h1>
+        </center>
+    """, unsafe_allow_html=True)
 
-# Check OAuth callback - runs on every page load
-# Handle users returning from Google
-check_auth_params()
+    # 3열 레이아웃으로 버튼 중앙 배치
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        # 로고 이미지 표시 (크기 조절 + 중앙 정렬)
+        image_path = Path(__file__).parent / "assets" / "FIRE_LOGO_large.png"
+        if image_path.exists():
+            # 중앙 정렬을 위한 컨테이너 생성
+            _, img_col, _ = st.columns([0.5, 1, 0.5])
+            with img_col:
+                st.image(image_path)
+        
+        # 버튼 크기 조절을 위한 추가 컬럼 생성
+        _, btn_col, _ = st.columns([1, 2, 1])
+        with btn_col:
+            if st.button("Sign in with Google", use_container_width=True):
+                try:
+                    supabase = init_supabase()
+
+                    # 동적으로 현재 앱 URL 생성
+                    current_url = st.get_option("browser.serverAddress") or "localhost"
+                    port = st.get_option("browser.serverPort")
+                    redirect_url = f"http://{current_url}:{port}/"
+
+                    # Google OAuth 로그인 프로세스 시작
+                    response = supabase.auth.sign_in_with_oauth({
+                        "provider": "google",
+                        "options": {
+                            "redirect_to": redirect_url,
+                            "scopes": "email profile",
+                        },
+                    })
+
+                    if response and response.url:
+                        # Google 로그인 페이지로 자동 리다이렉트
+                        st.markdown(
+                            f'<meta http-equiv="refresh" content="0;url={response.url}">',
+                            unsafe_allow_html=True,
+                        )
+                        st.info("Google 로그인 중입니다...")
+
+                except Exception as e:
+                    st.error(f"로그인 실패: {e}")
 
 
-# Display user info - show email if logged in
-if (
-    "role" in st.session_state
-    and st.session_state.role in ["User", "Admin"]
-    and "user" in st.session_state
-):
-    st.sidebar.success(f"Logged in as: {st.session_state.user.email}")
+# ========================================
+# UI COMPONENTS - 사용자 인터페이스 구성요소
+# ========================================
 
-# Page configuration
-role = st.session_state.role
+def apply_global_styles():
+    """
+    전체 애플리케이션에 적용될 CSS 스타일 정의
+    
+    Features:
+        - 배경색 및 카드 스타일
+        - 반응형 디자인
+        - 브랜드 컬러 적용 (#FE7743, #273F4F)
+    """
+    st.markdown("""
+        <style>
+            /* 전체 배경 스타일 */
+            .css-1aumxhk { 
+                background-color: #F2F2F2; 
+            }
 
-# Define navigation pages with icons and access control
-logout_page: Page = st.Page(logout, title="Log out", icon=":material/logout:")
-settings: Page = st.Page(
-    "ui/settings/settings.py",
-    title="Settings",
-    icon=":material/settings:",
-)
-chatbot_1: Page = st.Page(
-    "ui/chatbot/chatbot.py",
-    title="Chatbot",
-    icon=":material/chat:",
-    default=(role == "User"),
-)
-dashboard_1: Page = st.Page(
-    "ui/dashboard/dashboard_1.py",
-    title="Dashboard 1",
-    icon=":material/healing:",
-)
-admin_1: Page = st.Page(
-    "ui/admin/admin_1.py",
-    title="Admin 1",
-    icon=":material/person_add:",
-    default=(role == "Admin"),
-)
-admin_2: Page = st.Page(
-    "ui/admin/admin_2.py",
-    title="Admin 2",
-    icon=":material/security:",
-)
+            /* 카드 컴포넌트 스타일 */
+            .card {
+                background-color: white;
+                border-radius: 16px;
+                padding: 12px;
+                box-shadow: 0px 4px 16px rgba(0,0,0,0.05);
+                height: 150px;
+            }
+            .card h3 {
+                color: #FE7743;
+                margin-bottom: 8px;
+            }
 
-# Group pages by functionality
-account_pages: list[Page] = [logout_page, settings]
-chatbot_pages: list[Page] = [chatbot_1]
-dashboard_pages: list[Page] = [dashboard_1]
-admin_pages: list[Page] = [admin_1, admin_2]
+            /* 채팅 입력 필드 스타일 */
+            .stChatInput input {
+                width: 100% !important;
+                border-radius: 25px !important;
+                border: 2px solid #FE7743 !important;
+                padding: 12px 20px !important;
+                font-size: 16px !important;
+                background-color: #ffffff !important;
+            }
+
+            .stChatInput input:focus {
+                border-color: #FE7743 !important;
+                box-shadow: 0 0 0 2px rgba(254, 119, 67, 0.2) !important;
+            }
+
+            /* 채팅 메시지 스타일 */
+            .stChatMessage {
+                margin-bottom: 1rem !important;
+                max-width: 100% !important;
+            }
+
+            /* 메인 콘텐츠 영역 패딩 조정 */
+            .main .block-container {
+                padding-bottom: 120px !important;
+            }
+
+        </style>
+    """, unsafe_allow_html=True)
+
+def render_sidebar():
+    """
+    사이드바 메뉴 렌더링
+    
+    Features:
+        - 사용자 역할에 따른 동적 메뉴 구성
+        - 현재 페이지 상태 유지
+        - 아이콘과 함께 직관적인 메뉴
+        - 브랜드 컬러 적용
+    """
+    with st.sidebar:
+        # 로고 표시
+        try:
+            logo_path = Path(__file__).parent / "assets" / "FIREgen_horizontal_logo_edit.png"
+            if logo_path.exists():
+                st.image(logo_path, width=200)
+        except:
+            st.markdown("## FIREgenerator")
+        
+        # 사용자 역할에 따른 메뉴 구성
+        role = st.session_state.get("role", "User")
+        menu_config = USER_MENUS.get(role, USER_MENUS["User"])
+        
+        menu_options = [label for label, _ in menu_config]
+        menu_icons = [PAGE_ICONS.get(page_key, "circle") for _, page_key in menu_config]
+        page_mapping = {label: page_key for label, page_key in menu_config}
+        
+        # 현재 선택된 메뉴 인덱스 찾기
+        current_page = st.session_state.get("current_page", "chatbot")
+        current_index = 0
+        for i, (_, page_key) in enumerate(menu_config):
+            if page_key == current_page:
+                current_index = i
+                break
+        
+        # 메뉴 렌더링
+        selected = option_menu(
+            menu_title=None,
+            options=menu_options,
+            icons=menu_icons,
+            default_index=current_index,
+            styles={
+                "container": {"padding": "0", "background-color": "#F2F2F2"},
+                "icon": {"color": "#273F4F", "font-size": "18px"},
+                "nav-link": {
+                    "font-size": "16px",
+                    "text-align": "left",
+                    "--hover-color": "#FEE5A5",
+                },
+                "nav-link-selected": {
+                    "background-color": "#FE7743",
+                    "color": "white",
+                },
+            },
+        )
+
+        # 사용자 정보 표시
+        user_email = st.session_state.user.email if "user" in st.session_state else "Unknown"
+        st.success(f"로그인됨: {user_email}")
+        
+        # 메뉴 선택 처리
+        new_page = page_mapping[selected]
+        if new_page == "logout":
+            logout()
+        elif new_page != current_page:
+            st.session_state.current_page = new_page
+            st.rerun()
 
 
-# Configure logo and icon paths
-logo_path = Path(__file__).parent / "assets" / "FIREgen_horizontal_logo.png"
-icon_path = Path(__file__).parent / "assets" / "FIRE_LOGO_small.png"
+# ========================================
+# PAGE ROUTING - 페이지 라우팅 시스템
+# ========================================
 
-st.logo(str(logo_path), icon_image=str(icon_path))
+def route_to_page():
+    """
+    현재 선택된 페이지에 따라 적절한 콘텐츠를 렌더링
+    
+    Note:
+        각 페이지의 실제 구현은 ui/ 폴더의 해당 파일에서 import하여 사용
+    """
+    current_page = st.session_state.get("current_page", "chatbot")
+    
+    try:
+        if current_page == "chatbot":
+            try:
+                from ui.chatbot.chatbot_sample import render
+                render()
+            except ImportError:
+                st.title("💬 Chatbot")
+                st.info("ui/chatbot/chatbot.py 파일을 생성하고 render() 함수를 구현해주세요.")
+                st.code('''
+# ui/chatbot/chatbot.py
+import streamlit as st
 
-# Build navigation dictionary based on user role
-page_dict: dict[str, list[Page]] = {}
-if st.session_state.role in ["User", "Register"]:
-    page_dict["Chatbot"] = chatbot_pages
-if st.session_state.role in ["User", "Register"]:
-    page_dict["Dashboard"] = dashboard_pages
-if st.session_state.role == "Admin":
-    page_dict["Admin"] = admin_pages
+def render():
+    st.title("💬 AI Chatbot")
+    st.write("채팅봇 기능을 여기에 구현하세요.")
+                ''', language='python')
+            
+        elif current_page == "quiz":
+            try:
+                from ui.quiz.quiz import render
+                render()
+            except ImportError:
+                st.title("🧠 오늘의 퀴즈")
+                st.info("ui/quiz/quiz.py 파일을 생성해주세요.")
+                
+        elif current_page == "content":
+            try:
+                from ui.content.content import render
+                render()
+            except ImportError:
+                st.title("📚 오늘의 콘텐츠")
+                st.info("ui/content/content.py 파일을 생성해주세요.")
+                
+        elif current_page == "recommendation":
+            try:
+                from ui.recommendation.recommendation import render
+                render()
+            except ImportError:
+                st.title("🎁 맞춤형 상품 추천")
+                st.info("ui/recommendation/recommendation.py 파일을 생성해주세요.")
+                
+        elif current_page == "simulation":
+            try:
+                from ui.simulation.simulation_sample import render
+                render()
+            except ImportError:
+                st.title("📈 투자 시뮬레이션")
+                st.info("ui/simulation/simulation.py 파일을 생성해주세요.")
+                
+        elif current_page == "analysis":
+            try:
+                from ui.analysis.analysis import render
+                render()
+            except ImportError:
+                st.title("📊 모의 투자 및 분석")
+                st.info("ui/analysis/analysis.py 파일을 생성해주세요.")
+                
+        elif current_page == "settings":
+            try:
+                from ui.settings.settings_sample import render
+                render()
+            except ImportError:
+                st.title("⚙️ Settings")
+                st.info("ui/settings/settings.py 파일을 생성해주세요.")
+                
+        else:
+            st.title("🏠 홈")
+            st.write("환영합니다! 사이드바에서 원하는 메뉴를 선택해주세요.")
+            
+    except Exception as e:
+        st.error(f"페이지 로딩 중 오류가 발생했습니다: {e}")
+        st.write("파일 구조와 import 경로를 확인해주세요.")
 
-# Display appropriate navigation based on login status
-if len(page_dict) > 0:
-    pg = st.navigation({"Account": account_pages} | page_dict)
-else:
-    pg = st.navigation([st.Page(login)])
 
-# Run the selected page
-pg.run()
+def main_app():
+    """
+    메인 애플리케이션 실행
+    
+    Flow:
+        1. 스타일 적용
+        2. 헤더 렌더링  
+        3. 사이드바 렌더링 (커스텀 메뉴)
+        4. 현재 페이지에 따른 콘텐츠 표시
+    """
+    apply_global_styles()
+    render_sidebar()
+    
+    # 현재 선택된 페이지에 따른 콘텐츠 렌더링
+    route_to_page()
+
+# ========================================
+# MAIN EXECUTION - 메인 실행부
+# ========================================
+
+def main():
+    """
+    애플리케이션 엔트리 포인트
+    
+    Flow:
+        1. 페이지 설정
+        2. 세션 상태 초기화
+        3. OAuth 콜백 처리
+        4. 인증 상태에 따른 페이지 라우팅
+    """
+    # 페이지 설정을 가장 먼저 해야 함
+    st.set_page_config(
+        page_title="FIREgenerator", 
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    
+    # 세션 상태 초기화
+    if "role" not in st.session_state:
+        st.session_state.role = None
+    
+    if "current_page" not in st.session_state:
+        st.session_state.current_page = "chatbot"
+
+    # OAuth 콜백 처리 (페이지 로드시마다 확인)
+    check_auth_params()
+
+    # 인증 상태 확인 및 페이지 라우팅
+    if (
+        "role" in st.session_state
+        and st.session_state.role in ["User", "Admin"]
+        and "user" in st.session_state
+    ):
+        # 로그인된 사용자: 메인 앱 실행
+        main_app()
+    else:
+        # 미로그인 사용자: 로그인 페이지 표시
+        pg = st.navigation([st.Page(login)])
+        pg.run()
+
+
+# 애플리케이션 실행
+if __name__ == "__main__":
+    main()
