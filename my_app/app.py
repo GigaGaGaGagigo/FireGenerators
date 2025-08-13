@@ -141,19 +141,33 @@ def check_auth_params():
                 st.session_state.session = response.session
                 st.session_state.user = response.user
 
-                # 데이터베이스에서 사용자 역할 정보 로드
-                response_user_data = (
-                    supabase.table("users")
-                    .select("*")
-                    .eq("user_email", st.session_state.user.email)
-                    .execute()
-                )
+                # ── profiles 기준으로 역할/프로필 동기화 ──
+                uid = st.session_state.user.id
+                email = st.session_state.user.email
+                meta = getattr(st.session_state.user, "user_metadata", {}) or {}
+                name = meta.get("full_name") or meta.get("name") or email
 
-                # 역할 정보 설정 (기본값: User)
-                if response_user_data.data:
-                    st.session_state.role = response_user_data.data[0]["role"]
+                sel = supabase.table("profiles").select("*").eq("id", uid).execute()
+                rows = sel.data if hasattr(sel, "data") else sel
+
+                if not rows:
+                    ins = supabase.table("profiles").insert({
+                        "id": uid,
+                        "email": email,
+                        "name": name,
+                        "role": "User",
+                    }).execute()
+                    profile = (ins.data or [])[0] if hasattr(ins, "data") else {
+                        "id": uid, "email": email, "name": name, "role": "User"
+                    }
                 else:
-                    st.session_state.role = "User"
+                    profile = rows[0]
+                    if not profile.get("role"):
+                        upd = supabase.table("profiles").update({"role": "User"}).eq("id", uid).execute()
+                        profile = (upd.data or [])[0] if hasattr(upd, "data") else {**profile, "role": "User"}
+
+                st.session_state.profile = profile
+                st.session_state.role = profile.get("role", "User")
 
                 # URL 정리 및 페이지 새로고침
                 st.query_params.clear()
@@ -370,7 +384,7 @@ def render_sidebar():
         )
 
         # 사용자 정보 표시
-        user_email = st.session_state.user.email if "user" in st.session_state else "Unknown"
+        user_email = st.session_state.get("profile", {}).get("email", "Unknown")
         st.success(f"로그인됨: {user_email}")
         
         # 메뉴 선택 처리
