@@ -543,12 +543,19 @@ def render():
     # 채팅 패널 전달용 메시지 버퍼 보장 (위에서 사용 중)
     if "messages" not in st.session_state:
         st.session_state.messages = []
+    # 초기 안내 메시지(중복 방지)
+    if not any(m.get("role") == "assistant" for m in st.session_state.messages):
+        st.session_state.messages.append({
+            "id": str(uuid.uuid4()),
+            "role": "assistant",
+            "content": "안녕하세요! 금융 지식 퀴즈를 시작해보세요. 아래 버튼으로 시작할 수 있어요."
+        })
 
     # 헤더
     st.title("🧠 오늘의 퀴즈")
     st.caption("공통문항 + LLM 맞춤 문항으로 금융 지식을 빠르게 점검합니다.")
 
-    # 상태/컨트롤 영역
+    # 상태/컨트롤 영역 (기존 유지)
     with st.container():
         c1, c2, c3 = st.columns([1, 1, 2])
         with c1:
@@ -587,20 +594,51 @@ def render():
                     st.session_state.pop(key, None)
                 st.rerun()
 
-    # 안내 카드 (시작 전만 표시)
-    if not st.session_state.get("quiz_started", False):
-        st.markdown("""
-        <div class="question-card">
-          <div class="question-title">진행 방식</div>
-          <ul style="margin:6px 0 0 18px; line-height:1.6;">
-            <li>총 문항: 10문항 (공통 3 + 맞춤 7)</li>
-            <li>문항 유형: OX 또는 4지선다</li>
-            <li>난이도에 따라 가중치가 다릅니다 (easy=1, medium=2)</li>
-            <li>제출 후 피드백은 챗봇 메시지로 제공됩니다</li>
-          </ul>
-        </div>
-        """, unsafe_allow_html=True)
-        return
+    # ---- 여기서부터 레이아웃(좌:퀴즈, 우:챗봇) 추가 ----
+    left_screen, right_screen = st.columns([0.55, 0.45], border=True)
 
-    # 실제 퀴즈 섹션 렌더링
-    render_quiz_section()
+    with left_screen:
+        # 시작 전엔 안내 카드, 시작하면 퀴즈 섹션 (기존 코드 "안내 카드"를 이동, return 제거)
+        if not st.session_state.get("quiz_started", False):
+            st.markdown("""
+            <div class="question-card">
+              <div class="question-title">진행 방식</div>
+              <ul style="margin:6px 0 0 18px; line-height:1.6;">
+                <li>총 문항: 10문항 (공통 3 + 맞춤 7)</li>
+                <li>문항 유형: OX 또는 4지선다</li>
+                <li>난이도에 따라 가중치가 다릅니다 (easy=1, medium=2)</li>
+                <li>제출 후 피드백은 챗봇 메시지로 제공됩니다</li>
+              </ul>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            # 실제 퀴즈 섹션 렌더링 (기존 유지)
+            render_quiz_section()
+
+    with right_screen:
+        # 메시지 영역
+        chat_message_area = st.container()
+        with chat_message_area:
+            st.markdown("<div style='height:480px; overflow-y:auto; padding:8px;'>", unsafe_allow_html=True)
+            for msg in st.session_state.messages:
+                with st.chat_message(msg["role"]):
+                    st.write(msg["content"])
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            # 시작 전이면 오른쪽에도 시작 버튼 노출 (UX 편의)
+            if not st.session_state.quiz_started and not st.session_state.quiz_completed:
+                if st.button("시작하기", key="start_quiz_right"):
+                    st.session_state.quiz_started = True
+                    st.session_state.quiz_completed = False
+                    st.session_state.completion_announced = False
+                    st.rerun()
+
+        # 입력 영역
+        chat_input_area = st.container()
+        with chat_input_area:
+            prompt = st.chat_input("챗봇에게 물어보세요")
+            if prompt:
+                st.session_state.messages.append(
+                    {"id": str(uuid.uuid4()), "role": "user", "content": prompt}
+                )
+                st.rerun()

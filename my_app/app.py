@@ -348,6 +348,8 @@ def render_sidebar():
         
         # 사용자 역할에 따른 메뉴 구성
         role = st.session_state.get("role", "User")
+        if not isinstance(role, str):
+            role = "User"  # 문자열이 아닐 경우 기본값
         menu_config = USER_MENUS.get(role, USER_MENUS["User"])
         
         menu_options = [label for label, _ in menu_config]
