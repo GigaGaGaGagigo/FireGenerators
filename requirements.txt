@@ -110,6 +110,7 @@ soupsieve==2.7
 starlette==0.47.2
 storage3==0.12.0
 streamlit==1.47.0
+streamlit-option-menu==0.4.0
 StrEnum==0.4.15
 supabase==2.17.0
 supafunc==0.10.1
