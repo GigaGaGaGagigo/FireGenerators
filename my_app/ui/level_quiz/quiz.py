@@ -179,7 +179,10 @@ def save_result(score, level):
         if res.data:
             user_data = res.data[0]
             user_name = user_data.get("user_name", "Anonymous")
-            st.session_state.role = user_data.get("user_role", "User")
+            st.session_state.role = (
+                user_data.get("user_role", "User") if isinstance(user_data, dict)
+                else getattr(user_data, "user_role", "User")
+            )
         else:
             user_name = "Anonymous"
     except Exception:
@@ -194,6 +197,8 @@ def save_result(score, level):
     except Exception:
         return None
     return {"user_name": user_name, "score": score, "level": level}
+
+
 
 # ── 2. LLM 프롬프트 설계 ─────────────────────────────────────────────────────
 SYSTEM_PROMPT_QGEN = """
