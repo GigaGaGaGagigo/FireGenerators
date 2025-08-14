@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
 from supabase import create_client
 import datetime
 import pandas as pd
@@ -7,6 +8,8 @@ import numpy as np
 import io
 import json
 import pandas_ta as ta
+
+load_dotenv()
 
 # LLM API 연동
 import google.generativeai as genai
@@ -163,7 +166,7 @@ def build_context(user, trade, feedback, stats, config, selected_tone):
 
 
 def ai_commentary(context):
-    genai.configure(api_key= "AlzaSyBLGr5ejXQ2DDp9FXLn9ktgPNPpbxOLJoQ")  #실제 사용 시 .environ.get("GOOGLE_API_KEY")
+    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))  #실제 사용 시 .environ.get("GOOGLE_API_KEY")
     model = genai.GenerativeModel("gemini-1.5-flash-latest")
     response = model.generate_content(context)
 
