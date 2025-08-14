@@ -1,9 +1,13 @@
+from dotenv import load_dotenv
 import streamlit as st
 import json
 import glob
 import random
 import pandas as pd
 import os
+from explanation_generator import generate_explanation
+
+load_dotenv()
 
 class Recommender:
     """
@@ -100,6 +104,112 @@ class Recommender:
             scored.sort(key=lambda x: x[1], reverse=True)  # 점수 내림차순 정렬
             return [c for c, _ in scored][:top_k]
 
+def save_feedback(card_id, title, user_name, feedback_type):
+    """
+    콘텐츠 피드백을 저장하는 함수 (향후 DB 연결 예정)
+    현재는 세션 상태에만 저장
+    
+    Args:
+        card_id (str): 콘텐츠 ID (없으면 title 기반으로 생성)
+        title (str): 콘텐츠 제목
+        user_name (str): 사용자 이름
+        feedback_type (str): 피드백 타입 ('positive', 'neutral', 'negative')
+    """
+    # 세션 상태에 피드백 저장소가 없으면 초기화
+    if 'feedback_data' not in st.session_state:
+        st.session_state.feedback_data = []
+    
+    if not card_id:
+        card_id = f"content_{hash(title) % 10000}"
+    
+    # 피드백 데이터 생성
+    feedback_entry = {
+        'card_id': card_id,
+        'content_title': title,  # 수정: 'title'을 'content_title'로 변경
+        'user_name': user_name,
+        'feedback_type': feedback_type,
+        'timestamp': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+    
+    # 세션 상태에 피드백 추가
+    st.session_state.feedback_data.append(feedback_entry)
+    
+    # 향후 DB 저장 로직이 들어갈 자리
+    # TODO: 데이터베이스 연결 시 아래 코드 활성화
+    # save_to_database(feedback_entry)
+    
+def display_feedback_buttons(content, user_name, content_identifier):
+    """
+    콘텐츠별 피드백 버튼을 표시하는 함수
+    
+    Args:
+        content (dict): 콘텐츠 정보
+        user_name (str): 사용자 이름
+        content_identifier (str/int): 콘텐츠 식별자 (ID 또는 인덱스)
+    """
+    card_id = content.get('id', '')
+    title = content.get('title', 'Unknown Title')
+    
+    st.write("**💬 이 콘텐츠가 도움이 되셨나요?**")
+    
+    # 안정적인 고유 키 생성
+    user_hash = hash(user_name) % 10000
+    content_hash = hash(str(content_identifier)) % 10000
+    feedback_key = f"feedback_{user_hash}_{content_hash}"
+    
+    # 피드백 데이터에서 해당 사용자-콘텐츠 조합의 기존 피드백 확인
+    existing_feedback = None
+    if 'feedback_data' in st.session_state:
+        for feedback in st.session_state.feedback_data:
+            if (feedback['user_name'] == user_name and 
+                feedback['content_title'] == title):
+                existing_feedback = feedback['feedback_type']
+                break
+    
+    # 이미 피드백을 받은 경우 표시만 하고 버튼 비활성화
+    if existing_feedback:
+        emoji_map = {"positive": "👍", "neutral": "😐", "negative": "👎"}
+        status_map = {
+            "positive": "도움됨으로 평가하셨습니다",
+            "neutral": "보통으로 평가하셨습니다", 
+            "negative": "아쉬움으로 평가하셨습니다"
+        }
+        st.success(f"{emoji_map[existing_feedback]} {status_map[existing_feedback]}")
+        return
+    
+    # 3개의 피드백 버튼을 한 줄에 배치
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button(
+            "👍 도움됨", 
+            key=f"positive_{feedback_key}",
+            help="콘텐츠가 유용하고 만족스러워요"
+        ):
+            save_feedback(card_id, title, user_name, "positive")
+            st.success("피드백이 저장되었습니다! 👍")
+            # st.rerun() 제거 - 자연스러운 상태 변화 사용
+    
+    with col2:
+        if st.button(
+            "😐 보통", 
+            key=f"neutral_{feedback_key}",
+            help="나쁘지 않지만 특별하지 않아요"
+        ):
+            save_feedback(card_id, title, user_name, "neutral")
+            st.info("피드백이 저장되었습니다! 😐")
+            # st.rerun() 제거
+    
+    with col3:
+        if st.button(
+            "👎 아쉬움", 
+            key=f"negative_{feedback_key}",
+            help="내용이 기대에 못 미치거나 개선이 필요해요"
+        ):
+            save_feedback(card_id, title, user_name, "negative")
+            st.warning("피드백이 저장되었습니다! 개선하겠습니다 👎")
+            # st.rerun() 제거
+
 # ========================================
 # Streamlit 웹 애플리케이션 UI 구성
 # ========================================
@@ -170,7 +280,6 @@ for file in content_files:
 # ========================================
 # 3. 샘플 사용자 정의 및 선택
 # ========================================
-
 
 # 테스트용 샘플 사용자 데이터 (수정된 필드명으로 업데이트)
 sample_users = [
@@ -285,7 +394,7 @@ results = rec.recommend(
     selected_user["knowledge_level"],        # 사용자 지식 레벨
     selected_user["interests_categories"],   # 관심 카테고리
     selected_user["emotions"],               # 감정 점수
-    top_k=3  # 최대 5개까지 추천
+    top_k=3  # 최대 3개까지 추천
 )
 
 # ========================================
@@ -304,52 +413,157 @@ if results:
     st.dataframe(df_results[display_columns])
     
     # 추천 결과 상세 정보를 확장 가능한 형태로 표시
-    st.subheader("# 추천 상세 정보")
+    st.subheader("ℹ️ 추천 상세 정보")
+    
+    # LLM 설명 캐싱을 위한 세션 상태 초기화
+    if 'llm_explanations' not in st.session_state:
+        st.session_state.llm_explanations = {}
+    
     for i, content in enumerate(results, 1):
-        # 각 콘텐츠별로 확장 가능한 박스 생성
-        with st.expander(f"{i}. {content.get('title', 'Unknown Title')}"):
+        # 각 콘텐츠별로 확장 가능한 박스 생성 (기본적으로 닫혀있음)
+        with st.expander(f"{i}. {content.get('title', 'Unknown Title')}", expanded=False):
             st.write(f"**레벨:** {content.get('level', 'Unknown')}")
             st.write(f"**태그:** {', '.join(content.get('tags', []))}")
+
+            # 💡 원래 설명 표시
+            original_expl = content.get('content', content.get('description', ''))[:400]
+            st.markdown(f"**📝 원래 설명:** {original_expl}")
+
+            # 💬 Gemini 맞춤 설명 추가 (더 강력한 캐싱 사용)
+            # 콘텐츠 제목과 사용자 레벨 조합으로 고유 키 생성
+            content_title = content.get('title', '')
+            user_level = selected_user["knowledge_level"]
+            content_id = content.get('id', f"content_{hash(content_title) % 100000}")  # 고유 ID 생성
             
-            # 설명이 있는 경우에만 표시
-            if 'description' in content:
-                st.write(f"**설명:** {content['description']}")
+            # 더 안정적인 캐시 키 생성 (콘텐츠 ID + 레벨)
+            content_key = f"{content_id}___{user_level}"
+            
+            # 캐시에 설명이 있는지 확인
+            if content_key in st.session_state.llm_explanations:
+                # 캐시된 설명 사용 (LLM 호출 없음)
+                cached_explanation = st.session_state.llm_explanations[content_key]
+                st.markdown(f"**💬 맞춤 설명:** *(캐시됨)*")
                 
-            # 내용이 있는 경우 처음 200자만 미리보기로 표시
-            if 'content' in content:
-                st.write(f"**내용:** {content['content'][:400]}")
+                if "오류" in cached_explanation:
+                    st.warning(cached_explanation)
+                else:
+                    st.info(cached_explanation)
+            else:
+                # 캐시에 없는 경우에만 새로 생성
+                st.markdown(f"**💬 맞춤 설명:**")
+                
+                # 고유한 버튼 키 생성 (사용자 이름 + 콘텐츠 ID + 레벨)
+                user_hash = hash(selected_user_name) % 10000
+                generate_key = f"generate_{user_hash}_{content_id}_{user_level}"
+                
+                # 생성 상태 추적을 위한 키
+                generating_key = f"generating_{content_key}"
+                
+                col_btn, col_status = st.columns([1, 3])
+                
+                with col_btn:
+                    # 생성 중인지 확인
+                    is_generating = st.session_state.get(generating_key, False)
+                    
+                    if st.button(
+                        "⏳ 생성 중..." if is_generating else " ➡️ AI 설명 생성",
+                        key=generate_key,
+                        disabled=is_generating,
+                        help="이 버튼을 클릭하면 AI가 맞춤 설명을 생성합니다"
+                    ):
+                        # 생성 상태로 변경 (rerun 없이)
+                        st.session_state[generating_key] = True
+                        
+                        # LLM 호출 실행
+                        with col_status:
+                            try:
+                                with st.spinner("맞춤 설명 생성 중... ⏳"):
+                                    custom_expl = generate_explanation(
+                                        level=user_level,
+                                        content_title=content_title,
+                                        content_description=content.get('description', content.get('content', ''))[:400]
+                                    )
+                                    # 캐시에 저장
+                                    st.session_state.llm_explanations[content_key] = custom_expl
+                                    
+                                    # 생성 완료 상태로 변경
+                                    st.session_state[generating_key] = False
+                                    st.info(custom_expl)
+                                    
+                            except Exception as e:
+                                error_msg = f"설명 생성 오류: {e}"
+                                st.session_state.llm_explanations[content_key] = error_msg
+                                st.session_state[generating_key] = False
+                                st.error(error_msg)
+                
+                with col_status:
+                    if is_generating:
+                        st.write("*AI가 맞춤 설명을 생성하고 있습니다...*")
+            
+            st.markdown("---")  # 구분선 추가
+            
+            # 🔥 피드백 버튼 추가 (콘텐츠 ID 기반으로 안정적인 키 생성)
+            display_feedback_buttons(content, selected_user_name, content_id)
 else:
     # 추천된 콘텐츠가 없는 경우
     st.warning("추천할 콘텐츠가 없습니다.")
 
-# 감정 점수 기준 설명
-st.subheader("# 감정 기준 및 레벨 조정")
+# ========================================
+# 6. 감정 점수 기준 설명
+# ========================================
 
-"""
-감정 점수 (emotions) 기준 (-100 ~ 100):
-- 매우 부정적: -60 이하 (심한 스트레스, 우울감)
-- 부정적: -30 ~ -59 (스트레스, 걱정)
-- 약간 부정적: -10 ~ -29 (가벼운 우려)
-- 중립적: -9 ~ 29 (평범한 상태)
-- 약간 긍정적: 30 ~ 49 (기분 좋음)
-- 긍정적: 50 ~ 79 (의욕적, 활기참)
-- 매우 긍정적: 80 이상 (열정적, 흥미진진)
+with st.expander("💡 감정 기준 및 레벨 조정 설명"):
+    st.write(
+    """
+    **감정 점수 (emotions) 기준 (-100 ~ 100):**
+    - 매우 부정적: -60 이하 (심한 스트레스, 우울감)
+    - 부정적: -30 ~ -59 (스트레스, 걱정)
+    - 약간 부정적: -10 ~ -29 (가벼운 우려)
+    - 중립적: -9 ~ 29 (평범한 상태)
+    - 약간 긍정적: 30 ~ 49 (기분 좋음)
+    - 긍정적: 50 ~ 79 (의욕적, 활기참)
+    - 매우 긍정적: 80 이상 (열정적, 흥미진진)
 
-레벨 조정 로직:
-- emotions <= -30: 한 단계 쉬운 레벨로 조정
-- emotions >= 30: 한 단계 어려운 레벨로 조정
-- -29 ~ 29: 레벨 유지
-"""
+    **레벨 조정 로직:**
+    - emotions <= -30: 한 단계 쉬운 레벨로 조정
+    - emotions >= 30: 한 단계 어려운 레벨로 조정
+    - -29 ~ 29: 레벨 유지
+    """
+    )
 
 # ========================================
-# 6. 선택된 사용자 정보 표시
+# 7. 피드백 상세 결과
+# ========================================
+
+if 'feedback_data' in st.session_state and st.session_state.feedback_data:
+    st.subheader("📋 피드백 상세 결과")
+    feedback_df = pd.DataFrame(st.session_state.feedback_data)
+    
+    # 피드백 통계
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.write(f"**총 피드백 수:** {len(feedback_df)}개")
+        feedback_counts = feedback_df['feedback_type'].value_counts()
+        for feedback_type, count in feedback_counts.items():
+            emoji = {"positive": "👍", "neutral": "😐", "negative": "👎"}
+            st.write(f"{emoji.get(feedback_type, '❓')} {feedback_type}: {count}개")
+    
+    with col2:
+        # 피드백 데이터 테이블
+        st.dataframe(feedback_df[['content_title', 'feedback_type', 'timestamp']], 
+                    use_container_width=True)
+
+# ========================================
+# 8. 사이드바에 사용자 정보 및 추천 로직 표시
 # ========================================
 
 st.sidebar.subheader("3. 선택된 사용자 정보")
 
 # 사용자의 모든 정보를 키-값 쌍으로 표시
 for key, value in selected_user.items():
-    st.sidebar.write(f"**{key}:** {value}")
+    if key != "name":  # 이름은 이미 선택박스에 표시되므로 제외
+        st.sidebar.write(f"**{key}:** {value}")
 
 # 감정 점수에 따른 레벨 조정 정보 표시
 adjusted_level = rec.adjust_level_by_emotion(
@@ -373,4 +587,56 @@ else:
 
 st.sidebar.write(f"**감정 상태:** {emotion_status}")
 st.sidebar.write(f"**레벨 조정:** {level_change}")
-st.sidebar.write(f"**사용자 맞춤 레벨:** {adjusted_level}")
+st.sidebar.write(f"**최종 추천 레벨:** {adjusted_level}")
+
+# ========================================
+# 9. 사이드바에 피드백 관리 및 개발자 정보
+# ========================================
+
+st.sidebar.subheader("5. 피드백 관리")
+
+# 세션에 피드백 데이터가 있으면 통계 표시
+if 'feedback_data' in st.session_state and st.session_state.feedback_data:
+    feedback_df = pd.DataFrame(st.session_state.feedback_data)
+    
+    # 피드백 초기화 버튼 (LLM 캐시도 함께 초기화)
+    if st.sidebar.button("🗑️ 피드백 데이터 초기화"):
+        st.session_state.feedback_data = []
+        # LLM 설명 캐시도 초기화
+        if 'llm_explanations' in st.session_state:
+            st.session_state.llm_explanations = {}
+        # 생성 상태도 초기화
+        keys_to_remove = [key for key in st.session_state.keys() if key.startswith('generating_')]
+        for key in keys_to_remove:
+            del st.session_state[key]
+        st.sidebar.success("피드백 데이터가 초기화되었습니다!")
+        # st.rerun() 제거
+else:
+    st.sidebar.write("아직 피드백이 없습니다.")
+
+if st.sidebar.checkbox("🔧 개발자 모드"):
+    st.sidebar.subheader("개발자 정보")
+    
+    # 세션 상태 정보
+    st.sidebar.write("**세션 상태:**")
+    st.sidebar.json({
+        "feedback_count": len(st.session_state.get('feedback_data', [])),
+        "llm_cache_count": len(st.session_state.get('llm_explanations', {})),
+        "cached_keys": list(st.session_state.get('llm_explanations', {}).keys())[:5]  # 처음 5개 캐시 키만 표시
+    })
+    
+    # LLM 캐시 관리
+    if st.sidebar.button("🗑️ LLM 캐시 초기화"):
+        if 'llm_explanations' in st.session_state:
+            st.session_state.llm_explanations = {}
+        # 생성 상태도 초기화
+        keys_to_remove = [key for key in st.session_state.keys() if key.startswith('generating_')]
+        for key in keys_to_remove:
+            del st.session_state[key]
+        st.sidebar.success("LLM 캐시가 초기화되었습니다!")
+        # st.rerun() 제거
+    
+    # 추천 콘텐츠 원본 데이터
+    if results:
+        with st.sidebar.expander("추천 콘텐츠 원본 데이터"):
+            st.sidebar.json(results[:2])  # 처음 2개만 표시
