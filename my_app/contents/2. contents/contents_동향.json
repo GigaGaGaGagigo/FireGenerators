@@ -1,0 +1,512 @@
+[
+  {
+    "card_id": "card_8001",
+    "title": "환경 보호 정책",
+    "tags": ["환경", "정책", "보호"],
+    "level": "Beginner",
+    "content": "많은 나라에서 환경을 보호하는 규칙을 만들고 있다. 회사들도 환경에 해롭지 않은 방법으로 일하려고 한다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8002",
+    "title": "디지털 전환 가속",
+    "tags": ["디지털", "변화", "기술"],
+    "level": "Intermediate",
+    "content": "회사들이 컴퓨터와 인터넷 기술을 더 많이 사용해서 일하는 방법을 바꾸고 있다. 이렇게 하면 일이 더 빠르고 효율적으로 된다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8003",
+    "title": "공급망 변화",
+    "tags": ["공급망", "변화", "무역"],
+    "level": "Intermediate",
+    "content": "미국과 중국의 갈등, 그리고 코로나19 때문에 물건을 만들고 파는 방식이 바뀌고 있다. 각 나라는 자신의 나라에서 더 많은 것을 만들려고 한다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8004",
+    "title": "원자재 가격 변동",
+    "tags": ["원자재", "가격", "변화"],
+    "level": "Intermediate",
+    "content": "코로나19 이후 철, 석유 같은 기본 재료들의 값이 자주 오르내린다. 이것은 물건 값에도 영향을 준다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8005",
+    "title": "인공지능 확산",
+    "tags": ["인공지능", "AI", "기술"],
+    "level": "Beginner",
+    "content": "인공지능이 여러 분야에서 사용되고 있다. 사람 대신 일하거나 새로운 제품을 만드는 데 도움을 준다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8006",
+    "title": "재생에너지 투자 확대",
+    "tags": ["재생에너지", "투자", "환경"],
+    "level": "Intermediate",
+    "content": "전 세계에서 태양광, 풍력 같은 깨끗한 에너지에 돈을 많이 투자하고 있다. 에너지를 만드는 방법이 바뀌고 있다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8007",
+    "title": "원격 근무 증가",
+    "tags": ["재택근무", "원격근무", "변화"],
+    "level": "Beginner",
+    "content": "코로나19 이후 집에서 일하는 사람들이 많아졌다. 일하는 방식과 회사 문화가 많이 변했다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8008",
+    "title": "ESG 경영",
+    "tags": ["ESG", "경영", "환경"],
+    "level": "Intermediate",
+    "content": "회사들이 환경, 사회, 경영 방식을 모두 고려해서 사업을 한다. 이것이 회사의 경쟁력을 결정하는 중요한 기준이 되고 있다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8009",
+    "title": "블록체인 활용",
+    "tags": ["블록체인", "기술", "활용"],
+    "level": "Intermediate",
+    "content": "블록체인이라는 새로운 기술이 은행업무, 물건 추적, 인증 등 여러 분야에서 사용되고 있다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8010",
+    "title": "교통수단 혁신",
+    "tags": ["교통", "혁신", "자동차"],
+    "level": "Beginner",
+    "content": "전기차, 스스로 운전하는 자동차 같은 새로운 교통수단이 빠르게 발전하고 있다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8011",
+    "title": "디지털 병원 서비스",
+    "tags": ["디지털", "병원", "의료"],
+    "level": "Intermediate",
+    "content": "멀리서도 의사 진료를 받고, 몸에 차는 기기로 건강을 체크하는 새로운 의료 서비스가 늘어나고 있다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8012",
+    "title": "탄소 줄이기",
+    "tags": ["탄소", "환경", "정책"],
+    "level": "Beginner",
+    "content": "정부와 회사들이 공기를 더럽히는 탄소를 줄이려고 노력하고 있다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8013",
+    "title": "똑똑한 공장",
+    "tags": ["스마트공장", "제조업", "자동화"],
+    "level": "Intermediate",
+    "content": "컴퓨터와 인공지능을 사용하는 똑똑한 공장이 늘어나고 있다. 이런 공장은 물건을 더 잘, 더 빠르게 만들 수 있다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8014",
+    "title": "핀테크 서비스",
+    "tags": ["핀테크", "금융", "서비스"],
+    "level": "Intermediate",
+    "content": "스마트폰으로 돈을 보내고 받는 새로운 금융 서비스가 늘어나고 있다. 은행을 가지 않고도 많은 금융 업무를 할 수 있다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8015",
+    "title": "사물인터넷",
+    "tags": ["IoT", "연결", "기술"],
+    "level": "Intermediate",
+    "content": "집 안의 가전제품들이 인터넷에 연결되어 똑똑하게 작동한다. 도시 전체가 이런 기술로 더 편리해지고 있다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8016",
+    "title": "빅데이터 활용",
+    "tags": ["빅데이터", "데이터", "분석"],
+    "level": "Intermediate",
+    "content": "많은 양의 정보를 분석해서 회사가 더 좋은 결정을 내리고 고객에게 맞는 상품을 만든다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8017",
+    "title": "클라우드 서비스",
+    "tags": ["클라우드", "서비스", "컴퓨터"],
+    "level": "Intermediate",
+    "content": "인터넷으로 컴퓨터 작업을 하는 클라우드 서비스가 여러 산업에서 널리 사용되고 있다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8018",
+    "title": "자율주행 기술",
+    "tags": ["자율주행", "기술", "자동차"],
+    "level": "Beginner",
+    "content": "사람이 운전하지 않아도 스스로 움직이는 자동차 기술이 빠르게 발전하고 있다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8019",
+    "title": "친환경 자동차",
+    "tags": ["친환경", "자동차", "전기차"],
+    "level": "Beginner",
+    "content": "전기로 움직이는 자동차와 수소로 움직이는 자동차가 늘어나고 있다. 환경을 보호하는 정책과 함께 성장하고 있다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8020",
+    "title": "서비스 로봇",
+    "tags": ["로봇", "서비스", "산업"],
+    "level": "Beginner",
+    "content": "병원, 호텔, 배송 등 여러 곳에서 사람을 도와주는 로봇들이 사용되고 있다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8021",
+    "title": "가상현실",
+    "tags": ["가상현실", "VR", "기술"],
+    "level": "Beginner",
+    "content": "가상현실 기술이 게임, 교육, 병원 등 여러 분야에서 사용되고 있다.",
+    "style": "설명형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8022",
+    "title": "중앙은행 디지털화폐(CBDC) 경쟁 가속화",
+    "tags": ["CBDC", "디지털화폐", "통화정책", "금융주권", "크로스보더결제"],
+    "level": "Advanced",
+    "content": "각국 중앙은행의 CBDC 개발 경쟁이 글로벌 통화 패권 구조를 재편하고 있음. 중국의 디지털 위안화(DCEP) 확산과 달러 패권 도전, 유럽 디지털 유로의 프라이버시-감시 딜레마가 금융 시스템에 미치는 구조적 변화.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8023",
+    "title": "공급망 재쇼어링과 Friend-shoring 가속",
+    "tags": ["재쇼어링", "프렌드쇼어링", "공급망복원력", "지정학적리스크", "니어쇼어링"],
+    "level": "Advanced",
+    "content": "미중 기술패권 경쟁과 팬데믹 경험으로 글로벌 공급망이 효율성에서 복원력(resilience) 중심으로 재편. 동맹국 중심의 Friend-shoring과 Just-in-case 재고전략 채택이 글로벌 무역 패턴과 물류비용 구조에 미치는 장기적 영향.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8024",
+    "title": "Generative AI의 지식노동 대체 가속화",
+    "tags": ["생성형AI", "지식노동", "화이트칼라", "생산성패러독스", "임금양극화"],
+    "level": "Advanced",
+    "content": "ChatGPT, Claude 등 생성형 AI가 변호사, 회계사, 기자 등 고급 지식노동자 영역을 대체하며 노동시장 구조를 재편. 창작-분석-판단 업무의 자동화로 인한 중산층 일자리 공동화(hollowing out)와 새로운 형태의 기술적 실업 확산.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8025",
+    "title": "탄소국경조정메커니즘(CBAM) 글로벌 확산",
+    "tags": ["CBAM", "탄소국경세", "탄소누출", "그린프로텍셔니즘", "무역장벽"],
+    "level": "Advanced",
+    "content": "EU의 탄소국경조정메커니즘 시행으로 시작된 탄소 기반 무역규제가 글로벌 확산. 탄소누출 방지 명목의 그린 프로텍셔니즘이 개도국 제조업과 글로벌 가치사슬에 미치는 구조적 충격과 새로운 무역분쟁 양상.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8026",
+    "title": "글로벌 반도체 동맹체계 고도화",
+    "tags": ["반도체동맹", "Chip4", "수출통제", "기술동맹", "경제안보"],
+    "level": "Advanced",
+    "content": "미국 주도의 Chip 4 Alliance와 EU Chips Act, 일본의 첨단반도체 수출규제 강화로 반도체 공급망이 블록화. 기술주권 확보를 위한 각국의 대규모 반도체 투자와 인재 유치 경쟁이 글로벌 기술 패권 구조를 재편하고 있음.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8027",
+    "title": "Net Zero 금융 이행 표준화 압박 증가",
+    "tags": ["Net Zero", "TCFD", "TNFD", "그린택소노미", "ESG공시"],
+    "level": "Advanced",
+    "content": "TCFD(기후), TNFD(자연) 공시 의무화와 EU 택소노미 확산으로 금융기관의 탄소중립 이행 투명성 요구 급증. Science Based Targets 설정과 Scope 3 배출량 측정 의무화가 기업 밸류체인 전반의 탈탄소 투자를 가속화.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8028",
+    "title": "Quantum Computing 상용화 임계점 근접",
+    "tags": ["양자컴퓨팅", "양자우위", "암호화", "양자내성암호", "NISQ"],
+    "level": "Advanced",
+    "content": "IBM의 1000큐비트 칩과 구글의 양자우위 달성으로 양자컴퓨팅이 NISQ(Noisy Intermediate-Scale Quantum) 단계에서 실용적 응용 단계로 전환. 기존 RSA 암호화 시스템의 취약성 노출과 양자내성 암호(PQC) 도입 필요성 대두.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8029",
+    "title": "메타버스 경제권 형성과 디지털 자산 거래",
+    "tags": ["메타버스경제", "NFT", "가상부동산", "디지털자산", "Web3"],
+    "level": "Advanced",
+    "content": "Roblox, 포트나이트 등 메타버스 플랫폼에서 가상 부동산, NFT, 디지털 의류 등 고유 경제생태계 형성. 가상세계 내 경제활동의 실물경제 연동과 가상자산의 법정화폐 전환을 통한 새로운 형태의 긱이코노미 창출.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8030",
+    "title": "개인정보 규제 강화와 Privacy Tech 급성장",
+    "tags": ["개인정보보호", "GDPR", "차등프라이버시", "동형암호", "제로지식증명"],
+    "level": "Advanced",
+    "content": "GDPR, CCPA 등 개인정보 규제 강화로 Privacy-Preserving Technology 시장 급성장. 차등 프라이버시, 동형암호, 제로지식 증명 등 고급 암호화 기술을 통한 데이터 활용과 개인정보 보호의 양립 모델 확산.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8031",
+    "title": "바이오제조업의 Synthetic Biology 혁신",
+    "tags": ["합성생물학", "바이오제조", "단백질설계", "대사공학", "바이오파운드리"],
+    "level": "Advanced",
+    "content": "AI 기반 단백질 구조 예측(AlphaFold)과 대사공학 기술 발전으로 합성생물학이 화학공업을 대체하는 바이오제조 혁명 가속화. 맞춤형 미생물을 활용한 의약품, 화학물질, 바이오연료 생산이 전통 화학공업 패러다임을 전환.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8032",
+    "title": "Space Economy 2.0 시대 개막",
+    "tags": ["우주경제", "상업우주", "위성군", "우주제조", "궤도경제"],
+    "level": "Advanced",
+    "content": "SpaceX의 재사용 로켓과 소형위성 기술 발전으로 우주 진입비용이 급격히 하락하며 상업 우주경제 활성화. 우주 제조, 소행성 채굴, 궤도상 서비스 등 새로운 우주 비즈니스 모델이 2030년대 우주경제 10배 성장 견인.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8033",
+    "title": "디지털 치료제 시장의 의료보험 편입 확산",
+    "tags": ["디지털치료제", "의료보험", "원격모니터링", "AI진단", "개인맞춤의료"],
+    "level": "Advanced",
+    "content": "FDA 승인 디지털 치료제들의 의료보험 급여 편입으로 Digital Health 시장 급성장. 웨어러블 기반 연속 건강모니터링과 AI 진단보조 시스템이 기존 대면진료 중심 의료체계를 예방-관리 중심으로 전환 가속화.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8034",
+    "title": "Edge AI 컴퓨팅의 데이터센터 분산화",
+    "tags": ["엣지AI", "분산컴퓨팅", "지연시간", "데이터주권", "5G"],
+    "level": "Advanced",
+    "content": "실시간 AI 서비스 요구 증가로 Edge AI 컴퓨팅이 중앙집중식 클라우드 구조를 분산형으로 전환. 자율주행, AR/VR, 산업자동화 등 초저지연 애플리케이션 확산이 통신사업자의 MEC(Multi-Access Edge Computing) 투자 가속화.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8035",
+    "title": "순환경제 모델의 제조업 확산",
+    "tags": ["순환경제", "리매뉴팩처링", "제품서비스화", "자원효율성", "폐기물제로"],
+    "level": "Advanced",
+    "content": "선형경제(Take-Make-Dispose)에서 순환경제로의 전환이 제조업 비즈니스 모델을 혁신. 제품의 서비스화(Product-as-a-Service)와 리매뉴팩처링 기술 발전이 자원효율성 극대화와 새로운 수익원 창출을 동시에 달성.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8036",
+    "title": "Autonomous Finance의 DeFi 2.0 진화",
+    "tags": ["자율금융", "DeFi2.0", "AMM", "유동성마이닝", "크로스체인"],
+    "level": "Advanced",
+    "content": "탈중앙화 금융의 진화로 Automated Market Maker(AMM)와 Yield Farming이 전통 금융의 유동성 공급과 자산관리 방식을 혁신. 크로스체인 프로토콜과 Layer 2 솔루션을 통한 확장성 확보가 DeFi의 제도권 금융 편입 가속화.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8037",
+    "title": "뉴로테크놀로지의 BCI 상용화 진전",
+    "tags": ["뉴로테크", "BCI", "뇌신호", "신경보철", "뇌컴퓨터인터페이스"],
+    "level": "Advanced",
+    "content": "Neuralink, Synchron 등의 침습적 BCI와 Meta의 비침습적 BCI 기술 발전으로 뇌-컴퓨터 인터페이스 상용화 가속화. 의료용 신경보철에서 시작된 기술이 인간 증강(Human Augmentation)과 직관적 컴퓨팅 인터페이스로 확장.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8038",
+    "title": "Critical Minerals 공급망 재편 가속화",
+    "tags": ["핵심광물", "리튬", "희토류", "자원안보", "광물동맹"],
+    "level": "Advanced",
+    "content": "전기차 배터리와 재생에너지 확산으로 리튬, 코발트, 희토류 등 핵심광물 공급망 경쟁 치열. 중국의 광물 가공 독점에 대응한 서방 국가들의 대체 공급망 구축과 리사이클링 기술 투자가 자원 지정학 구조 변화 촉진.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8039",
+    "title": "Precision Medicine의 유전체 분석 대중화",
+    "tags": ["정밀의학", "유전체분석", "액체생검", "유전자치료", "개인맞춤치료"],
+    "level": "Advanced",
+    "content": "차세대 염기서열 분석(NGS) 비용 급락으로 유전체 기반 정밀의학이 대중화. 액체생검을 통한 조기 암 진단과 유전자 치료제 개발 가속화가 개인 맞춤형 치료 패러다임을 확산시키며 의료비 절감과 치료 효과 극대화.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8040",
+    "title": "Digital Twin 기술의 도시 인프라 적용 확산",
+    "tags": ["디지털트윈", "스마트시티", "도시모델링", "예측분석", "인프라최적화"],
+    "level": "Advanced",
+    "content": "IoT 센서와 AI 분석을 결합한 도시 인프라의 디지털 트윈 구축이 스마트시티 운영을 혁신. 교통흐름, 에너지 소비, 환경오염 등 도시 시스템의 실시간 모니터링과 예측 분석을 통한 인프라 효율성 극대화와 탄소 배출 최소화.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8041",
+    "title": "Tokenization의 실물자산 유동화 혁신",
+    "tags": ["토큰화", "실물자산", "RWA", "유동화", "분산투자"],
+    "level": "Advanced",
+    "content": "부동산, 예술품, 원자재 등 전통적 비유동 자산의 블록체인 토큰화를 통한 유동성 혁신. Real World Assets(RWA)의 분할 소유와 24/7 거래 가능성이 기존 자산 관리 산업의 진입장벽을 낮추고 투자 접근성을 민주화.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8042",
+    "title": "Vertical Farming의 농업 산업화 진전",
+    "tags": ["수직농장", "실내농업", "LED재배", "자동화", "도시농업"],
+    "level": "Advanced",
+    "content": "LED 조명 효율 개선과 자동화 기술 발전으로 수직농장의 경제성이 기존 농업과 경쟁 수준에 근접. 도시 근교 대규모 수직농장이 농산물 공급망을 단축시키고 기후 변화에 독립적인 안정적 식량 생산 시스템으로 자리잡음.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8043",
+    "title": "양자 인터넷의 글로벌 네트워크 구축 시작",
+    "tags": ["양자인터넷", "양자얽힘", "양자통신", "보안통신", "양자중계기"],
+    "level": "Advanced",
+    "content": "중국의 양자통신 위성 '묵자호'와 EU의 양자 인터넷 프로젝트로 양자암호 기반 초보안 통신망 구축 경쟁 가속화. 양자얽힘을 활용한 절대 보안 통신이 국가 차원의 사이버 보안과 금융 거래 인프라의 새로운 표준으로 부상.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8044",
+    "title": "AI 반도체의 Computing-in-Memory 아키텍처 주류화",
+    "tags": ["AI반도체", "인메모리컴퓨팅", "폰노이만병목", "뉴로모픽", "PIM"],
+    "level": "Advanced",
+    "content": "AI 워크로드의 메모리-프로세서 간 데이터 이동 병목 해결을 위한 Computing-in-Memory(CIM) 아키텍처가 차세대 AI 칩의 표준으로 부상. Processing-in-Memory(PIM)와 뉴로모픽 칩이 기존 폰 노이만 구조의 한계를 극복.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8045",
+    "title": "Carbon Capture 기술의 대규모 상용화 개시",
+    "tags": ["탄소포집", "CCUS", "DAC", "탄소저장", "탄소활용"],
+    "level": "Advanced",
+    "content": "Direct Air Capture(DAC) 기술 비용 절감과 탄소 크레딧 시장 확대로 대기 중 CO2 직접 포집 산업이 상용화 단계 진입. CCUS(Carbon Capture, Utilization & Storage) 기술을 통한 포집 탄소의 유용한 화학물질 전환이 새로운 탄소경제 창출.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8046",
+    "title": "Programmable Money의 중앙은행 실험 확산",
+    "tags": ["프로그래머블머니", "스마트머니", "조건부결제", "자동집행", "CBDC응용"],
+    "level": "Advanced",
+    "content": "CBDC 기반의 프로그래머블 머니가 조건부 자동 결제와 실시간 정책 집행을 가능하게 하며 화폐의 개념을 혁신. 스마트 컨트랙트 결합으로 보조금 자동 지급, 세금 자동 징수, 조건부 대출 등 금융 자동화 확산.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8047",
+    "title": "6G 통신의 테라헤르츠 주파수 활용 준비",
+    "tags": ["6G", "테라헤르츠", "홀로그래픽통신", "초연결", "뇌컴퓨터연결"],
+    "level": "Advanced",
+    "content": "2030년대 6G 상용화를 위한 테라헤르츠 대역 활용과 AI 네이티브 아키텍처 개발이 본격화. 홀로그래픽 통신, 디지털 트윈 실시간 동기화, 뇌-컴퓨터 직접 연결 등 초현실적 연결성을 지원하는 차세대 통신 인프라 구축.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8048",
+    "title": "Longevity Economy의 Anti-Aging 산업 급성장",
+    "tags": ["장수경제", "노화방지", "셀룰러리프로그래밍", "텔로미어", "줄기세포"],
+    "level": "Advanced",
+    "content": "셀룰러 리프로그래밍과 텔로미어 연장 기술 발전으로 생물학적 나이 역전이 현실화되며 Anti-Aging 산업 폭발적 성장. 건강수명 연장이 글로벌 경제구조와 연금 시스템, 노동시장에 미치는 구조적 변화와 새로운 비즈니스 모델 창출.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8049",
+    "title": "Climate Fintech의 탄소회계 자동화 확산",
+    "tags": ["기후핀테크", "탄소회계", "ESG자동화", "배출량측정", "탄소추적"],
+    "level": "Advanced",
+    "content": "AI와 위성데이터를 활용한 실시간 탄소 배출량 측정과 ESG 성과 자동 추적 서비스가 Climate Fintech 시장을 견인. 공급망 전체의 탄소 발자국 실시간 모니터링과 탄소 크레딧 자동 거래가 기업 탄소 관리를 혁신.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8050",
+    "title": "인공 일반 지능(AGI) 안전성 거버넌스 체계 구축",
+    "tags": ["AGI", "AI안전성", "얼라인먼트", "AI거버넌스", "초지능"],
+    "level": "Advanced",
+    "content": "OpenAI, DeepMind 등의 AGI 개발 경쟁이 치열해지면서 AI 안전성과 인간 가치 얼라인먼트가 핵심 이슈로 부상. 국제 AI 안전 연구소 설립과 AGI 개발에 대한 글로벌 거버넌스 체계 구축 논의가 본격화.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  },
+  {
+    "card_id": "card_8051",
+    "title": "재생의학의 3D 바이오프린팅 장기 이식 실용화",
+    "tags": ["재생의학", "3D바이오프린팅", "장기이식", "줄기세포", "조직공학"],
+    "level": "Advanced",
+    "content": "3D 바이오프린팅 기술과 유도만능줄기세포(iPSC) 기술 결합으로 맞춤형 장기 제조가 임상 단계에 진입. 장기 부족 문제 해결과 이식 거부반응 최소화를 통한 재생의학 시장 폭발적 성장과 의료 패러다임 전환 가속화.",
+    "style": "분석형",
+    "media_type": "텍스트",
+    "topic_id": 8
+  }
+]
