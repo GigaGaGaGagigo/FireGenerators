@@ -348,6 +348,8 @@ def render_sidebar():
         
         # 사용자 역할에 따른 메뉴 구성
         role = st.session_state.get("role", "User")
+        if not isinstance(role, str):
+            role = "User"  # 문자열이 아닐 경우 기본값
         menu_config = USER_MENUS.get(role, USER_MENUS["User"])
         
         menu_options = [label for label, _ in menu_config]
@@ -418,17 +420,17 @@ def route_to_page():
                 st.title("💬 Chatbot")
                 st.info("ui/chatbot/chatbot.py 파일을 생성하고 render() 함수를 구현해주세요.")
                 st.code('''
-# ui/chatbot/chatbot.py
-import streamlit as st
+                    # ui/chatbot/chatbot.py
+                    import streamlit as st
 
-def render():
-    st.title("💬 AI Chatbot")
-    st.write("채팅봇 기능을 여기에 구현하세요.")
+                    def render():
+                        st.title("💬 AI Chatbot")
+                        st.write("채팅봇 기능을 여기에 구현하세요.")
                 ''', language='python')
-            
+                                
         elif current_page == "quiz":
             try:
-                from ui.quiz.quiz import render
+                from ui.level_quiz.quiz import render
                 render()
             except ImportError:
                 st.title("🧠 오늘의 퀴즈")
