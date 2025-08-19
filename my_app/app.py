@@ -1,8 +1,9 @@
-import streamlit as st
-from streamlit.navigation.page import Page as Page
-from supabase import create_client, Client
 from pathlib import Path
 
+import streamlit as st
+from streamlit.navigation.page import StreamlitPage
+from supabase import Client, create_client
+from supabase._sync.client import SyncClient
 
 # Define available user roles in the system
 ROLES: list[str | None] = [None, "User", "Admin"]
@@ -49,32 +50,62 @@ def check_auth_params():
     # If code is not exist, it means that the user doesn't click the login button
     if "code" in query_params:
         code = query_params["code"]
-        supabase = init_supabase()
+        supabase: SyncClient | None = init_supabase()
+
+        if supabase is None:
+            raise ValueError("Supabase client is not initialized")
+
         st.session_state.supabase = supabase
 
         try:
             # Core part: Exchange authorization code for actual session
-            # Convert temporary code from Google to usable session with Supabase
-            response = supabase.auth.exchange_code_for_session({"auth_code": code})
+            supabase_session = supabase.auth.exchange_code_for_session(
+                {"auth_code": code}  # type: ignore
+            )
 
-            if response.session:
+            if supabase_session.session:
                 # Store user information
-                st.session_state.session = response.session  # Store session token
-                st.session_state.user = response.user  # Store user info
+                st.session_state.session = (
+                    supabase_session.session
+                )  # Store session token
+                st.session_state.user = supabase_session.user  # Store user info
 
                 # Load Role Data from DB
                 response_user_data = (
-                    supabase.table("users")
+                    supabase.table("profiles")
                     .select("*")
-                    .eq("user_email", st.session_state.user.email)
+                    .eq("id", st.session_state.user.id)
                     .execute()
                 )
-
+                if "user_data" not in st.session_state:
+                    user_data: dict = {
+                        "user_email": response_user_data.data[0]["email"],
+                        "name": response_user_data.data[0]["name"],
+                        "age": response_user_data.data[0]["age"],
+                        "gender": response_user_data.data[0]["gender"],
+                        "investment_goal": response_user_data.data[0][
+                            "investment_goal"
+                        ],
+                        "investment_emotions": response_user_data.data[0]["investment_emotions"],
+                        "interests_categories": response_user_data.data[0][
+                            "interests_categories"
+                        ],
+                        "investment_level": response_user_data.data[0][
+                            "investment_level"
+                        ],
+                        "knowledge_level": response_user_data.data[0][
+                            "knowledge_level"
+                        ],
+                    }
+                    st.session_state.user_data = user_data
                 # Use .data to get the data from the response
-                if response_user_data.data:
+                if response_user_data.data and response_user_data.data[0]["role"] in [
+                    "User",
+                    "Admin",
+                ]:
                     st.session_state.role = response_user_data.data[0]["role"]
                 else:
-                    st.session_state.role = "User"
+                    raise Exception("User role is not valid")
 
                 # Clean up URL (remove code parameter)
                 st.query_params.clear()
@@ -113,7 +144,10 @@ def login() -> None:
         image_path = Path(__file__).parent / "assets" / "FIRE_LOGO_large.png"
         st.image(image_path)
         if st.button("Sign in with Google", use_container_width=True):
-            supabase = init_supabase()
+            supabase: SyncClient | None = init_supabase()
+
+            if supabase is None:
+                raise ValueError("Supabase client is not initialized")
 
             # Dynamically get current app URL
             # Use localhost:8501 locally, actual domain when deployed
@@ -159,17 +193,23 @@ def logout() -> None:
     2. Selectively delete session state (safer approach)
     """
     if "session" in st.session_state and st.session_state.session:
-        supabase = init_supabase()
+        supabase: SyncClient | None = init_supabase()
+
+        if supabase is None:
+            raise ValueError("Supabase client is not initialized")
+
         try:
             # Logout from Supabase server
             supabase.auth.sign_out()
-        except:
+        except Exception:
+            # Ignore any authentication errors during logout
             pass
 
-    # Selectively delete authentication-related info from session state
-    for key in ["session", "user", "role"]:
-        if key in st.session_state:
-            del st.session_state[key]
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+
+    st.cache_data.clear()
+    st.cache_resource.clear()
 
     st.rerun()
 
@@ -195,40 +235,40 @@ if (
 role = st.session_state.role
 
 # Define navigation pages with icons and access control
-logout_page: Page = st.Page(logout, title="Log out", icon=":material/logout:")
-settings: Page = st.Page(
+logout_page: StreamlitPage = st.Page(logout, title="Log out", icon=":material/logout:")
+settings: StreamlitPage = st.Page(
     "ui/settings/settings.py",
     title="Settings",
     icon=":material/settings:",
 )
-chatbot_1: Page = st.Page(
+chatbot_1: StreamlitPage = st.Page(
     "ui/chatbot/chatbot.py",
     title="Chatbot",
     icon=":material/chat:",
     default=(role == "User"),
 )
-dashboard_1: Page = st.Page(
+dashboard_1: StreamlitPage = st.Page(
     "ui/dashboard/dashboard_1.py",
     title="Dashboard 1",
     icon=":material/healing:",
 )
-admin_1: Page = st.Page(
+admin_1: StreamlitPage = st.Page(
     "ui/admin/admin_1.py",
     title="Admin 1",
     icon=":material/person_add:",
     default=(role == "Admin"),
 )
-admin_2: Page = st.Page(
+admin_2: StreamlitPage = st.Page(
     "ui/admin/admin_2.py",
     title="Admin 2",
     icon=":material/security:",
 )
 
 # Group pages by functionality
-account_pages: list[Page] = [logout_page, settings]
-chatbot_pages: list[Page] = [chatbot_1]
-dashboard_pages: list[Page] = [dashboard_1]
-admin_pages: list[Page] = [admin_1, admin_2]
+account_pages: list[StreamlitPage] = [logout_page, settings]
+chatbot_pages: list[StreamlitPage] = [chatbot_1]
+dashboard_pages: list[StreamlitPage] = [dashboard_1]
+admin_pages: list[StreamlitPage] = [admin_1, admin_2]
 
 
 # Configure logo and icon paths
@@ -238,7 +278,7 @@ icon_path = Path(__file__).parent / "assets" / "FIRE_LOGO_small.png"
 st.logo(str(logo_path), icon_image=str(icon_path))
 
 # Build navigation dictionary based on user role
-page_dict: dict[str, list[Page]] = {}
+page_dict: dict[str, list[StreamlitPage]] = {}
 if st.session_state.role in ["User", "Register"]:
     page_dict["Chatbot"] = chatbot_pages
 if st.session_state.role in ["User", "Register"]:
@@ -248,9 +288,9 @@ if st.session_state.role == "Admin":
 
 # Display appropriate navigation based on login status
 if len(page_dict) > 0:
-    pg = st.navigation({"Account": account_pages} | page_dict)
+    pg = st.navigation({"Account": account_pages} | page_dict)  # type: ignore
 else:
-    pg = st.navigation([st.Page(login)])
+    pg = st.navigation([st.Page(login)])  # type: ignore
 
 # Run the selected page
 pg.run()

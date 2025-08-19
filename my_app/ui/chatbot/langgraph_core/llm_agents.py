@@ -39,7 +39,7 @@ def get_llm_agents(model_name: str):
         llm_client = ChatGoogleGenerativeAI(
             model="gemini-2.5-flash",
             temperature=0.4,
-            max_retries=2,
+            max_retries=0,
             google_api_key=api_key,
         )
 

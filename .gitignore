@@ -24,8 +24,9 @@ db.sqlite3
 # Streamlit settings
 .streamlit/
 
-# Claude code settings
+# Claude code and Gemini CLI settings
 CLAUDE.md
+GEMINI.md
 
 # mcp server
 .mcp.json
@@ -35,4 +36,4 @@ test.json
 .vscode/
 
 # Jupyter notebook
-/my_app/ui/chatbot/_tests
+_tests
