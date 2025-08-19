@@ -18,6 +18,9 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL") 
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# 새로 추가
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 gemini_model = genai.GenerativeModel("gemini-1.5-flash")
 
@@ -30,6 +33,18 @@ USER_ID = st.session_state.user_id
 
 st.title("📊 모의투자 보유주식 관리")
 
+# 환율확인 함수
+def fetch_usd_krw_rate() -> float:
+    """
+    최근 USD/KRW 환율(종가)을 가져옵니다. 
+    실패 시 0.0 반환.
+    """
+    try:
+        # yfinance 로부터 KRW=X 티커(달러당 원화 환율) 가져오기
+        df = yf.Ticker("KRW=X").history(period="1d")
+        return float(df["Close"].iloc[-1])
+    except:
+        return 0.0
 
 # feedbeck code
 def compute_advanced_stats(df, trade_price, trade_idx, action):
@@ -73,6 +88,38 @@ def compute_advanced_stats(df, trade_price, trade_idx, action):
         missed_profit = np.round((after.max() - trade_price) / trade_price * 100, 2)
         result["missed_profit"] = float(missed_profit)
     return result
+
+def fetch_fundamentals(symbol: str, market: str) -> dict:
+    """
+    Yahoo Finance info를 통해 PER, PBR, 사업 개요(business summary) 등을 가져옵니다.
+    KR 시장의 경우 간단히 None 처리하거나, 추가 API를 붙이면 됩니다.
+    """
+    try:
+        if market == "US":
+            info = yf.Ticker(symbol).info
+            print("--------------------------")
+            print(info)
+            return {
+                "PER":       info.get("trailingPE", None),
+                "PBR":       info.get("priceToBook", None),
+                "EPS":       info.get("epsTrailingTwelveMonths", None),
+                "사업개요":  info.get("longBusinessSummary", "")[:300]  # 앞 300자만
+            }
+        else:  # KR
+            # 간단히 None 반환 (여기에 DART API나 Open DART 라이브러리를 붙이시면 됩니다)
+            return {
+                "PER":      None,
+                "PBR":      None,
+                "EPS":      None,
+                "사업개요": ""
+            }
+    except Exception as e:
+        return {
+            "PER":      None,
+            "PBR":      None,
+            "EPS":      None,
+            "사업개요": ""
+        }
 
 
 # ====== 기존 함수 ======
@@ -208,6 +255,9 @@ def render_holdings_table():
         st.info("입력된 보유주식이 없습니다.")
         return pd.DataFrame()
 
+    # 미리 환율을 한 번만 조회
+    usdkrw = fetch_usd_krw_rate()
+
     # 종목별 매수, 매도 집계
     buy_df = df[df["action"] == "buy"].groupby(["symbol", "market"]).agg({"price": "mean", "quantity": "sum"}).reset_index()
     sell_df = df[df["action"] == "sell"].groupby(["symbol", "market"]).agg({"quantity": "sum"}).reset_index()
@@ -221,70 +271,74 @@ def render_holdings_table():
     holdings = merged[merged["net_quantity"] > 0].copy()
 
     rows = []
-    total_invested = 0
-    total_value = 0
+    total_invested = 0.0
+    total_value    = 0.0
 
     for _, row in holdings.iterrows():
-        sym = row["symbol"]
-        mk = row["market"]
-        buy_price = float(row["price"])
-        qty = int(row["net_quantity"])  # 정수 수량
-        cur_price = fetch_current_price(sym, mk)
-        name = get_company_name(sym, mk)
+        sym      = row["symbol"]
+        mk       = row["market"]
+        buy_price= float(row["price"])
+        qty      = int(row["net_quantity"])
+        cur_price= fetch_current_price(sym, mk)
+        name     = get_company_name(sym, mk)
 
-        invested = buy_price * qty
-        current_val = cur_price * qty
-        pl_amount = current_val - invested
-        pl_rate = (pl_amount / invested * 100) if invested > 0 else 0.0
+        # 마켓별로 원화 환산
+        if mk == "US":
+            invested_krw    = buy_price * qty * usdkrw
+            current_val_krw = cur_price * qty * usdkrw
+        else:  # KR
+            invested_krw    = buy_price * qty
+            current_val_krw = cur_price * qty
 
-        total_invested += invested
-        total_value += current_val
+        pl_amount = current_val_krw - invested_krw
+        pl_rate   = (pl_amount / invested_krw * 100) if invested_krw else 0.0
+
+        total_invested += invested_krw
+        total_value    += current_val_krw
 
         rows.append({
-            "종목": f"{name} ({sym}/{mk})",
-            "매입단가": buy_price,
-            "보유수량": qty,
-            "투자금액": invested,
-            "현재가": cur_price,
-            "평가금액": current_val,
-            "손익금액": pl_amount,
-            "수익률(%)": pl_rate,
-            "symbol": sym,
-            "market": mk
+            "종목":       f"{name} ({sym}/{mk})",
+            "매입단가":    buy_price,
+            "보유수량":    qty,
+            "투자금액(원)":   invested_krw,
+            "현재가":      cur_price,
+            "평가금액(원)":   current_val_krw,
+            "손익금액(원)":   pl_amount,
+            "수익률(%)":   pl_rate,
+            "symbol":     sym,
+            "market":     mk
         })
 
-    # 총 손익 계산
-    total_pl = total_value - total_invested
-    total_pl_rate = (total_pl / total_invested * 100) if total_invested > 0 else 0.0
+    # 총 손익 계산 (원화 기준)
+    total_pl      = total_value - total_invested
+    total_pl_rate = (total_pl / total_invested * 100) if total_invested else 0.0
 
-    # 총 손익 표시
-    st.markdown(f"### 📈 총 손익: {'+' if total_pl >= 0 else ''}{total_pl:,.0f}원 ({total_pl_rate:+.2f}%)")
+    st.markdown(
+        f"### 📈 총 손익(원화): "
+        f"{'+' if total_pl>=0 else ''}{total_pl:,.0f}원 "
+        f"({total_pl_rate:+.2f}%) | 환율 USD/KRW: {usdkrw:.2f}"
+    )
 
+    # DataFrame 및 스타일링 (기존과 동일하되 컬럼명 변경)
     result_df = pd.DataFrame(rows)
-
-    def color_profit(val):
-        if val > 0:
-            return "color: red"
-        elif val < 0:
-            return "color: blue"
-        else:
-            return "color: black"
-
     styled = (
-        result_df.drop(columns=["symbol", "market"])
+        result_df
+        .drop(columns=["symbol", "market"])
         .style
         .format({
             "매입단가": "{:,.2f}",
-            "투자금액": "{:,.0f}",
+            "투자금액(원)": "{:,.0f}",
             "현재가": "{:,.2f}",
-            "평가금액": "{:,.0f}",
-            "손익금액": "{:+,.0f}",
+            "평가금액(원)": "{:,.0f}",
+            "손익금액(원)": "{:+,.0f}",
             "수익률(%)": "{:+.2f}%",
             "보유수량": "{:,.0f}"
         })
-        .applymap(color_profit, subset=["손익금액", "수익률(%)"])
+        .applymap(lambda v: "color: red"   if v>0 
+                         else "color: blue" if v<0 
+                         else "color: black",
+                  subset=["손익금액(원)", "수익률(%)"])
     )
-
     st.dataframe(styled, use_container_width=True)
     return result_df
 
@@ -317,12 +371,12 @@ if st.button("AI 조언 받기"):
     # 0) 사용자 이름 조회
     ures = supabase.table("profiles") \
         .select("name") \
-        .eq("id", "46351220-8554-4806-bf46-55d2ad935330") \
+        .eq("id", USER_ID) \
         .single() \
         .execute()
-    name = ures.data.get("name", "46351220-8554-4806-bf46-55d2ad935330")
+    name = ures.data.get("name", USER_ID)
 
-    # 1) 최근 거래내역 조회
+    # 1) 최근 거래내역 조회 (10건)
     trades = supabase.table("trade_history") \
         .select("*") \
         .eq("user_id", USER_ID) \
@@ -330,59 +384,70 @@ if st.button("AI 조언 받기"):
         .limit(10) \
         .execute().data or []
 
-    # 2) 최근 피드백 조회
-    feedbacks = supabase.table("trade_feedback") \
-        .select("*") \
-        .eq("user_id", USER_ID) \
-        .order("created_at", desc=True) \
-        .limit(5) \
-        .execute().data or []
+    # 2) 프롬프트 기본 문장
+    prompt_lines = [
+        "당신은 친절하고 논리적인 투자 코치입니다.",
+        f"사용자({name})의 최근 거래내역과 오늘 기준 기술지표·펀더멘털을 참고하여",
+        "향후 매수·매도 타이밍과 위험 관리 전략을 제안해주세요.",
+        "예시: “주식 가치가 높으니 100달러까지 보유를 추천…“"
+    ]
 
-    # 3) 프롬프트 작성
-    prompt_lines = []
-    prompt_lines.append(f"당신은 친절하고 논리적인 투자 코치입니다.")
-    prompt_lines.append(f"사용자({name})의 최근 거래내역과 자동 피드백, 그리고 현재 주가를 참고하여")
-    prompt_lines.append("향후 매수·매도 타이밍과 위험 관리 전략을 제안해주세요.")
-    prompt_lines.append("예시: “주식 가치가 높으니 100달러까지 보유를 추천합니다. 그 이후엔 분할매도…” 등으로 답변해 주세요.")
+    # 3) 최근 거래내역 요약
     prompt_lines.append("\n=== 최근 거래내역 ===")
-
     for t in trades:
-        sym    = t["symbol"]
-        mk     = t["market"]
+        sym, mk = t["symbol"], t["market"]
         action = t["action"].upper()
-        dt     = t["trade_time"][:10]
-        vol    = t["quantity"]
-        pr     = t["price"]
-        fee    = t.get("commission", 0.0)
-
-        # 현재가 조회
+        dt = t["trade_time"][:10]
+        vol, pr = t["quantity"], t["price"]
         cur_price = fetch_current_price(sym, mk)
-
         prompt_lines.append(
-            f"- {dt} {action} {sym}/{mk} {vol}주 @ {pr:.2f} (수수료 {fee:.2f}), 현재가 {cur_price:.2f}"
+            f"- {dt} {action} {sym}/{mk} {vol}주 @ {pr:.2f}, 현재가 {cur_price:.2f}"
         )
 
-    prompt_lines.append("\n=== 최근 자동 피드백 & 요약 지표 ===")
-    for f in feedbacks:
-        dt_fb = f["created_at"][:10]
-        msg   = f["feedback_message"]
-        stats = f.get("summary_stats", {})
-        # JSON 를 예쁘게 들여쓰기
+    # 4) 오늘 기준 요약 지표(compute_advanced_stats) & 펀더멘털
+    prompt_lines.append("\n=== 오늘 기술지표 & 펀더멘털 ===")
+    # 거래된 종목들을 중복 없이
+    symbols = list({t["symbol"] for t in trades})
+    for sym in symbols:
+        mk = next(t["market"] for t in trades if t["symbol"] == sym)
+        # 4-1) 가격 데이터 로딩
+        df_price = (
+            fdr.DataReader(sym) if mk == "KR"
+            else yf.Ticker(sym).history(period="1y")
+        )
+        df_price = df_price.rename(
+            columns={"Close":"종가","High":"고가","Low":"저가","Volume":"거래량"}
+        )
+        df_price.index = df_price.index.tz_localize(None)
+        df_price = df_price.dropna()
+
+        # 4-2) 현재가, 마지막 인덱스 위치
+        cur_price = fetch_current_price(sym, mk)
+        idx = len(df_price) - 1
+
+        # 4-3) 지표 계산 (action은 여기에 영향 없으므로 "buy"로 통일)
+        stats = compute_advanced_stats(df_price, cur_price, idx, action="buy")
         stats_json = json.dumps(stats, ensure_ascii=False, indent=2)
 
-        prompt_lines.append(f"- {dt_fb}: {msg}")
-        prompt_lines.append(f"  요약 지표:\n```\n{stats_json}\n```")
+        # 4-4) 펀더멘털 정보 가져오기
+        fnd = fetch_fundamentals(sym, mk)
 
-    # 4) 하나의 문자열로 합치기
+        # 4-5) 프롬프트에 추가
+        prompt_lines.append(f"\n-- {sym}/{mk} --")
+        prompt_lines.append("```json\n" + stats_json + "\n```")
+        prompt_lines.append(
+            f"PER: {fnd['PER']}, PBR: {fnd['PBR']}, EPS: {fnd['EPS']}\n"
+            f"사업개요: {fnd['사업개요']}\n"
+        )
+
+    # 5) 프롬프트 합치기 & 호출
     full_prompt = "\n".join(prompt_lines)
 
-    # (디버깅)
-    # st.text_area("프롬프트", full_prompt, height=300)
+    # (디버깅용)
+    st.text_area("프롬프트", full_prompt, height=400)  
 
-    # 5) Gemini 호출
     with st.spinner("AI 코칭 생성 중..."):
         ai_resp = gemini_model.generate_content(full_prompt)
 
-    # 6) 결과 출력
     st.markdown("**✨ AI 코칭 결과**")
     st.write(ai_resp.text)
