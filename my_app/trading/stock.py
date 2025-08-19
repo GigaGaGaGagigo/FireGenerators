@@ -10,18 +10,18 @@ api_key = 'aedfbcd8ba091c740281c0bd8ca93b46'
 
 # FRED에서 제공하는 지표 코드와 명칭
 fred_indicators = {
-    'T10YIE': '10년 기대 인플레이션율',  # 10년 만기 기대 인플레이션율 (일간)
-    'T10Y2Y': '장단기 금리차',  # 10년-2년 국채 수익률 스프레드 (일간)
-    'FEDFUNDS': '기준금리',  # 연방기금 금리 (월간)
-    'UMCSENT': '미시간대 소비자 심리지수',  # 소비자 신뢰 지수 (월간)
-    'UNRATE': '실업률',  # 실업률 (월간)
+    'T10YIE': 'expected_10y_inflation_rate',  # 10년 만기 기대 인플레이션율 (일간)
+    'T10Y2Y': 'term_spread',  # 10년-2년 국채 수익률 스프레드 (일간)
+    'FEDFUNDS': 'policy_rate',  # 연방기금 금리 (월간)
+    'UMCSENT': 'michigan_consumer_sentiment_index',  # 소비자 신뢰 지수 (월간)
+    'UNRATE': 'unemployment_rate',  # 실업률 (월간)
     # 'USREC': '경기침체',  # 경기침체 지수 (월간) --> 장단기 금리차를 통해 확인 가능.
-    'DGS2': '2년 만기 미국 국채 수익률',  # 2년 만기 국채 수익률 (일간)
-    'DGS10': '10년 만기 미국 국채 수익률',  # 10년 만기 국채 수익률 (일간)
+    'DGS2': 'us_2y_treasury_yield',  # 2년 만기 국채 수익률 (일간)
+    'DGS10': 'us_10y_treasury_yield',  # 10년 만기 국채 수익률 (일간)
 
     # 추가 지표
-    'STLFSI4': '금융스트레스지수',  # 금융 스트레스 지수 (주간)
-    'PCE': '개인 소비 지출',  # 개인 소비 지출 (월간) -> 소비자물가지수(CPI)나 GDP, 실업률, 인플레이션 기대 등 다른 핵심 지표가 이미 전반적 경기 상황을 반영.
+    'STLFSI4': 'financial_stress_index',  # 금융 스트레스 지수 (주간)
+    'PCE': 'personal_consumption_expenditures',  # 개인 소비 지출 (월간) -> 소비자물가지수(CPI)나 GDP, 실업률, 인플레이션 기대 등 다른 핵심 지표가 이미 전반적 경기 상황을 반영.
     # 'INDPRO': '산업생산',  # 산업 생산 지수 (월간)
     # 'HOUST': '주택 착공',  # 신규 주택 착공 건수 (월간)
     # 'UNEMPLOY': '실업자수',  # 실업자의 총 수 (월간)
@@ -29,13 +29,13 @@ fred_indicators = {
     # 'CPIENGSL': '에너지 가격 지수',  # 소비자 물가지수 중 에너지 부문 (월간) -> 소비자물가지수(CPI)나 GDP, 실업률, 인플레이션 기대 등 다른 핵심 지표가 이미 전반적 경기 상황을 반영.
     # 'AHETPI': '임금 성장률',  # 시간당 평균 임금 성장률 (월간)
     # 'PPIACO': '농산물 가격 지수',  # 생산자 물가지수 중 농산물 부문 (월간)
-    'CPIAUCSL': '소비자 물가지수',  # 전체 소비자 물가지수 (월간)
+    'CPIAUCSL': 'consumer_price_index',  # 전체 소비자 물가지수 (월간)
     # 'CSUSHPINSA': '주택가격지수',  # 케이스-실러 주택 가격 지수 (월간) -> 5년 변동금리 모기지 (MORTGAGE5US): 부동산 시장이 대상 종목(빅테크) 주가 변동에 단기적으로 큰 영향 미치는지 불분명. 단기간(1주일 후) 예측에서는 영향력 제한적.
     # 'MORTGAGE30US': '30년 고정금리 모기지',  # 30년 만기 고정금리 모기지 금리 (주간)
     # 'MORTGAGE15US': '15년 고정금리 모기지',  # 15년 만기 고정금리 모기지 금리 (주간)
-    'MORTGAGE5US': '5년 변동금리 모기지',  # 5년 변동금리 모기지 금리 (주간)
-    'DTWEXM': '미국 달러 환율',  # 미국 무역가중 환율 (월간)
-    'M2': '통화 공급량 M2',  # M2 통화 공급량 (주간) -> FEDFUNDS나 금리 동향, 달러 인덱스, 금융스트레스지수가 이미 유동성 상황을 대략 파악 가능.
+    'MORTGAGE5US': 'mortgage_rate_5y_frm',  # 5년 변동금리 모기지 금리 (주간)
+    'DTWEXM': 'usd_exchange_rate',  # 미국 무역가중 환율 (월간)
+    'M2': 'money_supply_m2',  # M2 통화 공급량 (주간) -> FEDFUNDS나 금리 동향, 달러 인덱스, 금융스트레스지수가 이미 유동성 상황을 대략 파악 가능.
     # 'TEDRATE': 'TED 스프레드',  # 3개월 만기 미국 국채와 유로달러 금리 스프레드 (일간) -> FEDFUNDS나 금리 동향, 달러 인덱스, 금융스트레스지수가 이미 유동성 상황을 대략 파악 가능.
     # 'BAMLH0A0HYM2': '미국 하이일드 채권 스프레드',  # 미국 하이일드 채권과 국채 스프레드 (일간) -> 금융시장 신용위험을 반영하지만, 이미 금융스트레스지수(STLFSI4), 장단기금리차, VIX 등의 지표로 대략적인 위험 선호도나 스트레스 상황 파악 가능.
     # 'BAMLC0A0CM': '미국 회사채 스프레드',  # 미국 회사채와 국채 스프레드 (일간)
@@ -46,54 +46,54 @@ fred_indicators = {
     # 'BAMLHYH0A3CMTRIV': '미국 하이일드 채권 CCC등급 수익률',  # CCC등급 하이일드 채권 수익률 (일간)
     # 'BAMLHE00EHYIEY': '미국 하이일드 채권 기대수익률',  # 하이일드 채권 기대수익률 (일간)
 
-    'TDSP': '가계 부채 비율',  # 가계의 부채 상환 비율을 나타냄 (분기)
+    'TDSP': 'household_debt_to_income_ratio',  # 가계의 부채 상환 비율을 나타냄 (분기)
     # 'A939RX0Q048SBEA': '실질 GDP 성장률',  # 계절 조정된 연간 실질 GDP 성장률 (분기)
-    'GDPC1': 'GDP 성장률',  # 실질 국내총생산 성장률, 물가 조정을 반영 (분기)
+    'GDPC1': 'gdp_growth_rate',  # 실질 국내총생산 성장률, 물가 조정을 반영 (분기)
     # 'W019RCQ027SBEA': '정부 지출',  # 정부의 총 지출 금액 (분기)
     # 'DRBLACBS': '대출 연체율',  # 기업 대출의 연체율 (분기)
 
     # 주식시장 관련 추가 지표
     # 'DJIA': '다우존스 산업평균지수',  # 미국 대형 30개 기업의 주가 평균 (일간)
-    'NASDAQCOM': '나스닥 종합지수'  # 나스닥 시장 전체 종합 주가 지수 (일간)
+    'NASDAQCOM': 'nasdaq_composite_index'  # 나스닥 시장 전체 종합 주가 지수 (일간)
 }
 
 
 # Yahoo Finance에서 제공하는 지표와 티커
 yfinance_indicators = {
-    'S&P 500 지수': '^GSPC',    # S&P 500 지수
-    '금 가격': 'GC=F',           # 금 가격 (선물)
-    '달러 인덱스': 'DX-Y.NYB',    # 달러 인덱스
+    'sp500_index': '^GSPC',    # S&P 500 지수
+    'gold_price': 'GC=F',           # 금 가격 (선물)
+    'dollar_index': 'DX-Y.NYB',    # 달러 인덱스
 
     # 추가 지표
-    '나스닥 100': '^NDX',           # 나스닥 100 지수
-    'S&P 500 ETF': 'SPY',           # S&P 500 추종 ETF
-    'QQQ ETF': 'QQQ',               # 나스닥 100 추종 ETF
-    '러셀 2000 ETF': 'IWM',         # 러셀 2000 추종 ETF
-    '다우 존스 ETF': 'DIA',          # 다우 존스 추종 ETF
+    'nasdaq_100': '^NDX',           # 나스닥 100 지수
+    'sp500_etf': 'SPY',           # S&P 500 추종 ETF
+    'qqq_etf': 'QQQ',               # 나스닥 100 추종 ETF
+    'russell_2000_etf': 'IWM',         # 러셀 2000 추종 ETF
+    'dow_jones_etf': 'DIA',          # 다우 존스 추종 ETF
     # 'NYSE FANG+ 지수': '^NYFANG'   # NYSE FANG+ 지수
-    'VIX 지수': '^VIX',          # ^VIX (변동성 지수, 공포 지수): S&P 500 옵션 가격을 기반으로 앞으로의 시장 변동성 기대치를 반영해 시장 심리를 나타내는 지표.
+    'vix_index': '^VIX',          # ^VIX (변동성 지수, 공포 지수): S&P 500 옵션 가격을 기반으로 앞으로의 시장 변동성 기대치를 반영해 시장 심리를 나타내는 지표.
 
     # 글로벌 지수
-    '닛케이 225': '^N225',          # 일본 닛케이 225 지수
-    '상해종합': '000001.SS',        # 중국 상해종합지수
-    '항셍': '^HSI',                # 홍콩 항셍지수
+    'nikkei_225_index': '^N225',          # 일본 닛케이 225 지수
+    'shanghai_composite_index': '000001.SS',        # 중국 상해종합지수
+    'hang_seng_index': '^HSI',                # 홍콩 항셍지수
     # '유로스톡스 50': '^STOXX50E',   # 유럽 유로스톡스 50 지수
-    '영국 FTSE': '^FTSE',          # 영국 FTSE 100 지수
-    '독일 DAX': '^GDAXI',          # 독일 DAX 지수
-    '프랑스 CAC 40': '^FCHI',       # 프랑스 CAC 40 지수
+    'ftse100_index': '^FTSE',          # 영국 FTSE 100 지수
+    'dax_index': '^GDAXI',          # 독일 DAX 지수
+    'cac40_index': '^FCHI',       # 프랑스 CAC 40 지수
 
-    '미국 전체 채권시장 ETF': 'AGG',  # iShares 핵심 미국 전체 채권 ETF
-    'TIPS ETF': 'TIP',             # iShares TIPS ETF (물가연동국채)
+    'us_bond_market_etf': 'AGG',  # iShares 핵심 미국 전체 채권 ETF
+    'tips_etf': 'TIP',             # iShares TIPS ETF (물가연동국채)
     # '하이일드 채권 ETF': 'HYG',      # iShares iBoxx $ 하이일드 회사채 ETF
-    '투자등급 회사채 ETF': 'LQD',     # iShares iBoxx $ 투자등급 회사채 ETF
+    'investment_grade_corp_bond_etf': 'LQD',     # iShares iBoxx $ 투자등급 회사채 ETF
     # '신흥국 채권 ETF': 'EMB',        # iShares JP모건 USD 신흥시장 채권 ETF
 
     # 환율
-    '달러/엔': 'JPY=X',          # 달러/엔 환율
-    '달러/위안': 'CNY=X',         # 달러/위안 환율
+    'usd_jpy_exchange_rate': 'JPY=X',          # 달러/엔 환율
+    'usd_cny_exchange_rate': 'CNY=X',         # 달러/위안 환율
 
     # 리츠(부동산) 관련
-    '미국 리츠 ETF': 'VNQ',       # Vanguard Real Estate ETF
+    'us_reit_etf': 'VNQ',       # Vanguard Real Estate ETF
     # '모기지 리츠 ETF': 'REM',      # iShares Mortgage Real Estate ETF
 }
 
@@ -200,7 +200,7 @@ def download_yahoo_chart(symbol, start_date, end_date, interval="1d"):
     
     return df
 
-def collect_economic_data(start_date='2006-01-01', end_date=None):
+def collect_economic_data(start_date='2010-01-01', end_date=None):
     """
     경제 데이터를 수집하는 메인 함수
     
@@ -299,26 +299,26 @@ def collect_economic_data(start_date='2006-01-01', end_date=None):
         time.sleep(1)
     
     # 나스닥 100 상위 종목 데이터 수집 (yfinance.py의 방식으로 대체)
-    print("\n나스닥 100 상위 종목 데이터 수집 중...")
-    nasdaq_data_frames = []
-    for ticker, name in nasdaq_top_100:
-        try:
-            # download_yahoo_chart 함수를 사용하여 데이터 수집
-            df = download_yahoo_chart(ticker, start_date, end_date)
-            if not df.empty:
-                df.columns = [name]  # 'Close' 컬럼명을 종목 한글 이름으로 변경
-                df.index = df.index.tz_localize(None)  # 시간대 정보 제거
-                nasdaq_data_frames.append(df)
-                print(f"{name}({ticker}) 수집 완료, {len(df)}개")
-            else:
-                print(f"No data found for stock {name} ({ticker}).")
-        except Exception as e:
-            print(f"Error downloading data for {ticker} ({name}): {e}")
-        # 요청 간 간격을 두어 rate limit 방지
-        time.sleep(1)
+    # print("\n나스닥 100 상위 종목 데이터 수집 중...")
+    # nasdaq_data_frames = []
+    # for ticker, name in nasdaq_top_100:
+    #     try:
+    #         # download_yahoo_chart 함수를 사용하여 데이터 수집
+    #         df = download_yahoo_chart(ticker, start_date, end_date)
+    #         if not df.empty:
+    #             df.columns = [name]  # 'Close' 컬럼명을 종목 한글 이름으로 변경
+    #             df.index = df.index.tz_localize(None)  # 시간대 정보 제거
+    #             nasdaq_data_frames.append(df)
+    #             print(f"{name}({ticker}) 수집 완료, {len(df)}개")
+    #         else:
+    #             print(f"No data found for stock {name} ({ticker}).")
+    #     except Exception as e:
+    #         print(f"Error downloading data for {ticker} ({name}): {e}")
+    #     # 요청 간 간격을 두어 rate limit 방지
+    #     time.sleep(1)
     
     # 모든 데이터를 날짜 기준으로 외부 결합하여 하나의 데이터프레임으로 결합
-    all_data_frames = fred_data_frames + yfinance_data_frames + nasdaq_data_frames
+    all_data_frames = fred_data_frames + yfinance_data_frames # + nasdaq_data_frames
     if all_data_frames:
         # 중복된 인덱스 처리
         for i, df in enumerate(all_data_frames):

@@ -13,6 +13,7 @@ pip freeze > requirements.txt
 
 # 실행
 streamlit run my_app/trading/test/home.py
+streamlit run my_app/feedbeck/feedbeck2.py
 python api_test/stocktrading-main/run.py
 
 """
