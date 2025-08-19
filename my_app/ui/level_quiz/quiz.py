@@ -98,7 +98,7 @@ def init_quiz_state():
         "user_keywords": [],
         "completion_announced": False,
         "role": "User",
-        "messages": [],  # ★ 변경: 타입 보장
+        "messages": [],  # 타입 보장
         "eval_cache": {},
         "processing": False,
         "generated_saved": False,
@@ -106,7 +106,7 @@ def init_quiz_state():
     for k, v in defaults.items():
         if k not in st.session_state:
             st.session_state[k] = v
-    if not isinstance(st.session_state.messages, list):  # ★ 변경
+    if not isinstance(st.session_state.messages, list): 
         st.session_state.messages = []
 
 # ── Utils ─────────────────────────────────────────────────────────────────────
@@ -272,6 +272,7 @@ SYSTEM_PROMPT_EVAL = """
 출력은 JSON 객체 한 개만. 다른 텍스트는 금지.
 """
 
+
 USER_PROMPT_EVAL_TMPL = """
 문항: {question_text}
 선택지: {options}
@@ -293,7 +294,7 @@ def generate_next_question(proficiency: int, score: int, max_score: int, wrong_n
     wrong_summary = " / ".join(wrong_notes[-3:]) if wrong_notes else "없음"
     keywords_str = ", ".join(keywords) if keywords else "기초, 저위험, ETF, 예금, 채권"
 
-    # API 미사용시 로컬 fallback (mcq/ox 섞기) 
+    # API 미사용시 로컬 fallback (mcq/ox 섞기) ★ 변경
     if not GOOGLE_API_KEY:
         if random.random() < 0.35:
             # OX
@@ -374,7 +375,7 @@ def generate_next_question(proficiency: int, score: int, max_score: int, wrong_n
 
     return q
 
-# 재시도+폴백+캐시
+# 교체: evaluate_answer (재시도+폴백+캐시)
 def evaluate_answer(question_text: str, options, answer: str, user_answer: str, level:str, proficiency: int):
     # 1) 캐시 키 구성 (같은 문항/같은 답변이면 API 재호출 방지)
     cache_key = json.dumps({
@@ -458,8 +459,8 @@ def render_sidebar_status():
 def render_quiz_section():
     inject_styles()
     init_quiz_state()
-    ensure_user_keywords()     # 먼저 관심사 확보
-    render_sidebar_status()    # 확보 후 사이드바 렌더
+    ensure_user_keywords()     # ★먼저 관심사 확보
+    render_sidebar_status()    # 사이드바 렌더
 
     if not st.session_state.get("quiz_started", False):
         return
@@ -492,7 +493,7 @@ def render_quiz_section():
     """, unsafe_allow_html=True)
     st.progress((st.session_state.quiz_index) / (TOTAL_QUESTIONS or 1))
 
-    # 4~10번: 필요 시 LLM 생성 + 로컬 저장 
+    # 4~10번: 필요 시 LLM 생성 + 로컬 저장
     while len(st.session_state.quiz_questions) < TOTAL_QUESTIONS and st.session_state.quiz_index >= len(st.session_state.quiz_questions):
         q = generate_next_question(
             proficiency=st.session_state.proficiency,
@@ -618,6 +619,7 @@ def render_quiz_section():
             })
 
             # 챗봇 피드백
+
             feedback_text = "정답입니다! ✅" if is_correct else f"오답입니다 ❌ . 정답은 {correct}입니다."
 
             # LLM 피드백 (해설 대체)
@@ -697,11 +699,12 @@ def render():
         st.session_state.messages.append({
             "id": str(uuid.uuid4()),
             "role": "assistant",
-            "content": "안녕하세요! 금융 지식 퀴즈를 시작해보세요. 아래 버튼으로 시작할 수 있어요."
+            "content": "안녕하세요! 금융 지식 퀴즈를 시작해보세요. 아래 버튼으로 시작할 수 있어요.",
+            "cta": "start_quiz"   
         })
         st.session_state.welcome_injected = True  # 다시 안 넣도록
 
-    # (선택) role 정규화 - 혹시 모를 공백/대소문자 틀어짐 방지
+    # role 정규화 - 혹시 모를 공백/대소문자 틀어짐 방지
     for m in st.session_state.messages:
         if isinstance(m, dict) and "role" in m and isinstance(m["role"], str):
             r = m["role"].strip().lower()
@@ -758,10 +761,11 @@ def render():
         # 채팅 메시지 영역 (높이 고정)
         chat_container = st.container(border=True, height=500)
         with chat_container:
-            # 기존 메시지들 표시
+            has_cta = False 
+
             for i, message in enumerate(st.session_state.messages):
                 with st.chat_message(message["role"]):
-                    # 가장 마지막 메시지이고 AI 메시지인 경우에만 stream 사용
+                    # 내용 출력
                     if (
                         i == len(st.session_state.messages) - 1
                         and message["role"] == "assistant"
@@ -769,28 +773,53 @@ def render():
                         and st.session_state.streaming
                     ):
                         st.write_stream(stream_data(message["content"]))
-                        # 스트리밍 완료 후 플래그 제거
                         if "streaming" in st.session_state:
                             del st.session_state.streaming
                     else:
                         st.write(message["content"])
-        # ★ 변경: 오른쪽에서도 시작 가능 + 안전 초기화
-        if not st.session_state.quiz_started and not st.session_state.quiz_completed:
-            if st.button("시작하기", key="start_quiz_right"):
-                st.session_state.quiz_questions = []
-                st.session_state.quiz_index = 0
-                st.session_state.quiz_score = 0
-                st.session_state.total_weight = 0
-                st.session_state.proficiency = 5
-                st.session_state.wrong_notes = []
-                st.session_state.history = []
-                st.session_state.generated_count = 0
-                st.session_state.quiz_completed = False
-                st.session_state.completion_announced = False
-                st.session_state.quiz_started = True
-                st.rerun()
 
-        
+                    # CTA가 달린 버블이면 버튼 렌더 + 플래그 켬
+                    if (
+                        message.get("cta") == "start_quiz"
+                        and not st.session_state.get("quiz_started", False)
+                        and not st.session_state.get("quiz_completed", False)
+                    ):
+                        has_cta = True
+                        st.divider()
+                        if st.button("▶ 시작하기", key="start_quiz_inside", use_container_width=True):
+                            st.session_state.quiz_questions = []
+                            st.session_state.quiz_index = 0
+                            st.session_state.quiz_score = 0
+                            st.session_state.total_weight = 0
+                            st.session_state.proficiency = 5
+                            st.session_state.wrong_notes = []
+                            st.session_state.history = []
+                            st.session_state.generated_count = 0
+                            st.session_state.quiz_completed = False
+                            st.session_state.completion_announced = False
+                            st.session_state.quiz_started = True
+                            st.rerun()
+
+            # ✅ CTA 버블이 없었으면, 맨 아래에 보조 버블로 버튼을 꼭 보여준다
+            if (
+                not has_cta
+                and not st.session_state.get("quiz_started", False)
+                and not st.session_state.get("quiz_completed", False)
+            ):
+                    if st.button("▶ 시작하기", key="start_quiz_fallback"):
+                        st.session_state.quiz_questions = []
+                        st.session_state.quiz_index = 0
+                        st.session_state.quiz_score = 0
+                        st.session_state.total_weight = 0
+                        st.session_state.proficiency = 5
+                        st.session_state.wrong_notes = []
+                        st.session_state.history = []
+                        st.session_state.generated_count = 0
+                        st.session_state.quiz_completed = False
+                        st.session_state.completion_announced = False
+                        st.session_state.quiz_started = True
+                        st.rerun()
+ 
         # 채팅 입력 영역
         if prompt := st.chat_input("투자나 FIRE에 대해 질문해보세요...", key="fire_chatbot"):
             # 사용자 메시지 추가
