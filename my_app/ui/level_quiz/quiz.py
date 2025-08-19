@@ -28,8 +28,8 @@ if GOOGLE_API_KEY:
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "models/gemini-2.0-flash")
 
 COMMON_PATH = "my_app/ui/level_quiz/data/common_questions.json"
-GENERATED_DIR = "my_app/ui/level_quiz/data/generated"  # ★ 변경: 생성문항 저장 디렉토리
-os.makedirs(GENERATED_DIR, exist_ok=True)              # ★ 변경: 폴더 자동 생성
+GENERATED_DIR = "my_app/ui/level_quiz/data/generated"  # 생성문항 저장 디렉토리
+os.makedirs(GENERATED_DIR, exist_ok=True)              # 폴더 자동 생성
 
 TOTAL_QUESTIONS = 10
 COMMON_COUNT = 3
@@ -137,7 +137,7 @@ def _coerce_mc_options(options):
     opts = [str(o).strip() for o in options][:4]
     return opts if len(opts) == 4 else []
 
-# ★ 변경: dict/객체 호환 헬퍼 (User.get 에러 방지)
+# dict/객체 호환 헬퍼 (User.get 에러 방지)
 def _get_user_id(user):
     if not user:
         return None
@@ -150,7 +150,7 @@ def _get_user_field(user, key, default=None):
     if isinstance(user, dict): return user.get(key, default)
     return getattr(user, key, default)
 
-# ★ 변경: 언제든 관심사 확보
+# 언제든 관심사 확보
 def ensure_user_keywords():
     if st.session_state.user_keywords:
         return
@@ -175,7 +175,7 @@ def classify_level(score, max_score):
     if rate <= 0.6: return "Intermediate"
     return "Advanced"
 
-# ★ 변경: 생성 문항 로컬 저장
+# 생성 문항 로컬 저장
 def save_generated_question(q: list[dict], meta: dict):
     ts = time.strftime("%Y%m%d-%H%M%S")
     fname = os.path.join(GENERATED_DIR, f"quiz_{ts}.json")
@@ -193,7 +193,7 @@ def save_result(score, level):
     user = st.session_state.get("user")
     if not user or not supabase:
         return None
-    user_id = _get_user_id(user)  # ★ 변경
+    user_id = _get_user_id(user)  
     try:
         res = supabase.table("users").select("user_name, user_role").eq("user_id", user_id).execute()
         if res.data:
@@ -222,7 +222,7 @@ def save_result(score, level):
     return {"user_name": user_name, "score": score, "level": level}
 
 # ── 2. LLM 프롬프트 ──────────────────────────────────────────────────────────
-# ★ 변경: OX/4지선다 모두 허용 + 관심사 강제 반영
+# OX/4지선다 모두 허용 + 관심사 강제 반영
 SYSTEM_PROMPT_QGEN = """
 너는 한국어 금융 교육 전문가다. 사용자 수준을 정밀하게 측정하기 위해 OX 또는 4지선다 문제 중 1문항을 생성한다.
 요구:
@@ -272,7 +272,6 @@ SYSTEM_PROMPT_EVAL = """
 출력은 JSON 객체 한 개만. 다른 텍스트는 금지.
 """
 
-
 USER_PROMPT_EVAL_TMPL = """
 문항: {question_text}
 선택지: {options}
@@ -294,7 +293,7 @@ def generate_next_question(proficiency: int, score: int, max_score: int, wrong_n
     wrong_summary = " / ".join(wrong_notes[-3:]) if wrong_notes else "없음"
     keywords_str = ", ".join(keywords) if keywords else "기초, 저위험, ETF, 예금, 채권"
 
-    # API 미사용시 로컬 fallback (mcq/ox 섞기) ★ 변경
+    # API 미사용시 로컬 fallback (mcq/ox 섞기) 
     if not GOOGLE_API_KEY:
         if random.random() < 0.35:
             # OX
@@ -349,7 +348,7 @@ def generate_next_question(proficiency: int, score: int, max_score: int, wrong_n
     if q["weight"] not in (1, 2):
         q["weight"] = 1 if q["level"] == "easy" else 2
 
-    # 유효성 보정 ★ 변경
+    # 유효성 보정 
     if q_type == "mcq":
         if not q["question_text"] or len(q["options"]) != 4 or q["answer"] not in {"1","2","3","4"}:
             q = {
@@ -375,7 +374,7 @@ def generate_next_question(proficiency: int, score: int, max_score: int, wrong_n
 
     return q
 
-# 교체: evaluate_answer (재시도+폴백+캐시)
+# 재시도+폴백+캐시
 def evaluate_answer(question_text: str, options, answer: str, user_answer: str, level:str, proficiency: int):
     # 1) 캐시 키 구성 (같은 문항/같은 답변이면 API 재호출 방지)
     cache_key = json.dumps({
@@ -449,7 +448,7 @@ def render_sidebar_status():
         st.progress(min(1.0, prog))
         st.metric("진행", f"{st.session_state.quiz_index}/{TOTAL_QUESTIONS}")
         st.metric("획득 점수", f"{st.session_state.quiz_score}/{st.session_state.total_weight or 1}")
-        st.metric("프로피션시(0~10)", st.session_state.proficiency)
+        st.metric("숙련도(0~10)", st.session_state.proficiency)
         if st.session_state.user_keywords:
             st.caption("관심사")
             st.markdown("".join([f"<span class='tag'>{t}</span>" for t in st.session_state.user_keywords]),
@@ -459,8 +458,8 @@ def render_sidebar_status():
 def render_quiz_section():
     inject_styles()
     init_quiz_state()
-    ensure_user_keywords()     # ★ 변경: 먼저 관심사 확보
-    render_sidebar_status()    # ★ 변경: 확보 후 사이드바 렌더
+    ensure_user_keywords()     # 먼저 관심사 확보
+    render_sidebar_status()    # 확보 후 사이드바 렌더
 
     if not st.session_state.get("quiz_started", False):
         return
@@ -493,7 +492,7 @@ def render_quiz_section():
     """, unsafe_allow_html=True)
     st.progress((st.session_state.quiz_index) / (TOTAL_QUESTIONS or 1))
 
-    # 4~10번: 필요 시 LLM 생성 + 로컬 저장 ★ 변경
+    # 4~10번: 필요 시 LLM 생성 + 로컬 저장 
     while len(st.session_state.quiz_questions) < TOTAL_QUESTIONS and st.session_state.quiz_index >= len(st.session_state.quiz_questions):
         q = generate_next_question(
             proficiency=st.session_state.proficiency,
@@ -507,7 +506,7 @@ def render_quiz_section():
         st.session_state.total_weight += q.get("weight", 1)
         st.session_state.generated_count += 1
 
-    # ★ 루프가 끝난 뒤: 전체 세트 한 번만 저장
+    # 루프가 끝난 뒤: 전체 세트 한 번만 저장
     if (len(st.session_state.quiz_questions) == TOTAL_QUESTIONS
         and not st.session_state.get("generated_saved", False)):
         save_generated_question(
@@ -546,9 +545,9 @@ def render_quiz_section():
 
         if answer_type == "ox":
             col = st.columns(2)
-            if col[0].button("⭕ O", key=f"btn_o_{st.session_state.quiz_index}", use_container_width=True):
+            if col[0].button("⭕", key=f"btn_o_{st.session_state.quiz_index}", use_container_width=True):
                 st.session_state[key_ans] = "O"; st.rerun()
-            if col[1].button("❌ X", key=f"btn_x_{st.session_state.quiz_index}", use_container_width=True):
+            if col[1].button("❌", key=f"btn_x_{st.session_state.quiz_index}", use_container_width=True):
                 st.session_state[key_ans] = "X"; st.rerun()
         else:
             st.write("선택지 중 하나를 고르세요:")
@@ -619,7 +618,6 @@ def render_quiz_section():
             })
 
             # 챗봇 피드백
-
             feedback_text = "정답입니다! ✅" if is_correct else f"오답입니다 ❌ . 정답은 {correct}입니다."
 
             # LLM 피드백 (해설 대체)
