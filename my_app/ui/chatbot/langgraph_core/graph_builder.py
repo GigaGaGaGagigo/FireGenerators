@@ -47,9 +47,7 @@ class GraphBuilder:
         )
 
         self.config = RunnableConfig(
-            recursion_limit=4,
             configurable={"thread_id": "1"},
-            tags=["my-rag"],  # Tag
         )
 
         self.memory = MemorySaver()
@@ -78,7 +76,6 @@ class GraphBuilder:
                 "invalid": "analyze_user_goal",
             },
         )
-        self.workflow.add_edge("evaluation_analysis", "update_profile_status")
         self.workflow.add_conditional_edges(
             "update_profile_status",
             route_after_update_profile_status,
