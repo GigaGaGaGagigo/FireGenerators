@@ -64,7 +64,7 @@ USER_MENUS = {
     "User": [
         ("Chatbot", "chatbot"),
         ("오늘의 퀴즈", "quiz"),
-        ("오늘의 콘텐츠", "content"),
+        ("맞춤형 금융 콘텐츠", "content"),
         ("맞춤형 상품 추천", "recommendation"),
         ("투자 시뮬레이션", "simulation"),
         ("모의 투자 및 분석", "analysis"),
@@ -436,10 +436,10 @@ def render():
                 
         elif current_page == "content":
             try:
-                from ui.content.content import render
+                from ui.contents.recomendation_contents import render
                 render()
             except ImportError:
-                st.title("📚 오늘의 콘텐츠")
+                st.title("📚 맞춤형 금융 콘텐츠")
                 st.info("ui/content/content.py 파일을 생성해주세요.")
                 
         elif current_page == "recommendation":
