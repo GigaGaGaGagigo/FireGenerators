@@ -1,10 +1,9 @@
 import os
-import re
 import json
 import uuid
 import time
 import random
-import time
+import re
 import streamlit as st
 import google.generativeai as genai
 from google.api_core.exceptions import ResourceExhausted, TooManyRequests
@@ -16,7 +15,7 @@ from ui.chatbot.chatbot_sample import generate_simple_response, stream_data
 # ── ENV / Clients ─────────────────────────────────────────────────────────────
 load_dotenv()
 
-# Supabase (결과 저장용)
+# Supabase
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
@@ -28,11 +27,21 @@ if GOOGLE_API_KEY:
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "models/gemini-2.0-flash")
 
 COMMON_PATH = "my_app/ui/level_quiz/data/common_questions.json"
-GENERATED_DIR = "my_app/ui/level_quiz/data/generated"  # 생성문항 저장 디렉토리
-os.makedirs(GENERATED_DIR, exist_ok=True)              # 폴더 자동 생성
+GENERATED_DIR = "my_app/ui/level_quiz/data/generated"
+os.makedirs(GENERATED_DIR, exist_ok=True)
 
 TOTAL_QUESTIONS = 10
 COMMON_COUNT = 3
+
+# ── Topic 키워드(간단 매칭) ───────────────────────────────────────────────────
+TOPIC_KEYWORDS = {
+    "예금/금리": [r"예금", r"금리", r"복리", r"단리"],
+    "채권": [r"채권", r"듀레이션", r"표면이자", r"만기수익률", r"세후.?수익률"],
+    "ETF/인덱스": [r"ETF", r"인덱스", r"지수", r"추적오차"],
+    "세금": [r"세금", r"과세", r"배당소득", r"양도소득"],
+    "신용/부채": [r"신용", r"신용점수", r"대출", r"DSR", r"원리금"],
+    "FIRE/자산배분": [r"FIRE", r"자산배분", r"리밸런싱", r"비상금"],
+}
 
 # ── Style ────────────────────────────────────────────────────────────────────
 def inject_styles():
@@ -98,7 +107,7 @@ def init_quiz_state():
         "user_keywords": [],
         "completion_announced": False,
         "role": "User",
-        "messages": [],  # 타입 보장
+        "messages": [],
         "eval_cache": {},
         "processing": False,
         "generated_saved": False,
@@ -106,17 +115,15 @@ def init_quiz_state():
     for k, v in defaults.items():
         if k not in st.session_state:
             st.session_state[k] = v
-    if not isinstance(st.session_state.messages, list): 
+    if not isinstance(st.session_state.messages, list):
         st.session_state.messages = []
 
 # ── Utils ─────────────────────────────────────────────────────────────────────
-
-# 로컬 채점 폴백 로직(단순/결정적)
 def _local_eval(question_text, options, answer, user_answer, proficiency):
     correct = user_answer.strip().lower() == answer.strip().lower()
     return {
         "is_correct": correct,
-        "feedback": "좋아요! 개념을 잘 이해하고 있어요." if correct else "괜찮아요. 해설을 읽고 개념을 정리해보세요.",
+        "feedback": "핵심 개념을 잘 이해했어요." if correct else "괜찮아요. 해설을 보고 핵심 개념을 정리해보세요.",
         "delta": 1 if correct else -1
     }
 
@@ -137,12 +144,9 @@ def _coerce_mc_options(options):
     opts = [str(o).strip() for o in options][:4]
     return opts if len(opts) == 4 else []
 
-# dict/객체 호환 헬퍼 (User.get 에러 방지)
 def _get_user_id(user):
-    if not user:
-        return None
-    if isinstance(user, dict):
-        return user.get("user_id") or user.get("id")
+    if not user: return None
+    if isinstance(user, dict): return user.get("user_id") or user.get("id")
     return getattr(user, "user_id", None) or getattr(user, "id", None)
 
 def _get_user_field(user, key, default=None):
@@ -150,7 +154,6 @@ def _get_user_field(user, key, default=None):
     if isinstance(user, dict): return user.get(key, default)
     return getattr(user, key, default)
 
-# 언제든 관심사 확보
 def ensure_user_keywords():
     if st.session_state.user_keywords:
         return
@@ -175,14 +178,10 @@ def classify_level(score, max_score):
     if rate <= 0.6: return "Intermediate"
     return "Advanced"
 
-# 생성 문항 로컬 저장
 def save_generated_question(q: list[dict], meta: dict):
     ts = time.strftime("%Y%m%d-%H%M%S")
     fname = os.path.join(GENERATED_DIR, f"quiz_{ts}.json")
-    payload = {
-        "meta": meta,
-        "questions": q
-    }
+    payload = {"meta": meta, "questions": q}
     try:
         with open(fname, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
@@ -193,99 +192,241 @@ def save_result(score, level):
     user = st.session_state.get("user")
     if not user or not supabase:
         return None
-    user_id = _get_user_id(user)  
+    user_id = _get_user_id(user)
     try:
         res = supabase.table("users").select("user_name, user_role").eq("user_id", user_id).execute()
         if res.data:
             user_data = res.data[0]
             user_name = user_data["user_name"] if isinstance(user_data, dict) else getattr(user_data, "user_name", "Anonymous")
-            st.session_state.role = (
-                user_data.get("user_role", "User") if isinstance(user_data, dict)
-                else getattr(user_data, "user_role", "User")
-            )
+            st.session_state.role = user_data.get("user_role", "User") if isinstance(user_data, dict) else getattr(user_data, "user_role", "User")
         else:
             user_name = "Anonymous"
-            # user 객체에 role 정보가 있으면 반영
             if not isinstance(st.session_state.role, str):
                 st.session_state.role = _get_user_field(user, "user_role", "User")
     except Exception:
         user_name = "Anonymous"
     try:
         supabase.table("quiz_results").insert({
-            "user_id": user_id,
-            "user_name": user_name,
-            "score": score,
-            "level": level
+            "user_id": user_id, "user_name": user_name, "score": score, "level": level
         }).execute()
     except Exception:
         return None
     return {"user_name": user_name, "score": score, "level": level}
 
-# ── 2. LLM 프롬프트 ──────────────────────────────────────────────────────────
-# OX/4지선다 모두 허용 + 관심사 강제 반영
+# ── 문제 생성/채점 LLM 프롬프트 ───────────────────────────────────────────────
 SYSTEM_PROMPT_QGEN = """
-너는 한국어 금융 교육 전문가다. 사용자 수준을 정밀하게 측정하기 위해 OX 또는 4지선다 문제 중 1문항을 생성한다.
-요구:
-- JSON 객체 한 개만 반환.
-- 필수 필드:
-  - question_type: "ox" 또는 "mcq"
-  - question_text: 문자열
-  - options: question_type=="mcq"일 때만 4개 문자열 배열, "1~4" 선택지 의미
-  - answer: mcq일 땐 "1"~"4", ox일 땐 "O" 또는 "X"
-  - explanation: 두 문장 이내
-  - level: "easy" 또는 "medium"
-  - weight: 정수 (easy=1, medium=2)
-- 오답은 그럴듯하되 명확히 틀리게 구성.
-- 사용자 약점, 현재 수준(proficiency), **관심사 키워드**를 가능한 한 본문 주제에 반영.
-- JSON만 출력하고 다른 텍스트는 출력하지 마라.
+너는 한국어 금융 교육 전문가다. OX 또는 4지선다 문제 중 1문항을 생성한다.
+JSON만 출력. 필요한 필드:
+- question_type: "ox" | "mcq"
+- question_text: string
+- options: (mcq일 때만) 4개 배열
+- answer: mcq "1"~"4", ox "O"/"X"
+- explanation: 두 문장 이내
+- level: "easy" | "medium"
+- weight: easy=1, medium=2
 """
 
 USER_PROMPT_QGEN_TMPL = """
-사용자 역량 점수(0~10): {proficiency}/10
-누적 점수(가중치 합 기준): {score}/{max_score}
-틀린 문제 요약(최대 3개): {wrong_summary}
-이전 문항들(요약): {history_summary}
-사용자 관심사 키워드: {keywords_str}
+사용자 역량(0~10): {proficiency}/10
+누적 점수: {score}/{max_score}
+틀렸던 문제(최대 3개): {wrong_summary}
+이전 문항(요약): {history_summary}
+관심사 키워드: {keywords_str}
 
-위 정보를 바탕으로 OX 또는 4지선다 중 적절한 형태로 1문항을 생성해줘.
-JSON 객체만 출력.
+위 정보를 반영해 1문항만 생성. JSON만.
 """
 
 SYSTEM_PROMPT_EVAL = """
-너는 금융 퀴즈 채점 및 난이도 조절 평가자다.
-아래 정보를 바탕으로 채점 결과를 JSON으로만 출력하라.
-
-요구사항:
-- 출력 키: is_correct (true/false), feedback (문자열), delta (정수: -2~+2)
-- feedback은 "정답입니다", "오답입니다", "맞습니다", "틀렸습니다" 등 정오 판단 문구나 이모지(✅❌ 등), 감탄사 없이 작성.
-- 피드백 스타일:
-  - 친절하고 간결하게, 실제 학습에 도움이 되는 설명만.
-  - 정답일 때: 한 문장으로 핵심 개념을 요약.
-  - 오답일 때:
-    - proficiency ≤ 4 또는 level == "easy": 2~3문장. 쉬운 표현, 왜 틀렸는지 → 핵심 개념 → 바로 적용할 팁(한 문장) 순서.
-    - 5 ≤ proficiency ≤ 7 또는 level == "medium": 2문장. 핵심 개념 + 왜/언제 그런지.
-    - proficiency ≥ 8: 1~2문장. 개념 정의/예외, 간결한 근거.
-- delta 가이드(단, -2~+2 범위 유지):
-  - 정답: easy +1, medium +2 (고숙련일수록 +값을 줄여도 됨)
-  - 오답: easy -1, medium -2 (저숙련일수록 -값을 줄이거나 0~-1 권장)
-
-출력은 JSON 객체 한 개만. 다른 텍스트는 금지.
+너는 금융 퀴즈 채점 평가자다. JSON만.
+출력 키: is_correct(bool), feedback(str), delta(int -2~+2)
 """
-
 
 USER_PROMPT_EVAL_TMPL = """
 문항: {question_text}
 선택지: {options}
 정답: {answer}
 사용자 답변: {user_answer}
-난이도(level): {level}
-현재 proficiency(0~10): {proficiency}
+난이도: {level}
+proficiency: {proficiency}
 JSON만.
 """
 
-# ── 3. LLM 호출 로직 ─────────────────────────────────────────────────────────
+# ── LLM 요약 프롬프트(3문장) ────────────────────────────────────────────────
+SYSTEM_PROMPT_SUMMARY = """
+너는 한국어 금융 교육 코치다. 퀴즈 세션의 전체 기록을 분석해
+1) 최종 숙련 레벨 라벨(초급/중급/상급)과
+2) 금융지식 수준을 설명하는 3문장 요약
+을 JSON으로만 출력한다.
+
+규칙:
+- JSON 키: level (초급|중급|상급), summary_sentences (문자열 3개 배열), evidence (선택), next_actions (선택)
+- summary_sentences: 각 1문장, 총 3문장. '정답입니다/오답입니다' 같은 채점 문구 금지. 구체적 개념/주제 언급.
+- evidence: {overall_accuracy: 0~1, weighted_score: 0~1, strong_topics: [{topic, accuracy, n}], weak_topics: [{topic, accuracy, n}]}
+- next_actions: 2~3개의 간단한 다음 학습 액션.
+- 텍스트 이외 설명, 마크다운, 코드블록 금지. JSON만.
+"""
+
+USER_PROMPT_SUMMARY_TMPL = """
+최종 레벨(영문): {level_eng}
+총 가중치: {total_weight}
+사용자 관심사: {keywords}
+
+문항 기록(최대 {max_items}개):
+{history_json}
+
+토픽 키워드:
+{topic_json}
+
+요구:
+- 위 기록을 바탕으로 강점/약점을 주제 단어로 구체화.
+- '초급/중급/상급' 중 하나로 level을 한국어로 표기.
+- summary_sentences는 정확히 3문장.
+- JSON만 출력.
+"""
+
+# ── 세션 집계(LLM 증거값 계산용/폴백용) ───────────────────────────────────────
+def _aggregate_session(history: list[dict], total_weight: int, user_keywords: list[str]):
+    agg = {
+        "total": len(history),
+        "correct_cnt": 0,
+        "weighted_score": 0.0,
+        "overall_accuracy": 0.0,
+        "topic_stats": {},
+        "hint_rate": 0.0,
+        "avg_time_sec": None
+    }
+    if not history:
+        return agg
+
+    for t in TOPIC_KEYWORDS.keys():
+        agg["topic_stats"][t] = {"total": 0, "correct": 0}
+
+    w_correct = 0
+    for h in history:
+        is_ok = bool(h.get("correct"))
+        w = int(h.get("weight", 1))
+        qtext = str(h.get("question_text", ""))
+
+        if is_ok:
+            agg["correct_cnt"] += 1
+            w_correct += w
+
+        matched_once = False
+        for topic, pats in TOPIC_KEYWORDS.items():
+            if any(re.search(p, qtext, flags=re.I) for p in pats):
+                agg["topic_stats"][topic]["total"] += 1
+                if is_ok:
+                    agg["topic_stats"][topic]["correct"] += 1
+                matched_once = True
+        if not matched_once and user_keywords:
+            t = "관심사"
+            agg["topic_stats"].setdefault(t, {"total": 0, "correct": 0})
+            agg["topic_stats"][t]["total"] += 1
+            if is_ok:
+                agg["topic_stats"][t]["correct"] += 1
+
+    agg["overall_accuracy"] = round(agg["correct_cnt"] / max(1, agg["total"]), 4)
+    agg["weighted_score"] = round(w_correct / max(1, total_weight), 4)
+    return agg
+
+def _rank_topics(topic_stats: dict):
+    rows = []
+    for t, s in topic_stats.items():
+        tot, cor = s["total"], s["correct"]
+        acc = (cor / tot) if tot else 0.0
+        rows.append((t, tot, cor, acc))
+    strong = sorted([r for r in rows if r[1] >= 1], key=lambda x: (x[3], x[1]), reverse=True)
+    weak   = sorted([r for r in rows if r[1] >= 1], key=lambda x: (x[3], -x[1]))
+    return strong[:3], weak[:3]
+
+def _build_summary_from_agg(agg: dict, level_kor: str, user_keywords: list[str]):
+    strong, weak = _rank_topics(agg["topic_stats"])
+    strong_names = [s[0] for s in strong][:2] or ["기초개념"]
+    weak_names   = [w[0] for w in weak][:2]   or ["연결개념"]
+    s1 = f"{'·'.join(strong_names)} 영역에서 안정적이며 전체 정답률 {int(agg['overall_accuracy']*100)}%를 기록했습니다."
+    s2 = f"{'·'.join(weak_names)}에서 오답이 상대적으로 많아 개념 연결/적용 보완이 필요합니다."
+    kw = (user_keywords or ["관심 분야"])[0]
+    s3 = f"다음 세션은 {', '.join(weak_names)} 중심으로 {kw} 관련 중난도 문제 10문항을 풀고 핵심 개념을 정리해 보세요."
+    strong_topics = [{"topic": n, "accuracy": round(c/t,2) if t else 0.0, "n": t} for n,t,c,_ in strong]
+    weak_topics   = [{"topic": n, "accuracy": round(c/t,2) if t else 0.0, "n": t} for n,t,c,_ in weak]
+    evidence = {
+        "overall_accuracy": agg["overall_accuracy"],
+        "weighted_score": agg["weighted_score"],
+        "avg_time_sec": agg["avg_time_sec"],
+        "hint_rate": agg["hint_rate"],
+        "strong_topics": strong_topics,
+        "weak_topics": weak_topics
+    }
+    return {
+        "level": level_kor,
+        "summary_sentences": [s1, s2, s3],
+        "evidence": evidence,
+        "next_actions": [f"{', '.join(weak_names)} 10문항 보충", "오답노트에 헷갈린 근거 1줄 정리"]
+    }
+
+# ── LLM 요약 생성기 ──────────────────────────────────────────────────────────
+def generate_level_summary_llm(level_eng: str, history: list[dict], total_weight: int, user_keywords: list[str]):
+    """
+    LLM으로 3문장 요약 생성. 실패/무API면 None 반환(규칙기반 폴백 사용).
+    """
+    if not GOOGLE_API_KEY:
+        return None
+
+    # 토큰 고려해서 compact 역사 생성 (최대 40개)
+    MAX_ITEMS = min(len(history), 40)
+    compact = []
+    for h in history[-MAX_ITEMS:]:
+        compact.append({
+            "q": str(h.get("question_text", ""))[:140],
+            "ok": bool(h.get("correct")),
+            "w": int(h.get("weight", 1)),
+            "ua": str(h.get("user_answer", "")),
+            "ans": str(h.get("answer", "")),
+        })
+
+    topic_json = {k: v for k, v in TOPIC_KEYWORDS.items()}
+    try:
+        model = genai.GenerativeModel(GEMINI_MODEL)
+        resp = model.generate_content([
+            SYSTEM_PROMPT_SUMMARY,
+            USER_PROMPT_SUMMARY_TMPL.format(
+                level_eng=level_eng,
+                total_weight=total_weight,
+                keywords=", ".join(user_keywords) if user_keywords else "없음",
+                max_items=MAX_ITEMS,
+                history_json=json.dumps(compact, ensure_ascii=False),
+                topic_json=json.dumps(topic_json, ensure_ascii=False)
+            )
+        ])
+        content = (resp.text or "").strip()
+        data = _safe_json_loads(_extract_json(content), None)
+        if not data:
+            return None
+
+        # 필수 필드 정리/보정
+        level = str(data.get("level", "")).strip()
+        if level not in ("초급", "중급", "상급"):
+            # 영문이 들어왔을 때 보정
+            level_map = {"Beginner": "초급", "Intermediate": "중급", "Advanced": "상급"}
+            level = level_map.get(level, "중급")
+
+        summaries = data.get("summary_sentences", [])
+        if not isinstance(summaries, list) or len(summaries) < 3:
+            return None
+
+        out = {
+            "level": level,
+            "summary_sentences": summaries[:3],
+            "evidence": data.get("evidence", None),
+            "next_actions": data.get("next_actions", None),
+        }
+        return out
+    except Exception as e:
+        print("[LLM summary] failed:", e)
+        return None
+
+# ── LLM 문항 생성/채점 ────────────────────────────────────────────────────────
 def generate_next_question(proficiency: int, score: int, max_score: int, wrong_notes: list, history: list, keywords: list):
-    # 최근 5문항 요약
     short_hist = [{
         "q": h["question_text"][:40] + ("..." if len(h["question_text"]) > 40 else ""),
         "ans": h["answer"], "ua": h["user_answer"], "ok": h["correct"]
@@ -294,24 +435,20 @@ def generate_next_question(proficiency: int, score: int, max_score: int, wrong_n
     wrong_summary = " / ".join(wrong_notes[-3:]) if wrong_notes else "없음"
     keywords_str = ", ".join(keywords) if keywords else "기초, 저위험, ETF, 예금, 채권"
 
-    # API 미사용시 로컬 fallback (mcq/ox 섞기) ★ 변경
     if not GOOGLE_API_KEY:
         if random.random() < 0.35:
-            # OX
             return {
                 "question_type": "ox",
-                "question_text": "국채 금리가 오르면 일반적으로 채권 가격은 하락한다. (O/X)",
-                "options": [],
-                "answer": "O",
+                "question_text": "국채 금리가 오르면 기존 채권 가격은 하락한다. (O/X)",
+                "options": [], "answer": "O",
                 "explanation": "채권 가격은 금리와 역의 관계입니다.",
                 "level": "easy" if proficiency < 6 else "medium",
                 "weight": 1 if proficiency < 6 else 2
             }
         else:
-            # MCQ
             return {
                 "question_type": "mcq",
-                "question_text": "관심사({})과 가장 관련 깊은 저비용 분산투자 수단은?".format(keywords_str.split(",")[0] if keywords_str else "ETF"),
+                "question_text": f"관심사({keywords_str.split(',')[0]})와 가장 관련 깊은 저비용 분산투자 수단은?",
                 "options": ["1. 종목 몰빵", "2. 레버리지 단타", "3. 인덱스 ETF", "4. 코인 선물"],
                 "answer": "3",
                 "explanation": "인덱스 ETF는 낮은 보수로 광범위한 분산투자가 가능합니다.",
@@ -323,17 +460,12 @@ def generate_next_question(proficiency: int, score: int, max_score: int, wrong_n
     resp = model.generate_content([
         SYSTEM_PROMPT_QGEN,
         USER_PROMPT_QGEN_TMPL.format(
-            proficiency=proficiency,
-            score=score,
-            max_score=max_score or 1,
-            wrong_summary=wrong_summary,
-            history_summary=history_summary,
-            keywords_str=keywords_str
+            proficiency=proficiency, score=score, max_score=max_score or 1,
+            wrong_summary=wrong_summary, history_summary=history_summary, keywords_str=keywords_str
         )
     ])
     content = (resp.text or "").strip()
-    data = _safe_json_loads(_extract_json(content), {})
-
+    data = _safe_json_loads(_extract_json(content), {}) or {}
     q_type = (data.get("question_type") or "mcq").lower()
     q = {
         "question_type": q_type,
@@ -349,7 +481,6 @@ def generate_next_question(proficiency: int, score: int, max_score: int, wrong_n
     if q["weight"] not in (1, 2):
         q["weight"] = 1 if q["level"] == "easy" else 2
 
-    # 유효성 보정 
     if q_type == "mcq":
         if not q["question_text"] or len(q["options"]) != 4 or q["answer"] not in {"1","2","3","4"}:
             q = {
@@ -361,23 +492,19 @@ def generate_next_question(proficiency: int, score: int, max_score: int, wrong_n
                 "level": "medium" if proficiency >= 6 else "easy",
                 "weight": 2 if proficiency >= 6 else 1
             }
-    else:  # OX
+    else:
         if not q["question_text"] or q["answer"].upper() not in {"O","X"}:
             q = {
                 "question_type": "ox",
                 "question_text": "채권 금리가 오르면 기존 채권 가격은 하락한다. (O/X)",
-                "options": [],
-                "answer": "O",
+                "options": [], "answer": "O",
                 "explanation": "가격과 금리는 역관계입니다.",
                 "level": "easy" if proficiency < 6 else "medium",
                 "weight": 1 if proficiency < 6 else 2
             }
-
     return q
 
-# 교체: evaluate_answer (재시도+폴백+캐시)
 def evaluate_answer(question_text: str, options, answer: str, user_answer: str, level:str, proficiency: int):
-    # 1) 캐시 키 구성 (같은 문항/같은 답변이면 API 재호출 방지)
     cache_key = json.dumps({
         "q": question_text, "opts": options, "a": answer, "ua": user_answer, "p": proficiency, "lvl": level or "easy"
     }, ensure_ascii=False, sort_keys=True)
@@ -385,63 +512,50 @@ def evaluate_answer(question_text: str, options, answer: str, user_answer: str, 
     if cache_key in cache:
         return cache[cache_key]
 
-    # 2) API 키 없으면 즉시 로컬 채점
     if not GOOGLE_API_KEY:
-        result = _local_eval(question_text, options, answer, user_answer,level, proficiency,level)
+        result = _local_eval(question_text, options, answer, user_answer, proficiency)
         cache[cache_key] = result
         st.session_state.eval_cache = cache
         return result
 
-    # 3) Gemini 호출 시 재시도 + 429 폴백
     model = genai.GenerativeModel(GEMINI_MODEL)
     prompts = [
         SYSTEM_PROMPT_EVAL,
         USER_PROMPT_EVAL_TMPL.format(
-            question_text=question_text,
-            options=options,
-            answer=answer,
-            user_answer=user_answer,
-            level=(level or "easy"),
-            proficiency=proficiency
+            question_text=question_text, options=options, answer=answer,
+            user_answer=user_answer, level=(level or "easy"), proficiency=proficiency
         )
     ]
-
-    # 짧은 백오프 (RPM 초과 방지)
-    for attempt, sleep_sec in enumerate([0, 1.0, 2.0, 4.0]):  # 최대 3회 재시도
+    for attempt, sleep_sec in enumerate([0, 1.0, 2.0, 4.0]):
         try:
-            if sleep_sec:
-                time.sleep(sleep_sec)
+            if sleep_sec: time.sleep(sleep_sec)
             resp = model.generate_content(prompts)
             content = (resp.text or "").strip()
-            data = _safe_json_loads(_extract_json(content), {})
+            data = _safe_json_loads(_extract_json(content), {}) or {}
             result = {
                 "is_correct": bool(data.get("is_correct", user_answer.strip().lower() == answer.strip().lower())),
                 "feedback": str(data.get("feedback", "")).strip() or (
-                    "정답입니다!" if user_answer.strip().lower() == answer.strip().lower() else "오답입니다."
+                    "정답입니다." if user_answer.strip().lower() == answer.strip().lower() else "오답입니다."
                 ),
                 "delta": int(data.get("delta", 1 if user_answer.strip().lower() == answer.strip().lower() else -1))
             }
             cache[cache_key] = result
             st.session_state.eval_cache = cache
             return result
-
-        except (ResourceExhausted, TooManyRequests) as e:
-            # 마지막 시도에서 또 터지면 로컬 폴백
+        except (ResourceExhausted, TooManyRequests):
             if attempt == 3:
-                result = _local_eval(question_text, options, answer, user_answer, proficiency,level)
+                result = _local_eval(question_text, options, answer, user_answer, proficiency)
                 cache[cache_key] = result
                 st.session_state.eval_cache = cache
                 return result
-            # 아니면 다음 루프로 백오프 후 재시도
             continue
         except Exception:
-            # 기타 오류도 안전하게 로컬 폴백
-            result = _local_eval(question_text, options, answer, user_answer, proficiency,level)
+            result = _local_eval(question_text, options, answer, user_answer, proficiency)
             cache[cache_key] = result
             st.session_state.eval_cache = cache
             return result
 
-# ── Sidebar status ────────────────────────────────────────────────────────────
+# ── Sidebar ──────────────────────────────────────────────────────────────────
 def render_sidebar_status():
     with st.sidebar:
         st.markdown("### 📊 진행 요약")
@@ -455,17 +569,15 @@ def render_sidebar_status():
             st.markdown("".join([f"<span class='tag'>{t}</span>" for t in st.session_state.user_keywords]),
                         unsafe_allow_html=True)
 
-# ── 4. 반복 구조 + UI 엔진 ───────────────────────────────────────────────────
+# ── Quiz UI ───────────────────────────────────────────────────────────────────
 def render_quiz_section():
     inject_styles()
     init_quiz_state()
-    ensure_user_keywords()     # ★먼저 관심사 확보
-    render_sidebar_status()    # 사이드바 렌더
-
+    ensure_user_keywords()
+    render_sidebar_status()
     if not st.session_state.get("quiz_started", False):
         return
 
-    # 최초 진입: 공통문항 적재
     if not st.session_state.quiz_questions:
         st.session_state.quiz_questions = load_common_questions()
         st.session_state.quiz_index = 0
@@ -476,7 +588,6 @@ def render_quiz_section():
         st.session_state.history = []
         st.session_state.generated_count = 0
 
-    # Header
     st.markdown('<div class="quiz-top-spacer"></div>', unsafe_allow_html=True)
     mode = "공통문제" if st.session_state.quiz_index < COMMON_COUNT else "LLM 생성"
     st.markdown(f"""
@@ -493,7 +604,7 @@ def render_quiz_section():
     """, unsafe_allow_html=True)
     st.progress((st.session_state.quiz_index) / (TOTAL_QUESTIONS or 1))
 
-    # 4~10번: 필요 시 LLM 생성 + 로컬 저장
+    # LLM 생성부(필요 시)
     while len(st.session_state.quiz_questions) < TOTAL_QUESTIONS and st.session_state.quiz_index >= len(st.session_state.quiz_questions):
         q = generate_next_question(
             proficiency=st.session_state.proficiency,
@@ -507,15 +618,14 @@ def render_quiz_section():
         st.session_state.total_weight += q.get("weight", 1)
         st.session_state.generated_count += 1
 
-    # 루프가 끝난 뒤: 전체 세트 한 번만 저장
-    if (len(st.session_state.quiz_questions) == TOTAL_QUESTIONS
-        and not st.session_state.get("generated_saved", False)):
+    # 생성셋 저장(1회)
+    if (len(st.session_state.quiz_questions) == TOTAL_QUESTIONS and not st.session_state.get("generated_saved", False)):
         save_generated_question(
             st.session_state.quiz_questions,
             meta={
                 "count": len(st.session_state.quiz_questions),
                 "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-                "start_proficiency": 5,  # 시작값 사용 중이면 그대로
+                "start_proficiency": 5,
                 "current_proficiency": st.session_state.proficiency,
                 "score_so_far": st.session_state.quiz_score,
                 "total_weight": st.session_state.total_weight,
@@ -525,11 +635,8 @@ def render_quiz_section():
         st.session_state.generated_saved = True
 
     total = len(st.session_state.quiz_questions)
-
     if st.session_state.quiz_index < total:
         quiz = st.session_state.quiz_questions[st.session_state.quiz_index]
-
-        # 질문 카드
         st.markdown(f"""
         <div class="question-card">
           <div class="question-title">Q{st.session_state.quiz_index + 1}. {quiz['question_text']}</div>
@@ -540,7 +647,6 @@ def render_quiz_section():
         qtype = quiz.get("question_type", "mcq")
         answer_type = "mc" if (qtype == "mcq" and options) else "ox"
         key_ans = f"selected_answer_{st.session_state.quiz_index}"
-
         if key_ans not in st.session_state:
             st.session_state[key_ans] = None
 
@@ -555,33 +661,25 @@ def render_quiz_section():
             try:
                 st.session_state[key_ans] = st.radio(
                     label=f"Q{st.session_state.quiz_index + 1} 선택지",
-                    options=options,
-                    index=None,
-                    key=f"radio_q{st.session_state.quiz_index}",
-                    label_visibility="collapsed"
+                    options=options, index=None,
+                    key=f"radio_q{st.session_state.quiz_index}", label_visibility="collapsed"
                 )
             except TypeError:
                 st.session_state[key_ans] = st.radio(
                     label=f"Q{st.session_state.quiz_index + 1} 선택지",
                     options=options,
-                    key=f"radio_q{st.session_state.quiz_index}",
-                    label_visibility="collapsed"
+                    key=f"radio_q{st.session_state.quiz_index}", label_visibility="collapsed"
                 )
-
         selected_answer = st.session_state[key_ans]
 
-        # Next 버튼
         next_disabled = selected_answer is None
         if st.button("다음 ▶", type="primary", disabled=next_disabled, use_container_width=True, key=f"next_{st.session_state.quiz_index}"):
-            if st.session_state.get("processing"):
-                st.stop()
+            if st.session_state.get("processing"): st.stop()
             st.session_state.processing = True
             user_answer = (selected_answer or "").strip()
             correct = (quiz["answer"] or "").strip()
-            explanation = quiz.get("explanation", "")
             weight = quiz.get("weight", 1)
 
-            # 객관식이면 "1~4" 인덱스로 변환
             if answer_type == "mc":
                 try:
                     idx = options.index(selected_answer)
@@ -589,7 +687,6 @@ def render_quiz_section():
                 except ValueError:
                     user_answer = "0"
 
-            # 평가 LLM 호출
             eval_res = evaluate_answer(
                 question_text=quiz["question_text"],
                 options=options if options else [],
@@ -600,14 +697,12 @@ def render_quiz_section():
             )
             st.session_state.proficiency = max(0, min(10, st.session_state.proficiency + int(eval_res.get("delta", 0))))
 
-            # 점수/오답
             is_correct = (user_answer.strip().lower() == correct.strip().lower())
             if is_correct:
                 st.session_state.quiz_score += weight
             else:
                 st.session_state.wrong_notes.append(quiz["question_text"])
 
-            # 히스토리
             st.session_state.history.append({
                 "question_text": quiz["question_text"],
                 "options": options,
@@ -618,34 +713,73 @@ def render_quiz_section():
                 "proficiency_after": st.session_state.proficiency
             })
 
-            # 챗봇 피드백
-
             feedback_text = "정답입니다! ✅" if is_correct else f"오답입니다 ❌ . 정답은 {correct}입니다."
-
-            # LLM 피드백 (해설 대체)
             if eval_res.get("feedback"):
                 full_feedback = f"{feedback_text}\n{eval_res['feedback']}"
             else:
-                full_feedback = feedback_text  # LLM 피드백 없으면 정답/오답만 표시
+                full_feedback = feedback_text
 
-            # 채팅 메시지 추가
             st.session_state.messages.append({
                 "id": str(uuid.uuid4()),
                 "role": "assistant",
                 "content": full_feedback
             })
 
-            # 다음 문항
             st.session_state.processing = False
             st.session_state.quiz_index += 1
             st.rerun()
 
     else:
+        # ── 완료 시: 레벨 산정 → LLM 요약(폴백 포함) → 저장/표시 ─────────────
         total_weight = st.session_state.total_weight
         score = st.session_state.quiz_score
-        level = classify_level(score, total_weight)
-        result_data = save_result(score, level)
+        level_eng = classify_level(score, total_weight)  # Beginner/Intermediate/Advanced
+        result_data = save_result(score, level_eng)
         user_name = result_data.get("user_name") if result_data else None
+
+        level_map = {"Beginner": "초급", "Intermediate": "중급", "Advanced": "상급"}
+        level_kor = level_map.get(level_eng, "중급")
+
+        # 1) LLM 요약 시도
+        level_summary = generate_level_summary_llm(
+            level_eng=level_eng,
+            history=st.session_state.history,
+            total_weight=total_weight,
+            user_keywords=st.session_state.user_keywords
+        )
+
+        model_version = "llm_v1"
+        # 2) 실패/무API면 규칙 기반 폴백
+        if not level_summary:
+            agg = _aggregate_session(st.session_state.history, total_weight, st.session_state.user_keywords)
+            level_summary = _build_summary_from_agg(agg, level_kor, st.session_state.user_keywords)
+            model_version = "rule_based_v1"
+        else:
+            # evidence가 비어있으면 최소 증거값 채워주기(표시용 안전망)
+            if not level_summary.get("evidence"):
+                agg = _aggregate_session(st.session_state.history, total_weight, st.session_state.user_keywords)
+                strong, weak = _rank_topics(agg["topic_stats"])
+                level_summary["evidence"] = {
+                    "overall_accuracy": agg["overall_accuracy"],
+                    "weighted_score": agg["weighted_score"],
+                    "strong_topics": [{"topic": n, "accuracy": round(c/t,2) if t else 0.0, "n": t} for n,t,c,_ in strong],
+                    "weak_topics": [{"topic": n, "accuracy": round(c/t,2) if t else 0.0, "n": t} for n,t,c,_ in weak],
+                }
+
+        # 저장
+        try:
+            if supabase:
+                supabase.table("user_level_snapshots").insert({
+                    "user_id": _get_user_id(st.session_state.get("user")),
+                    "session_id": str(uuid.uuid4()),
+                    "level": level_summary["level"],
+                    "summary_sentences": level_summary["summary_sentences"],
+                    "evidence": level_summary.get("evidence"),
+                    "next_actions": level_summary.get("next_actions"),
+                    "model_version": model_version
+                }).execute()
+        except Exception as e:
+            print("[snapshots] save failed:", e)
 
         if not st.session_state.get("completion_announced", False):
             st.session_state.messages.append({
@@ -655,7 +789,27 @@ def render_quiz_section():
             })
             st.session_state.completion_announced = True
 
-        render_result_card(score, total_weight, level, user_name)
+        # 카드 렌더
+        render_result_card(score, total_weight, level_eng, user_name)
+
+        # 요약 카드
+        ev = level_summary.get("evidence", {}) or {}
+        overall_pct = int((ev.get("overall_accuracy") or 0) * 100)
+        weighted = ev.get("weighted_score", 0)
+
+        st.markdown(f"""
+        <div style="border:1px solid rgba(148,163,184,.28);border-radius:16px;padding:16px;margin-top:10px;background:#fff;">
+          <div style="font-weight:800;margin-bottom:6px;">🌟 금융 지식 요약 ({level_summary['level']})</div>
+          <ul style="margin:0 0 8px 18px;line-height:1.55;">
+            <li>{level_summary['summary_sentences'][0]}</li>
+            <li>{level_summary['summary_sentences'][1]}</li>
+            <li>{level_summary['summary_sentences'][2]}</li>
+          </ul>
+          <div style="opacity:.8;font-size:.9rem;">
+            정답률 {overall_pct}% · 가중점수 {weighted}
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         c1, c2 = st.columns(2)
         with c1:
@@ -680,62 +834,39 @@ def render_quiz_section():
                 st.session_state.quiz_score = 0
                 st.rerun()
 
-# ── 메인 Render ──────────────────────────────────────────────────────────────
+# ── Main Render (Chat + CTA-in-chat) ─────────────────────────────────────────
 def render():
     inject_styles()
     init_quiz_state()
-    ensure_user_keywords()  # ★ 변경: 시작 전에도 관심사 확보 -> 사이드바에 바로 표시됨
+    ensure_user_keywords()
 
-    # 1) 상태 보정
+    # 상태 보정
     if "messages" not in st.session_state or not isinstance(st.session_state.messages, list):
         st.session_state.messages = []
 
-    # 2) 환영 메시지 1회 주입 플래그
     if "welcome_injected" not in st.session_state:
         st.session_state.welcome_injected = False
 
-    # 3) 최초 1회: messages가 비어 있으면 환영 메시지 추가
+    # 첫 진입 환영 + CTA
     if not st.session_state.welcome_injected and len(st.session_state.messages) == 0:
         st.session_state.messages.append({
             "id": str(uuid.uuid4()),
             "role": "assistant",
             "content": "안녕하세요! 금융 지식 퀴즈를 시작해보세요. 아래 버튼으로 시작할 수 있어요.",
-            "cta": "start_quiz"   
+            "cta": "start_quiz"
         })
-        st.session_state.welcome_injected = True  # 다시 안 넣도록
+        st.session_state.welcome_injected = True
 
-    # role 정규화 - 혹시 모를 공백/대소문자 틀어짐 방지
     for m in st.session_state.messages:
         if isinstance(m, dict) and "role" in m and isinstance(m["role"], str):
             r = m["role"].strip().lower()
-            if r not in ("assistant", "user"):
-                r = "assistant"
-            m["role"] = r
+            m["role"] = r if r in ("assistant", "user") else "assistant"
 
     # 헤더
     st.title("🧠 오늘의 퀴즈")
     st.caption("공통문항 + LLM 맞춤 문항으로 금융 지식을 빠르게 점검합니다.")
 
-    # 상단 컨트롤
-    with st.container():
-        c1, c2, c3 = st.columns([1, 1, 2])
-        with c1:
-            if not st.session_state.get("quiz_started", False):
-                if st.button("▶ 시작하기", type="primary", use_container_width=True):
-                    # 상태 초기화 후 시작
-                    st.session_state.quiz_questions = []
-                    st.session_state.quiz_index = 0
-                    st.session_state.quiz_score = 0
-                    st.session_state.total_weight = 0
-                    st.session_state.proficiency = 5
-                    st.session_state.wrong_notes = []
-                    st.session_state.history = []
-                    st.session_state.generated_count = 0
-                    st.session_state.quiz_completed = False
-                    st.session_state.completion_announced = False
-                    st.session_state.quiz_started = True
-                    st.rerun()
-    # 본 레이아웃
+    # 레이아웃
     left_screen, right_screen = st.columns([0.55, 0.45], border=True)
 
     with left_screen:
@@ -754,18 +885,14 @@ def render():
         else:
             render_quiz_section()
 
-    # 오른쪽 채팅 영역
     with right_screen:
         st.title("🚒 금융 구조대")
 
-        # 채팅 메시지 영역 (높이 고정)
         chat_container = st.container(border=True, height=500)
         with chat_container:
-            has_cta = False 
-
+            has_cta = False
             for i, message in enumerate(st.session_state.messages):
                 with st.chat_message(message["role"]):
-                    # 내용 출력
                     if (
                         i == len(st.session_state.messages) - 1
                         and message["role"] == "assistant"
@@ -778,7 +905,6 @@ def render():
                     else:
                         st.write(message["content"])
 
-                    # CTA가 달린 버블이면 버튼 렌더 + 플래그 켬
                     if (
                         message.get("cta") == "start_quiz"
                         and not st.session_state.get("quiz_started", False)
@@ -800,46 +926,38 @@ def render():
                             st.session_state.quiz_started = True
                             st.rerun()
 
-            # ✅ CTA 버블이 없었으면, 맨 아래에 보조 버블로 버튼을 꼭 보여준다
+            # 폴백 CTA
             if (
                 not has_cta
                 and not st.session_state.get("quiz_started", False)
                 and not st.session_state.get("quiz_completed", False)
             ):
-                    if st.button("▶ 시작하기", key="start_quiz_fallback"):
-                        st.session_state.quiz_questions = []
-                        st.session_state.quiz_index = 0
-                        st.session_state.quiz_score = 0
-                        st.session_state.total_weight = 0
-                        st.session_state.proficiency = 5
-                        st.session_state.wrong_notes = []
-                        st.session_state.history = []
-                        st.session_state.generated_count = 0
-                        st.session_state.quiz_completed = False
-                        st.session_state.completion_announced = False
-                        st.session_state.quiz_started = True
-                        st.rerun()
- 
-        # 채팅 입력 영역
+                if st.button("▶ 시작하기", key="start_quiz_fallback"):
+                    st.session_state.quiz_questions = []
+                    st.session_state.quiz_index = 0
+                    st.session_state.quiz_score = 0
+                    st.session_state.total_weight = 0
+                    st.session_state.proficiency = 5
+                    st.session_state.wrong_notes = []
+                    st.session_state.history = []
+                    st.session_state.generated_count = 0
+                    st.session_state.quiz_completed = False
+                    st.session_state.completion_announced = False
+                    st.session_state.quiz_started = True
+                    st.rerun()
+
+        # 입력창
         if prompt := st.chat_input("투자나 FIRE에 대해 질문해보세요...", key="fire_chatbot"):
-            # 사용자 메시지 추가
             st.session_state.messages.append({
                 "id": str(uuid.uuid4()),
                 "role": "user",
                 "content": prompt
             })
-
-            # AI 응답 생성
             response = generate_simple_response(prompt)
             st.session_state.messages.append({
                 "id": str(uuid.uuid4()),
                 "role": "assistant",
                 "content": response
             })
-
-            # 스트리밍 플래그 설정
             st.session_state.streaming = True
-
-            # 페이지 새로고침
             st.rerun()
-
