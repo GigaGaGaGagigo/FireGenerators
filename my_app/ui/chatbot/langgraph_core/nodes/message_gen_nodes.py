@@ -10,12 +10,12 @@ from langchain_core.messages import AIMessage
 from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel, Field, ValidationError
 
-from my_app.ui.chatbot.langgraph_core.llm_agents import (
+from ui.chatbot.langgraph_core.llm_agents import (
     GEMINI_MODEL_NAME,
     get_llm_agents,
 )
-from my_app.ui.chatbot.langgraph_core.prompt_loader import read_yaml_prompt
-from my_app.ui.chatbot.langgraph_core.state.state import InputState
+from ui.chatbot.langgraph_core.prompt_loader import read_yaml_prompt
+from ui.chatbot.langgraph_core.state.state import InputState
 
 
 class GreetingGenerationResult(BaseModel):

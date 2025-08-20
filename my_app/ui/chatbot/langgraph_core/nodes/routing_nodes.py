@@ -1,6 +1,6 @@
 from typing_extensions import Literal, Optional
 
-from my_app.ui.chatbot.langgraph_core.state import OverallState
+from ui.chatbot.langgraph_core.state import OverallState
 
 
 def route_after_initialize_conversation(

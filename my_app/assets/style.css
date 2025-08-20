@@ -1,0 +1,50 @@
+/*
+  Custom CSS for FIREgen Streamlit App
+  Using specific selectors to target only the quiz and chat containers.
+*/
+
+/* 
+  Common styles for both Quiz and Chat containers.
+  This targets containers inside the 2nd and 3rd columns.
+*/
+div[data-testid="stHorizontalBlock"] > div:nth-child(2) div[data-testid="stVerticalBlock"], 
+div[data-testid="stHorizontalBlock"] > div:nth-child(3) div[data-testid="stVerticalBlock"] {
+    border: 1px solid #e1e4e8; /* Border restored */
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+    padding: 0.4rem;
+}
+
+/* Style for the LEFT container (Quiz Area) - just needs background color */
+div[data-testid="stHorizontalBlock"] > div:nth-child(2) div[data-testid="stVerticalBlock"] {
+    background-color: #f8f9fa;
+}
+
+/* Style for the RIGHT container (Chat Area) - just needs background color */
+div[data-testid="stHorizontalBlock"] > div:nth-child(3) div[data-testid="stVerticalBlock"] {
+    background-color: #f8f9fa;
+}
+
+
+/* --- Chat Widget Styling --- */
+/* This part remains the same */
+[data-testid="stChatMessage"] {
+    background-color: #f0f2f6;
+    padding: 1.25rem;
+    border-radius: 16px;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    border: 1px solid #e1e4e8;
+    transition: all 0.2s ease-in-out;
+}
+
+[data-testid="stChatMessage"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+}
+
+[data-testid="stChatMessage"] p {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #333333;
+}

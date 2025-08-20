@@ -9,11 +9,11 @@ from langchain_core.messages import AIMessage
 from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel, Field, ValidationError
 
-from my_app.ui.chatbot.langgraph_core.llm_agents import (
+from ui.chatbot.langgraph_core.llm_agents import (
     GEMINI_MODEL_NAME,
     get_llm_agents,
 )
-from my_app.ui.chatbot.langgraph_core.state import OutputState, OverallState
+from ui.chatbot.langgraph_core.state import OutputState, OverallState
 
 
 class ResponseGenResult(BaseModel):

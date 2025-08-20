@@ -5,11 +5,14 @@ DESCRIPTION:
 This module provides a function to build a langgraph graph.
 """
 
+from pathlib import Path
+
+from IPython.display import Image, display
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 
-from my_app.ui.chatbot.langgraph_core.nodes import (
+from ui.chatbot.langgraph_core.nodes import (
     analyze_user_goal,
     build_output_state_from_analysis,
     evaluation_analysis,
@@ -21,7 +24,7 @@ from my_app.ui.chatbot.langgraph_core.nodes import (
     route_after_update_profile_status,
     update_profile_status,
 )
-from my_app.ui.chatbot.langgraph_core.state.state import (
+from ui.chatbot.langgraph_core.state.state import (
     InputState,
     OutputState,
     OverallState,
@@ -62,7 +65,6 @@ class GraphBuilder:
                 "completed": END,  # TODO: 기존 사용자 subgraph 추가 필요
             },
         )
-        # TODO(human): Remove this conflicting direct edge that overrides conditional routing
         self.workflow.add_edge(
             "prepare_fixed_question_set", "generate_follow_up_questions"
         )
@@ -121,3 +123,10 @@ class GraphBuilder:
             return state_snapshot.values
         else:
             return OverallState(**state_snapshot.values)
+
+    def display_node_design(self) -> None:
+        output_path = Path(__file__).parents[1] / "utils"
+        output_file = str(output_path / "graph_recursion_limit.png")
+        display(
+            Image(self.graph.get_graph().draw_mermaid_png(output_file_path=output_file))
+        )

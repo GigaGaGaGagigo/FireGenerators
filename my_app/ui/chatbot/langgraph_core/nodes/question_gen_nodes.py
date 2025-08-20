@@ -11,11 +11,11 @@ from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from typing_extensions import Literal
 
-from my_app.ui.chatbot.langgraph_core.llm_agents import (
+from ui.chatbot.langgraph_core.llm_agents import (
     GEMINI_MODEL_NAME,
     get_llm_agents,
 )
-from my_app.ui.chatbot.langgraph_core.state import OverallState
+from ui.chatbot.langgraph_core.state import OverallState
 
 
 class FollowUpQuestionsSchema(BaseModel):
