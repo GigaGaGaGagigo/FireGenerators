@@ -9,6 +9,8 @@ from explanation_generator import generate_explanation
 
 load_dotenv()
 
+# 로컬 json 파일로 실행
+
 class Recommender:
     """
     콘텐츠 추천 시스템 클래스

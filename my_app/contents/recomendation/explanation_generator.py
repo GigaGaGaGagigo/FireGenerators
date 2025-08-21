@@ -1,14 +1,19 @@
 import yaml
 import os
+from pathlib import Path
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+
+# 현재 파일 (explanation_generator.py) 위치 기준
+BASE_DIR = Path(__file__).parent  # my_app/contents/recomendation
+PROMPT_DIR = BASE_DIR / "prompts"  # my_app/contents/recomendation/prompts
 
 def load_prompt(level: str):
     """
     YAML에서 레벨별 프롬프트 로드
     """
-    file_path = os.path.join("prompts", f"{level.lower()}.yaml")
-    if not os.path.exists(file_path):
+    file_path = PROMPT_DIR / f"{level.lower()}.yaml"
+    if not file_path.exists():
         raise FileNotFoundError(f"Prompt file not found: {file_path}")
     
     with open(file_path, "r", encoding="utf-8") as f:
