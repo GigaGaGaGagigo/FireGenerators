@@ -1,5 +1,6 @@
 # 콘텐츠 로딩/정규화 (여러 json 합치기)
-
+import glob
+import os
 from pathlib import Path
 import json, hashlib
 from typing import List, Dict, Tuple
@@ -14,8 +15,8 @@ def _stable_content_id(title: str, content: str) -> str:
 
 def _normalize_content(raw: Dict) -> Dict:
     """
-    입력 JSON 스키마가 다를 수 있으므로 유연하게 맞춰줍니다.
-    필요한 필드: content_id, title, content, level, tags(list), topic_id, style, media_type
+    입력 JSON 스키마가 다를 수 있으므로 유연하게 맞출 수 있도록 
+    필요한 필드: card_id, title, content, level, tags(list), topic_id, style, media_type
     """
     title = raw.get("title") or raw.get("제목") or ""
     content_text = raw.get("content") or raw.get("본문") or raw.get("요약") or ""
@@ -25,7 +26,7 @@ def _normalize_content(raw: Dict) -> Dict:
     style = raw.get("style") or "기본"
     media_type = raw.get("media_type") or "text"
 
-    content_id = raw.get("id") or raw.get("content_id")
+    content_id = raw.get("id") or raw.get("card_id")
     if not content_id:
         content_id = _stable_content_id(title, content_text)
 
@@ -34,7 +35,7 @@ def _normalize_content(raw: Dict) -> Dict:
         tags = [t.strip() for t in tags.split(",") if t.strip()]
 
     return {
-        "content_id": content_id,
+        "card_id": content_id,
         "title": title,
         "content": content_text,
         "level": level,
@@ -44,21 +45,19 @@ def _normalize_content(raw: Dict) -> Dict:
         "media_type": media_type,
     }
 
-def load_all_cards() -> List[Dict]:
-    """
-    contents 폴더 내 모든 JSON을 읽어서 정규화 후 리스트로 반환
-    """
-    contents: List[Dict] = []
-    for p in CONTENTS_DIR.glob("contents_*.json"):
-        try:
-            data = json.loads(p.read_text(encoding="utf-8"))
-            if isinstance(data, dict):
-                data = list(data.values())  # dict로 래핑된 구조면 values만 사용
-            for raw in data:
-                contents.append(_normalize_content(raw))
-        except Exception as e:
-            print(f"[WARN] {p.name} 로드 실패: {e}")
-    return contents
+def load_all_cards(contents_dir: str = None):
+    """여러 json 파일을 합쳐 리스트로 반환"""
+    if contents_dir is None:
+        # 기본값: 현재 디렉토리 ../contents
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        contents_dir = os.path.join(base_dir, "..", "contents")
+    
+    all_data = []
+    for file_path in glob.glob(os.path.join(contents_dir, "contents_*.json")):
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            all_data.extend(data)
+    return all_data
 
 def make_content_text(content: Dict) -> str:
     tags_txt = " ".join(content.get("tags") or [])
