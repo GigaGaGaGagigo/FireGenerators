@@ -125,6 +125,9 @@ supabase==2.17.0
 supafunc==0.10.1
 tenacity==9.1.2
 toml==0.10.2
+torch==2.8.0
+torchaudio==2.8.0
+torchvision==0.23.0
 tornado==6.5.1
 tqdm==4.67.1
 traitlets==5.14.3

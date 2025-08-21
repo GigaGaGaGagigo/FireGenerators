@@ -438,7 +438,7 @@ def route_to_page():
                 
         elif current_page == "content":
             try:
-                from my_app.ui.contents.recommendation_contents import render
+                from ui.contents.recommendation_contents import render
                 render()
             except ImportError:
                 st.title("📚 맞춤형 금융 지식")

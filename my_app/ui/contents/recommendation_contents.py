@@ -20,7 +20,7 @@ sys.path.insert(0, str(project_root))
 
 try:
     # AI 설명 생성 모듈 및 Supabase 클라이언트 임포트
-    from contents.recomendation.explanation_generator import generate_explanation
+    from contents.recommendation.explanation_generator import generate_explanation
     from supabase import create_client, Client
 except ImportError as e:
     st.error(f"모듈 임포트 오류: {e}")
