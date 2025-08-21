@@ -2,9 +2,18 @@ import time
 from pathlib import Path
 
 import streamlit as st
+from langchain_core.runnables import RunnableConfig
 from typing_extensions import Iterator
 
+from ui.chatbot.handlers.answer_handler import create_answer_callback
 from ui.chatbot.langgraph_core.graph_builder import GraphBuilder
+from ui.chatbot.utils.state_helpers import (
+    debug_state_info,
+    get_current_question_info,
+    get_current_state_safely,
+    sync_quiz_data_to_session,
+    validate_session_state,
+)
 
 IMAGE_PATH: Path = Path(__file__).parents[2] / "assets" / "FIRE_LOGO_large.png"
 
@@ -32,6 +41,29 @@ def load_css(file_path: str) -> None:
     """Injects custom CSS into the Streamlit app."""
     with open(file_path, "r") as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+
+def initialize_chatbot():
+    if "graph" not in st.session_state:
+        st.session_state.graph = create_chat_graph()
+        st.session_state.config = RunnableConfig(
+            configurable={"thread_id": "1"},
+        )
+        st.session_state["ai"] = {}
+        st.session_state["ai"]["initialized"] = False
+        st.session_state["ai"]["messages"] = []
+        st.session_state["ai"]["message_trigger"] = False
+        st.session_state["ai"]["prev_message"] = None
+        st.session_state["ai"]["message_count"] = 0
+        st.session_state["quiz"] = {}
+        st.session_state["user_answers"] = {}
+        st.session_state["updated_profile"] = {}
+        st.session_state["state_result"] = {}
+
+        for category in CATEGORY_KEYS:
+            st.session_state["quiz"][category] = {"questions": [], "options": []}
+            st.session_state["user_answers"][category] = []
+            st.session_state["updated_profile"][category] = []
 
 
 def create_chat_graph() -> GraphBuilder:
@@ -94,160 +126,71 @@ def render_quiz(container):
         # Debug log expander
         with st.expander("디버그 로그"):
             if st.session_state.get("ai", {}).get("initialized", False):
-                if "graph" in st.session_state:
-                    state = st.session_state.graph.get_state()
-                    if state:
-                        st.write("**Graph State:**")
-                        st.json(
-                            {
-                                "target_profile_category": state.target_profile_category,
-                                "profile_status": state.profile_status,
-                                "workflow_stage": state.workflow_stage,
-                                "evaluation_results": state.evaluation_results,
-                                "investment_goal": state.investment_goal,
-                                "investment_emotions": state.investment_emotions,
-                                "interests_categories": state.interests_categories,
-                                "investment_level": state.investment_level,
-                                "knowledge_level": state.knowledge_level,
-                                "evaluation_results_logs": state.evaluation_results_logs,
-                            }
-                        )
+                st.write("**Graph State:**")
+                debug_info = debug_state_info()
+                st.json(debug_info)
+
+        # 세션 상태 검증
+        if not validate_session_state():
+            st.error("시스템 초기화가 완료되지 않았습니다. 페이지를 새로고침해주세요.")
+            return
 
         if st.session_state.get("ai", {}).get("initialized", False):
-            state = st.session_state.graph.get_state()
+            state = get_current_state_safely()
 
-            if state is not None:
-                if len(state.target_profile_category) > 0:
-                    target_profile_category: str = state.target_profile_category[0]
+            if state is None:
+                st.error("그래프 상태를 가져올 수 없습니다.")
+                return
 
-                    quiz_conetents: dict[str, dict[str, list]] = getattr(
-                        state, "quiz_content_by_category", {}
-                    )
-                    quiz_set: dict[str, list] = quiz_conetents.get(
-                        target_profile_category, {}
-                    )
+            # 현재 진행 중인 카테고리 확인
+            if (
+                hasattr(state, "target_profile_category")
+                and len(state.target_profile_category) > 0
+            ):
+                current_category = state.target_profile_category[0]
 
-                    if quiz_set:
-                        st.session_state["quiz"][target_profile_category][
-                            "questions"
-                        ] = quiz_set.get("questions", [])
-                        st.session_state["quiz"][target_profile_category][
-                            "options"
-                        ] = quiz_set.get("options", [])
+                # 퀴즈 데이터 동기화
+                if sync_quiz_data_to_session(state, current_category):
+                    # 현재 질문 정보 가져오기
+                    question_info = get_current_question_info(current_category)
 
-                        questions: list[str] = st.session_state["quiz"][
-                            target_profile_category
-                        ].get("questions", [])
-                        options: list[list[str]] = st.session_state["quiz"][
-                            target_profile_category
-                        ].get("options", [])
+                    if question_info:
+                        # 질문 표시
+                        st.write_stream(stream_text(question_info["question"]))
 
-                        q_index: int = len(
-                            st.session_state["user_answers"][
-                                target_profile_category
-                            ]
+                        # 답변 옵션 표시
+                        idx_key = f"question_radio_{question_info['index']}"
+
+                        answer_callback = create_answer_callback(
+                            question_text=question_info["question"],
+                            total_questions=question_info["total"],
+                            current_q_index=question_info["index"],
+                            category_key=current_category,
+                            idx_key=idx_key,
                         )
 
-                        if 0 <= q_index < len(questions):
-                            current_question: str = questions[q_index]
-                            current_options: list[str] = (
-                                options[q_index] if q_index < len(options) else []
-                            )
-
-                            st.write_stream(stream_text(current_question))
-
-                            def on_answer_change(
-                                idx_key: str,
-                                question_text: str,
-                                total_questions: int,
-                                current_q_index: int,
-                                category_key: str,
-                            ):
-                                choice = st.session_state.get(idx_key)
-                                user_answers = st.session_state["user_answers"][
-                                    category_key
-                                ]
-                                if choice:
-                                    user_answers.append((question_text, choice))
-                                    state = st.session_state.graph.get_state()
-                                    if current_q_index + 1 >= total_questions:
-                                        state = st.session_state.graph.get_state()
-
-                                        if state.workflow_stage == "generate_qa":
-                                            st.session_state.graph.graph.update_state(
-                                                st.session_state.graph.config,
-                                                {
-                                                    "answers_by_category": {
-                                                        category_key: user_answers
-                                                    }
-                                                },
-                                            )
-
-                                            st.session_state.graph.invoke(
-                                                None,
-                                                config=st.session_state.graph.config,
-                                            )
-                                        elif (
-                                            state.workflow_stage == "finished_qa"
-                                            and len(user_answers) == total_questions
-                                        ):
-                                            st.session_state.graph.graph.update_state(
-                                                st.session_state.graph.config,
-                                                {
-                                                    "answers_by_category": {
-                                                        category_key: user_answers
-                                                    }
-                                                },
-                                            )
-                                            st.session_state["state_result"] = (
-                                                st.session_state.graph.invoke(
-                                                    None,
-                                                    config=st.session_state.graph.config,
-                                                )
-                                            )
-
-                            idx_key = f"question_radio_{q_index}"
-                            st.radio(
-                                "옵션을 선택하세요:",
-                                options=current_options,
-                                key=idx_key,
-                                index=None,
-                                on_change=on_answer_change,
-                                args=(
-                                    idx_key,
-                                    current_question,
-                                    len(questions),
-                                    q_index,
-                                    target_profile_category,
-                                ),
-                            )
+                        st.radio(
+                            "옵션을 선택하세요:",
+                            options=question_info["options"],
+                            key=idx_key,
+                            index=None,
+                            on_change=answer_callback,
+                        )
+                    else:
+                        st.info("질문을 불러오는 중입니다...")
                 else:
-                    # 모든 퀴즈가 완료되었을 때 메시지 표시
-                    st.success("프로필 생성이 완료되었습니다! ✨")
-                    st.info("오른쪽 화면에서 최종 결과를 확인하세요.")
-                    st.balloons()
+                    st.error("퀴즈 데이터 동기화에 실패했습니다.")
+            else:
+                # 모든 퀴즈가 완료되었을 때 메시지 표시
+                st.success("프로필 생성이 완료되었습니다! ✨")
+                st.info("오른쪽 화면에서 최종 결과를 확인하세요.")
+                st.balloons()
 
 
 def render():
-    if "graph" not in st.session_state:
-        st.session_state.graph = create_chat_graph()
-        # st.session_state.graph.display_node_design()
-        st.session_state["ai"] = {}
-        st.session_state["ai"]["initialized"] = False
-        st.session_state["ai"]["messages"] = []
-        st.session_state["ai"]["message_trigger"] = False
-        st.session_state["ai"]["prev_message"] = None
-        st.session_state["ai"]["message_count"] = 0
-        st.session_state["quiz"] = {}
-        st.session_state["user_answers"] = {}
-        st.session_state["updated_profile"] = {}
-        st.session_state["state_result"] = {}
+    initialize_chatbot()
 
-        for category in CATEGORY_KEYS:
-            st.session_state["quiz"][category] = {"questions": [], "options": []}
-            st.session_state["user_answers"][category] = []
-            st.session_state["updated_profile"][category] = []
-
+    # 커스텀 CSS 적용 - 소희님 render 시작 부분에 추가하시면 됩니다.
     css_path = str(Path(__file__).parents[2] / "assets" / "style.css")
     load_css(css_path)
 
@@ -282,7 +225,7 @@ def render():
                                 "profile_status": profile_status,
                                 "target_profile_category": categories_to_update,
                             },
-                            config=None,
+                            config=st.session_state.config,
                         )
                         st.session_state["ai"]["initialized"] = True
                         time.sleep(STREAMLIT_SLEEP_S)
@@ -300,7 +243,7 @@ def render():
 
             if st.session_state.get("ai", {}).get("initialized", False):
                 st.write("### 챗봇")
-                state = st.session_state.graph.get_state()
+                state = st.session_state.graph.get_state(st.session_state.config)
 
                 if state is not None:
                     ai_messages = list(getattr(state, "ai_messages", []))

@@ -49,10 +49,6 @@ class GraphBuilder:
             "build_output_state_from_analysis", build_output_state_from_analysis
         )
 
-        self.config = RunnableConfig(
-            configurable={"thread_id": "1"},
-        )
-
         self.memory = MemorySaver()
 
         self.workflow.add_edge(START, "initialize_conversation")
@@ -98,12 +94,9 @@ class GraphBuilder:
     def invoke(
         self,
         input: InputState,
-        config: RunnableConfig | None = None,
+        config: RunnableConfig,
         interrupt_before: list[str] | None = None,
     ):
-        if config is None:
-            config = self.config
-
         return self.graph.invoke(
             input, config=config, interrupt_before=interrupt_before
         )
@@ -114,9 +107,11 @@ class GraphBuilder:
         This unwraps the internal state snapshot to expose the typed OverallState,
         so the UI layer can render directly from a single source of truth.
         """
-        if config is None:
-            config = self.config
         # langgraph state snapshot exposes `.values` for typed state
+
+        if config is None:
+            raise ValueError("config is required")
+
         state_snapshot = self.graph.get_state(config)
         # Ensure the returned value is of type OverallState
         if isinstance(state_snapshot.values, OverallState):

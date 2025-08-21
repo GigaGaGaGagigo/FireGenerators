@@ -9,7 +9,6 @@ from supabase._sync.client import SyncClient
 
 sys.path.append(str(Path(__file__)))
 
-
 # ========================================
 # 🚀 팀원을 위한 개발 가이드
 # ========================================
@@ -505,7 +504,7 @@ def route_to_page():
     try:
         if current_page == "chatbot":
             try:
-                from ui.chatbot.chatbot import render
+                from ui.chatbot import render
 
                 render()
 
@@ -534,18 +533,20 @@ def route_to_page():
             except ImportError:
                 st.title("🧠 오늘의 퀴즈")
                 st.info("ui/quiz/quiz.py 파일을 생성해주세요.")
-                
+
         elif current_page == "content":
             try:
                 from ui.contents.recomendation_contents import render
+
                 render()
             except ImportError:
                 st.title("📚 맞춤형 금융 콘텐츠")
                 st.info("ui/content/content.py 파일을 생성해주세요.")
-                
+
         elif current_page == "recommendation":
             try:
-                from ui.recommendation.recommendation import render
+                from ui.contents.recomendation_contents import render
+
                 render()
             except ImportError:
                 st.title("🎁 맞춤형 상품 추천")
@@ -559,14 +560,14 @@ def route_to_page():
                 st.title("📈 투자 시뮬레이션")
                 st.info("ui/simulation/simulation.py 파일을 생성해주세요.")
 
-        # elif current_page == "analysis":
-        #     try:
-        #         from ui.analysis.analysis import render
+        elif current_page == "analysis":
+            try:
+                from ui.analysis.analysis import render  # type: ignore
 
-        #         render()
-        #     except ImportError:
-        #         st.title("📊 모의 투자 및 분석")
-        #         st.info("ui/analysis/analysis.py 파일을 생성해주세요.")
+                render()
+            except ImportError:
+                st.title("📊 모의 투자 및 분석")
+                st.info("ui/analysis/analysis.py 파일을 생성해주세요.")
 
         elif current_page == "settings":
             try:

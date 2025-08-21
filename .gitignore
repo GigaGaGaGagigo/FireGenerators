@@ -24,16 +24,27 @@ db.sqlite3
 # Streamlit settings
 .streamlit/
 
+# vscode settings
+.vscode/
+
+# ================= Personal Settings =================
+
 # Claude code and Gemini CLI settings
 CLAUDE.md
 GEMINI.md
+REFACTORING_GUIDE.md
 
 # mcp server
 .mcp.json
 test.json
 
-# vscode settings
-.vscode/
-
 # Jupyter notebook
-_tests
+test.ipynb
+
+# Project settings
+project.toml
+pyproject.toml
+pyrefly.toml
+
+# pyreflyignore
+.pyreflyignore
