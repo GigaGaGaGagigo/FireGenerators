@@ -3,6 +3,7 @@ from streamlit.navigation.page import Page as Page
 from streamlit_option_menu import option_menu
 from supabase import create_client, Client
 from pathlib import Path
+import uuid
 
 # ========================================
 # 🚀 팀원을 위한 개발 가이드
@@ -431,10 +432,27 @@ def route_to_page():
         elif current_page == "quiz":
             try:
                 from ui.level_quiz.quiz import render
+
+                # 👇 사이드바에서 퀴즈 페이지 진입 시 챗봇에 안내 메시지 푸시
+                if "messages" not in st.session_state or not isinstance(st.session_state.messages, list):
+                    st.session_state.messages = []
+
+                if not st.session_state.get("quiz_welcome_pushed", False):
+                    st.session_state.messages.append({
+                        "id": str(uuid.uuid4()),
+                        "role": "assistant",
+                        "content": "안녕하세요! 금융 지식 퀴즈를 시작해보세요. 아래 버튼으로 시작할 수 있어요."
+                    })
+                    st.session_state.quiz_welcome_pushed = True
+                    st.session_state.streaming = True  # 스트리밍 효과
+                    st.rerun()  # 즉시 반영
+
                 render()
+
             except ImportError:
                 st.title("🧠 오늘의 퀴즈")
                 st.info("ui/quiz/quiz.py 파일을 생성해주세요.")
+
                 
         elif current_page == "content":
             try:
