@@ -1,3 +1,6 @@
+# api 참고 자료
+api_test/
+
 # environment variables
 .env
 
@@ -17,3 +20,16 @@ db.sqlite3
 
 # Jupyter 자동 저장 체크포인트
 .ipynb_checkpoints/
+
+# Streamlit settings
+.streamlit/
+
+# Claude code settings
+CLAUDE.md
+
+# mcp server
+.mcp.json
+test.json
+
+# vscode settings
+.vscode/
