@@ -193,15 +193,15 @@ def save_result(score, level, level_summary):
 
     user_id = _get_user_id(user)
     try:
-        res = supabase.table("users").select("user_name, user_role").eq("user_id", user_id).execute()
+        res = supabase.table("profiles").select("name, role").eq("id", user_id).execute()
         if res.data:
             user_data = res.data[0]
-            user_name = user_data["user_name"] if isinstance(user_data, dict) else getattr(user_data, "user_name", "Anonymous")
-            st.session_state.role = user_data.get("user_role", "User") if isinstance(user_data, dict) else getattr(user_data, "user_role", "User")
+            user_name = user_data["name"] if isinstance(user_data, dict) else getattr(user_data, "name", "Anonymous")
+            st.session_state.role = user_data.get("role", "User") if isinstance(user_data, dict) else getattr(user_data, "role", "User")
         else:
             user_name = "Anonymous"
             if not isinstance(st.session_state.role, str):
-                st.session_state.role = _get_user_field(user, "user_role", "User")
+                st.session_state.role = _get_user_field(user, "role", "User")
     except Exception:
         user_name = "Anonymous"
 
