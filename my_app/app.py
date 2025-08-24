@@ -430,10 +430,19 @@ def route_to_page():
                 ''', language='python')
                                 
         elif current_page == "quiz":
+            # 1) import 단계 에러는 그대로 보여주기
             try:
                 from ui.level_quiz.quiz import render
+            except Exception as e:
+                st.title("🧠 오늘의 퀴즈")
+                st.error("퀴즈 모듈 임포트 중 오류가 발생했습니다.")
+                st.exception(e)  # traceback 포함한 예쁘게 출력
+                # 아래 한 줄로 텍스트 트레이스백을 코드 블록으로도 보여줄 수 있어요.
+                # st.code(traceback.format_exc(), language="text")
+                st.stop()
 
-                # 👇 사이드바에서 퀴즈 페이지 진입 시 챗봇에 안내 메시지 푸시
+            # 2) 환영 메시지 푸시 (정상 임포트된 경우에만)
+            try:
                 if "messages" not in st.session_state or not isinstance(st.session_state.messages, list):
                     st.session_state.messages = []
 
@@ -446,12 +455,20 @@ def route_to_page():
                     st.session_state.quiz_welcome_pushed = True
                     st.session_state.streaming = True  # 스트리밍 효과
                     st.rerun()  # 즉시 반영
+            except Exception as e:
+                st.error("퀴즈 환영 메시지 세팅 중 오류가 발생했습니다.")
+                st.exception(e)
+                st.stop()
 
+            # 3) render 실행 중 에러도 그대로 보여주기
+            try:
                 render()
-
-            except ImportError:
+            except Exception as e:
                 st.title("🧠 오늘의 퀴즈")
-                st.info("ui/quiz/quiz.py 파일을 생성해주세요.")
+                st.error("퀴즈 화면 렌더링 중 오류가 발생했습니다.")
+                st.exception(e)
+                # st.code(traceback.format_exc(), language="text")
+                st.stop()
 
                 
         elif current_page == "content":

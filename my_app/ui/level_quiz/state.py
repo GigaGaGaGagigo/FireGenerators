@@ -24,6 +24,11 @@ def init_quiz_state():
         "eval_cache": {},
         "processing": False,
         "generated_saved": False,
+        "timing_qgen_total": 0.0,
+        "timing_qgen_n": 0,
+        "timing_eval_total": 0.0,
+        "timing_eval_n": 0,
+        "timing_summary": 0.0,
     }
     for k, v in defaults.items():
         if k not in st.session_state:

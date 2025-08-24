@@ -1,5 +1,4 @@
 import os, json, uuid, time, streamlit as st
-
 from my_app.quiz_core.constants import TOTAL_QUESTIONS, COMMON_COUNT
 from my_app.quiz_core.logic import (
     classify_level, _aggregate_session, _rank_topics, _build_summary_from_agg,
@@ -53,6 +52,9 @@ def render_quiz_section():
 
     # LLM 생성부(필요 시)
     while len(st.session_state.quiz_questions) < TOTAL_QUESTIONS and st.session_state.quiz_index >= len(st.session_state.quiz_questions):
+        _t0 = time.perf_counter()
+        _next_q_no = len(st.session_state.quiz_questions) + 1
+
         q = generate_next_question(
             proficiency=st.session_state.proficiency,
             score=st.session_state.quiz_score,
@@ -61,6 +63,12 @@ def render_quiz_section():
             history=st.session_state.history,
             keywords=st.session_state.user_keywords
         )
+
+        dt = time.perf_counter() - _t0
+        st.session_state.timing_qgen_total += dt
+        st.session_state.timing_qgen_n += 1
+        print(f"[QGEN] Q{_next_q_no}: {dt:.2f}s")
+
         st.session_state.quiz_questions.append(q)
         st.session_state.total_weight += q.get("weight", 1)
         st.session_state.generated_count += 1
@@ -134,6 +142,7 @@ def render_quiz_section():
                 except ValueError:
                     user_answer = "0"
 
+            _t0 = time.perf_counter()
             eval_res = evaluate_answer(
                 question_text=quiz["question_text"],
                 options=options if options else [],
@@ -142,6 +151,10 @@ def render_quiz_section():
                 level=quiz.get("level", "easy"),
                 proficiency=st.session_state.proficiency
             )
+            dt = time.perf_counter() - _t0
+            st.session_state.timing_eval_total += dt
+            st.session_state.timing_eval_n += 1
+            print(f"[EVAL] Q{st.session_state.quiz_index + 1}: {dt:.2f}s")
             st.session_state.proficiency = max(0, min(10, st.session_state.proficiency + int(eval_res.get("delta", 0))))
 
             is_correct = (user_answer.strip().lower() == correct.strip().lower())
@@ -181,12 +194,15 @@ def render_quiz_section():
         level_map = {"Beginner": "초급", "Intermediate": "중급", "Advanced": "상급"}
         level_kor = level_map.get(level_eng, "중급")
 
+        _t0 = time.perf_counter()
         level_summary = generate_level_summary_llm(
             level_eng=level_eng,
             history=st.session_state.history,
             total_weight=total_weight,
             user_keywords=st.session_state.user_keywords
         )
+        st.session_state.timing_summary = time.perf_counter() - _t0
+        print(f"[SUMMARY] built in {st.session_state.timing_summary:.2f}s")
         if isinstance(level_summary, list):
             level_summary = {
                 "level": level_kor,
@@ -280,6 +296,11 @@ def render_quiz_section():
                 st.session_state.quiz_started = True
                 st.session_state.quiz_completed = False
                 st.session_state.completion_announced = False
+                st.session_state.timing_qgen_total = 0.0
+                st.session_state.timing_qgen_n = 0
+                st.session_state.timing_eval_total = 0.0
+                st.session_state.timing_eval_n = 0
+                st.session_state.timing_summary = 0.0
                 st.rerun()
         with c2:
             if st.button("✅ 완료", use_container_width=True):
@@ -289,7 +310,17 @@ def render_quiz_section():
                 st.session_state.quiz_score = 0
                 st.rerun()
 
+
 def render():
+    for k, v in {
+        "timing_qgen_total": 0.0,
+        "timing_qgen_n": 0,
+        "timing_eval_total": 0.0,
+        "timing_eval_n": 0,
+        "timing_summary": 0.0,
+    }.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
     inject_styles()
     init_quiz_state()
     ensure_user_keywords()
@@ -320,7 +351,19 @@ def render():
     st.caption("공통문항 + LLM 맞춤 문항으로 금융 지식을 빠르게 점검합니다.")
 
     left_screen, right_screen = st.columns([0.55, 0.45], border=True)
+    # 총합/평균 계산
+    qgen_n = st.session_state.timing_qgen_n or 1
+    eval_n = st.session_state.timing_eval_n or 1
+    qgen_total = st.session_state.timing_qgen_total
+    eval_total = st.session_state.timing_eval_total
+    summary_sec = st.session_state.timing_summary
 
+    print(
+        "[TIMING SUMMARY] "
+        f"QGEN total {qgen_total:.2f}s, avg {qgen_total/qgen_n:.2f}s "
+        f"| EVAL total {eval_total:.2f}s, avg {eval_total/eval_n:.2f}s "
+        f"| SUMMARY {summary_sec:.2f}s"
+    )
     with left_screen:
         if not st.session_state.get("quiz_started", False):
             st.markdown("""
