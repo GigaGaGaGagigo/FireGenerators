@@ -261,13 +261,40 @@ def render_quiz_section():
         user_name = (result_data or {}).get("user_name")
 
         render_result_card(score, total_weight, level_eng, user_name)
+        agg = _aggregate_session(
+            st.session_state.history,
+            total_weight,
+            st.session_state.user_keywords
+        )
 
-        ev = (level_summary.get("evidence", {}) if isinstance(level_summary, dict) else {}) or {}
-        overall_pct = int((ev.get("overall_accuracy") or 0) * 100)
-        weighted = ev.get("weighted_score", 0)
-        sents = (level_summary.get('summary_sentences', []) if isinstance(level_summary, dict) else [])
+        overall_pct = int(agg["overall_accuracy"] * 100)
+        weighted = agg["weighted_score"]
+
+        # level_summary가 dict면 evidence를 재계산 값으로 덮어써 저장 일관성 확보
+        if isinstance(level_summary, dict):
+            level_summary["evidence"] = {
+                "overall_accuracy": agg["overall_accuracy"],
+                "weighted_score": agg["weighted_score"],
+                # strong/weak 주제는 필요 없으면 생략 가능
+                "strong_topics": [
+                    {"topic": n, "accuracy": round(c/t, 2) if t else 0.0, "n": t}
+                    for n, t, c, _ in _rank_topics(agg["topic_stats"])[0]
+                ],
+                "weak_topics": [
+                    {"topic": n, "accuracy": round(c/t, 2) if t else 0.0, "n": t}
+                    for n, t, c, _ in _rank_topics(agg["topic_stats"])[1]
+                ],
+            }
+
+        # 요약 문장 안전 추출 (list가 와도 안전)
+        if isinstance(level_summary, dict):
+            sents = list(level_summary.get("summary_sentences", []))
+        elif isinstance(level_summary, list):
+            sents = [str(x) for x in level_summary]
+        else:
+            sents = []
+
         s1, s2, s3 = (sents + ["", "", ""])[:3]
-
         st.markdown(f"""
         <div style="border:1px solid rgba(148,163,184,.28);border-radius:16px;padding:16px;margin-top:10px;background:#fff;">
           <div style="font-weight:800;margin-bottom:6px;">🌟 금융 지식 요약 ({level_summary.get('level','')})</div>

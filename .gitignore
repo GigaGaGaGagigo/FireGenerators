@@ -33,4 +33,6 @@ test.json
 
 # vscode settings
 .vscode/
-my_app/ui/level_quiz/data/
+
+# 퀴즈 문제 저장 폴더
+my_app/ui/level_quiz/data/generated/

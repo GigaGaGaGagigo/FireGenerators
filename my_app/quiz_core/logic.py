@@ -201,7 +201,7 @@ def save_result(score, level, level_summary):
         return None
     user_id = _get_user_id(user)
     try:
-        res = supabase.table("profiles").select("name, role").eq("id", user_id).execute()
+        res = supabase.table("profiles").select("name", "role").eq("id", user_id).execute()
         if res.data:
             user_data = res.data[0]
             user_name = user_data["name"] if isinstance(user_data, dict) else getattr(user_data, "name", "Anonymous")

@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 
-# 이 파일 기준: my_app/quiz_core/constants.py → parents[2] = my_app/
 BASE_DIR = Path(__file__).resolve().parents[2]
 
 COMMON_PATH = str(BASE_DIR / "my_app" / "ui" / "level_quiz" / "data" / "common_questions.json")
