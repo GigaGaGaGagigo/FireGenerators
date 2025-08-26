@@ -53,7 +53,6 @@ PAGE_ICONS = {
     "recommendation": "gift",
     "simulation": "graph-up",
     "analysis": "bar-chart-line",
-    "hybrid_recommendation": "layers-half",
     "admin1": "person-add",
     "admin2": "security",
     "settings": "gear",
@@ -66,7 +65,6 @@ USER_MENUS = {
         ("Chatbot", "chatbot"),
         ("오늘의 퀴즈", "quiz"),
         ("맞춤형 금융 지식", "content"),
-        ("하이브리드 추천", "hybrid_recommendation"),
         ("맞춤형 상품 추천", "recommendation"),
         ("투자 시뮬레이션", "simulation"),
         ("모의 투자 및 분석", "analysis"),
@@ -76,7 +74,7 @@ USER_MENUS = {
     "Admin": [
         ("Chatbot", "chatbot"),
         ("Dashboard", "dashboard"),
-        ("하이브리드 추천", "hybrid_recommendation"),
+        ("맞춤형 금융 지식", "content"),
         ("Admin 1", "admin1"),
         ("Admin 2", "admin2"),
         ("Settings", "settings"),
@@ -441,20 +439,12 @@ def route_to_page():
                 
         elif current_page == "content":
             try:
-                from ui.contents.recommendation_contents import render
+                from ui.contents.user_recommender import render
                 render()
-            except ImportError:
-                st.title("📚 맞춤형 금융 지식")
-                st.info("ui/content/content.py 파일을 생성해주세요.")
-                
-        elif current_page == "hybrid_recommendation":
-            try:
-                from ui.contents.hybrid_recommendation import render
-                render()
-            except ImportError:
-                st.title("🤖 하이브리드 추천")
-                st.error("하이브리드 추천 페이지를 로드할 수 없습니다.")
-                st.info("ui/contents/hybrid_recommendation.py 파일을 확인해주세요.")
+            except ImportError as e:
+                st.title("🔥 맞춤형 금융 지식")
+                st.error(f"페이지를 불러올 수 없습니다: {e}")
+                st.info("ui/contents/user_recommender.py 파일을 확인해주세요.")
              
         elif current_page == "recommendation":
             try:
