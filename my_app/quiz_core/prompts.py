@@ -37,7 +37,7 @@ SYSTEM_PROMPT_SUMMARY = (
     "1) 최종 숙련 레벨 라벨(초급/중급/상급)과 "
     "2) 금융지식 수준을 설명하는 3문장 요약 "
     "을 JSON으로만 출력한다. "
-    "규칙: JSON 키: level(초급|중급|상급), summary_sentences(문자열 3개 배열), evidence(선택), next_actions(선택). "
+    "규칙: JSON 키: level(초급|중급|상급), summary_sentences(문자열 3개 배열), evidence. "
     "summary_sentences: 각 1문장, 총 3문장. '정답/오답' 문구 금지. 구체적 개념/주제 언급."
 )
 USER_PROMPT_SUMMARY_TMPL = (
@@ -79,8 +79,7 @@ SUMMARY_SCHEMA = {
     "properties": {
         "level": {"type": "string", "enum": ["초급", "중급", "상급"]},
         "summary_sentences": {"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 3},
-        "evidence": {"type": "object"},
-        "next_actions": {"type": "array", "items": {"type": "string"}}
+        "evidence": {"type": "object"}
     },
     "required": ["level", "summary_sentences"],
     "additionalProperties": False

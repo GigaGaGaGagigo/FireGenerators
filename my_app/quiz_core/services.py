@@ -20,7 +20,7 @@ if not OPENAI_API_KEY:
     st.error("OPENAI_API_KEY가 설정되지 않았습니다. .env에 OPENAI_API_KEY를 넣어주세요.")
     raise SystemExit("Missing OPENAI_API_KEY")
 
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ---- 공용 유틸(JSON 추출/재시도) ----

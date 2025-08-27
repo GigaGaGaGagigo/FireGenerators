@@ -83,7 +83,6 @@ def _build_summary_from_agg(agg: dict, level_kor: str, user_keywords: list[str])
         "level": level_kor,
         "summary_sentences": [s1, s2, s3],
         "evidence": evidence,
-        "next_actions": [f"{', '.join(weak_names)} 10문항 보충", "오답노트에 헷갈린 근거 1줄 정리"]
     }
 
 # ---- 파일 저장 ----
@@ -188,24 +187,27 @@ def generate_level_summary_llm(level_eng: str, history: list[dict], total_weight
     if not isinstance(summaries, list) or len(summaries) < 3:
         return None
     return {"level": level, "summary_sentences": summaries[:3],
-            "evidence": data.get("evidence"), "next_actions": data.get("next_actions")}
+            "evidence": data.get("evidence")}
 
 # ---- 결과 저장 ----
 def save_result(score, level, level_summary):
     """
-    퀴즈 결과 + LLM 요약(level_summary)을 함께 저장.
-    - quiz_results 테이블에 summary_sentences, evidence, next_actions 컬럼이 JSON으로 있어야 함.
+    퀴즈 결과 + LLM 요약(level_summary)을 저장.
+    - quiz_results: 상세 로그 보관 (summary_sentences, evidence → jsonb 컬럼)
+    - profiles: knowledge_level, knowledge_summary 최신화 (knowledge_summary는 text 컬럼)
     """
     user = st.session_state.get("user")
     if not user or not supabase:
         return None
+
+    # (1) 사용자 정보
     user_id = _get_user_id(user)
     try:
-        res = supabase.table("profiles").select("name", "role").eq("id", user_id).execute()
+        res = supabase.table("profiles").select("name, role").eq("id", user_id).execute()
         if res.data:
             user_data = res.data[0]
-            user_name = user_data["name"] if isinstance(user_data, dict) else getattr(user_data, "name", "Anonymous")
-            st.session_state.role = user_data.get("role", "User") if isinstance(user_data, dict) else getattr(user_data, "role", "User")
+            user_name = user_data.get("name") or "Anonymous"
+            st.session_state.role = user_data.get("role", "User")
         else:
             user_name = "Anonymous"
             if not isinstance(st.session_state.role, str):
@@ -213,16 +215,45 @@ def save_result(score, level, level_summary):
     except Exception:
         user_name = "Anonymous"
 
+    # (2) 요약 정리
+    summary_sentences = (level_summary or {}).get("summary_sentences")
+    evidence = (level_summary or {}).get("evidence")
+
+    # text 컬럼에 맞게 변환
+    def _summary_for_profiles(val):
+        if val is None:
+            return None
+        if isinstance(val, list):
+            return "\n".join(val)  # text 컬럼이므로 문자열로 변환
+        return str(val)
+
+    # (3) quiz_results 로그 적재 (jsonb 컬럼)
     try:
         supabase.table("quiz_results").insert({
             "user_id": user_id,
             "user_name": user_name,
             "score": score,
-            "level": level,
-            "summary_sentences": (level_summary or {}).get("summary_sentences"),
-            "evidence": (level_summary or {}).get("evidence"),
-            "next_actions": (level_summary or {}).get("next_actions"),
+            "level": level,  # 그대로 저장 (beginner/intermediate/advanced)
+            "summary_sentences": summary_sentences,
+            "evidence": evidence
         }).execute()
     except Exception:
-        return None
-    return {"user_name": user_name, "score": score, "level": level}
+        pass
+
+    # (4) profiles 업데이트 (없으면 upsert)
+    update_payload = {
+        "knowledge_level": level,
+        "knowledge_summary": _summary_for_profiles(summary_sentences),
+    }
+
+    try:
+        upd = supabase.table("profiles").update(update_payload).eq("id", user_id).execute()
+        if not upd.data:  # 업데이트된 행이 없으면 upsert
+            supabase.table("profiles").upsert({
+                "id": user_id,
+                **update_payload
+            }).execute()
+    except Exception:
+        return {"user_name": user_name, "score": score, "level": level, "updated": False}
+
+    return {"user_name": user_name, "score": score, "level": level, "updated": True}
