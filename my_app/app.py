@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+
+# Add project root to sys.path
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
+
 import streamlit as st
 from streamlit.navigation.page import Page as Page
 from streamlit_option_menu import option_menu
@@ -67,7 +74,7 @@ USER_MENUS = {
         ("오늘의 퀴즈", "quiz"),
         ("맞춤형 금융 지식", "content"),
         ("맞춤형 상품 추천", "recommendation"),
-        ("투자 시뮬레이션", "simulation"),
+        ("현재 보유주식 AI코칭", "simulation"),
         ("모의 투자 및 분석", "analysis"),
         ("Settings", "settings"),
         ("Logout", "logout")
@@ -491,11 +498,11 @@ def route_to_page():
                                 
         elif current_page == "simulation":
             try:
-                from ui.simulation.simulation_sample import render
+                from ui.trading.trading_ui import render
                 render()
             except ImportError:
-                st.title("📈 투자 시뮬레이션")
-                st.info("ui/simulation/simulation.py 파일을 생성해주세요.")
+                st.title("📈 현재 보유주식 AI코칭")
+                st.info("ui/trading/trading_ui.py 파일을 생성해주세요.")
                 
         elif current_page == "analysis":
             try:

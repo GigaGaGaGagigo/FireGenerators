@@ -23,12 +23,10 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # 세션 user_id
-USER_ID = ""
+if "user_id" not in st.session_state:
+    st.session_state.user_id = "0bfc599a-db77-49ef-8556-31d2be8ffdaf"
 
-print(USER_ID)
-
-if USER_ID == "":
-    USER_ID = "62f90625-6e2d-4125-8d22-2214eb0da631"
+USER_ID = st.session_state.user_id
 
 
 st.title("📊 모의투자 보유주식 관리")
@@ -48,45 +46,80 @@ def fetch_usd_krw_rate() -> float:
 
 # feedbeck code
 def compute_advanced_stats(df, trade_price, trade_idx, action):
-    # EMA, RSI, MACD, Stochastic, 볼린저밴드, VWAP
+
+    # 0) 복사 및 NaN 보간
+    df = df.copy()
+    df['종가'] = df['종가'].ffill().bfill()
+    df['고가'] = df['고가'].ffill().bfill()
+    df['저가'] = df['저가'].ffill().bfill()
+    df['거래량'] = df['거래량'].ffill().bfill()
+
+    # 1) 최소 데이터 길이 체크 (MACD slow 기간 = 26)
+    # if len(df) < 26:
+    #     return {}
+
+    # 2) EMA, RSI
     df['EMA20'] = ta.ema(df['종가'], length=20)
     df['EMA60'] = ta.ema(df['종가'], length=60)
     df['EMA120'] = ta.ema(df['종가'], length=120)
     df['RSI14'] = ta.rsi(df['종가'], length=14)
-    macd = ta.macd(df['종가'])
-    df['MACD'] = macd['MACD_12_26_9']
-    df['MACD_SIGNAL'] = macd['MACDs_12_26_9']
-    stoch = ta.stoch(df['고가'], df['저가'], df['종가'])
-    df['STOCH_K'] = stoch['STOCHk_14_3_3']
-    df['STOCH_D'] = stoch['STOCHd_14_3_3']
-    bbands = ta.bbands(df['종가'], length=20)
-    df['BB_UPPER'] = bbands['BBU_20_2.0']
-    df['BB_LOWER'] = bbands['BBL_20_2.0']
+
+    # 3) MACD 안전 처리
+    try:
+        # DataFrame accessor 로 호출하면 None 리턴 안 함
+        macd_df = df.ta.macd(close='종가', fast=12, slow=26, signal=9)
+        df['MACD']        = macd_df['MACD_12_26_9']
+        df['MACD_SIGNAL'] = macd_df['MACDs_12_26_9']
+    except Exception:
+        df['MACD']        = np.nan
+        df['MACD_SIGNAL'] = np.nan
+
+    # 4) STOCH, BBANDS, VWAP
+    try:
+        # DataFrame accessor 로 호출하면 None 리턴 안 함
+        stoch = ta.stoch(df['고가'], df['저가'], df['종가'])
+        df['STOCH_K'] = stoch['STOCHk_14_3_3']
+        df['STOCH_D'] = stoch['STOCHd_14_3_3']
+    except Exception:
+        df['STOCH_K'] = np.nan
+        df['STOCH_D'] = np.nan
+    
+    try:
+        # DataFrame accessor 로 호출하면 None 리턴 안 함
+        bbands = ta.bbands(df['종가'], length=20)
+        df['BB_UPPER'] = bbands['BBU_20_2.0']
+        df['BB_LOWER'] = bbands['BBL_20_2.0']
+    except Exception:
+        df['BB_UPPER'] = np.nan
+        df['BB_LOWER'] = np.nan
+
+    
     df['VWAP'] = ta.vwap(df['고가'], df['저가'], df['종가'], df['거래량'])
+
+    # 5) 결과 추출
     idx = trade_idx
     result = {
-        "EMA20": float(df['EMA20'].iloc[idx]),
-        "EMA60": float(df['EMA60'].iloc[idx]),
-        "EMA120": float(df['EMA120'].iloc[idx]),
-        "RSI14": float(df['RSI14'].iloc[idx]),
-        "MACD": float(df['MACD'].iloc[idx]),
-        "MACD_SIGNAL": float(df['MACD_SIGNAL'].iloc[idx]),
-        "STOCH_K": float(df['STOCH_K'].iloc[idx]),
-        "STOCH_D": float(df['STOCH_D'].iloc[idx]),
-        "BB_UPPER": float(df['BB_UPPER'].iloc[idx]),
-        "BB_LOWER": float(df['BB_LOWER'].iloc[idx]),
-        "VWAP": float(df['VWAP'].iloc[idx])
+        "EMA20":         float(df['EMA20'].iat[idx]),
+        "EMA60":         float(df['EMA60'].iat[idx]),
+        "EMA120":        float(df['EMA120'].iat[idx]),
+        "RSI14":         float(df['RSI14'].iat[idx]),
+        "MACD":          float(df['MACD'].iat[idx]) if not np.isnan(df['MACD'].iat[idx]) else None,
+        "MACD_SIGNAL":   float(df['MACD_SIGNAL'].iat[idx]) if not np.isnan(df['MACD_SIGNAL'].iat[idx]) else None,
+        "STOCH_K":       float(df['STOCH_K'].iat[idx]),
+        "STOCH_D":       float(df['STOCH_D'].iat[idx]),
+        "BB_UPPER":      float(df['BB_UPPER'].iat[idx]),
+        "BB_LOWER":      float(df['BB_LOWER'].iat[idx]),
+        "VWAP":          float(df['VWAP'].iat[idx])
     }
-    # if action == "buy":
-    #     after = df.iloc[idx:idx+7]['종가']
-    #     max_profit = np.round((after.max() - trade_price) / trade_price * 100, 2)
-    #     min_profit = np.round((after.min() - trade_price) / trade_price * 100, 2)
-    #     result["max_profit"] = float(max_profit)
-    #     result["min_profit"] = float(min_profit)
-    # else:
-    #     after = df.iloc[idx:idx+7]['종가']
-    #     missed_profit = np.round((after.max() - trade_price) / trade_price * 100, 2)
-    #     result["missed_profit"] = float(missed_profit)
+
+    # 6) buy/sell 별 추가 지표
+    after = df['종가'].iloc[idx:idx+7]
+    if action == "buy":
+        result["max_profit"] = float(((after.max() - trade_price)/trade_price * 100).round(2))
+        result["min_profit"] = float(((after.min() - trade_price)/trade_price * 100).round(2))
+    else:
+        result["missed_profit"] = float(((after.max() - trade_price)/trade_price * 100).round(2))
+
     return result
 
 def fetch_fundamentals(symbol: str, market: str) -> dict:
@@ -128,10 +161,11 @@ def save_trade(
     symbol: str,
     market: str,
     price: float,
-    qty: float,
+    quantity: float,
     action: str,
     trade_time: date,
-    commission: float = 0.0
+    commission: float = 0.0,
+    memo: str = ""
 ):
     # 1️⃣ trade_history 저장
     data = {
@@ -139,10 +173,11 @@ def save_trade(
         "symbol":     symbol.upper(),
         "market":     market,
         "price":      price,
-        "qty":     qty,
+        "quantity":     quantity,
         "action":     action.lower(),
         "trade_time": trade_time.isoformat(),
-        "commission": commission
+        "commission": commission,
+        "memo":       memo
     }
     res = supabase.table("trade_history").insert(data).execute()
 
@@ -153,6 +188,14 @@ def save_trade(
     trade_id = res.data[0]["id"]
 
     # 2️⃣ 고급 통계 계산 (여기서 summary_stats 준비)
+    df_price = fdr.DataReader(symbol) if market == "KR" else yf.Ticker(symbol).history(period="1y")
+    df_price = df_price.rename(columns={"Close": "종가", "High": "고가", "Low": "저가", "Volume": "거래량"})
+    df_price.index = df_price.index.tz_localize(None)
+    trade_ts = pd.to_datetime(trade_time)
+    idx = df_price.index.get_loc(trade_ts)
+    summary_stats = compute_advanced_stats(df_price, price, idx, action)
+
+
     try:
         df_price = fdr.DataReader(symbol) if market == "KR" else yf.Ticker(symbol).history(period="1y")
         df_price = df_price.rename(columns={"Close": "종가", "High": "고가", "Low": "저가", "Volume": "거래량"})
@@ -170,7 +213,9 @@ def save_trade(
         "trade_id": trade_id,
         "chart_url": "",  # 추후 차트 이미지 URL 생성 가능
         "summary_stats": summary_stats,
-        "style_type": "default"
+        "style_type": "default",
+        "rank_in_group": None,
+        "benchmark_return": None
     }
     res_fb = supabase.table("trade_feedback").insert(feedback_data).execute()
     if getattr(res_fb, "status_code", 0) >= 400:
@@ -198,7 +243,7 @@ def fetch_current_price(symbol: str, market: str) -> float:
     try:
         if market == "US":
             ticker = yf.Ticker(symbol)
-            df = ticker.history(period="1d")
+            df = ticker.history(period="2d")
             return float(df["Close"].iloc[-1])
         else:  # KR
             df = fdr.DataReader(symbol)
@@ -234,10 +279,10 @@ def get_holdings_data(user_id: str):
 
     # 1) 매수/매도 집계 → 순보유량
     buy_df = df[df.action=="buy"].groupby(["symbol","market"]) \
-               .agg(avg_price=("price","mean"), qty_buy=("qty","sum")) \
+               .agg(avg_price=("price","mean"), qty_buy=("quantity","sum")) \
                .reset_index()
     sell_df= df[df.action=="sell"].groupby(["symbol","market"]) \
-               .agg(qty_sell=("qty","sum")) \
+               .agg(qty_sell=("quantity","sum")) \
                .reset_index()
     merged = buy_df.merge(sell_df, how="left", on=["symbol","market"])
     merged.qty_sell = merged.qty_sell.fillna(0)
@@ -277,37 +322,6 @@ def get_holdings_data(user_id: str):
     holdings_df = pd.DataFrame(rows)
     return holdings_df, total_invested, total_value
 
-# 콜백 함수: 삭제
-def delete_trade(trade_id):
-    resp = supabase.table("trade_history") \
-                   .delete() \
-                   .eq("id", trade_id) \
-                   .execute()
-    if getattr(resp, "status_code", 0) < 300:
-        st.success("삭제 완료")
-    else:
-        st.error("삭제 실패")
-
-# 콜백 함수: 수정
-def update_trade(trade_id, new_date, new_action, new_symbol, new_market,
-                 new_price, new_qty):
-    update_data = {
-        "trade_time": new_date.isoformat(),
-        "action":     new_action,
-        "symbol":     new_symbol.upper(),
-        "market":     new_market,
-        "price":      float(new_price),
-        "qty":   float(new_qty)
-    }
-    resp = supabase.table("trade_history") \
-                   .update(update_data) \
-                   .eq("id", trade_id) \
-                   .execute()
-    if getattr(resp, "status_code", 0) < 300:
-        st.success("수정 완료")
-    else:
-        st.error("수정 실패")
-
 # ① 총 손익 영역
 holdings_df, total_inv, total_val = get_holdings_data(USER_ID)
 total_pl      = total_val - total_inv
@@ -320,7 +334,7 @@ st.markdown(
 )
 
 # ====== 입력 영역 ======
-tab_buy, tab_sell, tab_history = st.tabs(["💹 매수", "💰 매도", "📜 거래내역"])
+tab_buy, tab_sell = st.tabs(["💹 매수", "💰 매도"])
 
 # ▶ 매수 탭
 with tab_buy:
@@ -334,6 +348,7 @@ with tab_buy:
         with col2:
             buy_price = st.number_input("매입단가", min_value=0.0, step=0.01, key="buy_price")
             buy_qty   = st.number_input("수량",     min_value=0.0, step=1.0, key="buy_qty")
+            memo      = st.text_area("메모(선택)", height=50, key="buy_memo")
 
         submitted_buy = st.form_submit_button("매수 저장")
         if submitted_buy:
@@ -347,7 +362,8 @@ with tab_buy:
                     float(buy_qty),
                     "buy",
                     buy_date,
-                    commission=0
+                    commission=0,
+                    memo=memo
                 )
 
 # ▶ 매도 탭
@@ -367,63 +383,6 @@ with tab_sell:
             save_trade(USER_ID, sym, mk, sell_price, sell_qty, "sell", sell_date)
             st.success("매도 저장 완료")
             # 탭 안에서는 바로 holdings_df 를 갱신해도 됨
-
-# ▶ 거래내역 탭
-with tab_history:
-    st.subheader("거래내역 수정/삭제")
-    df_trades = get_trade_history(USER_ID)
-    if df_trades.empty:
-        st.info("거래내역이 없습니다.")
-    else:
-        # 최근 순으로 정렬
-        df_trades = df_trades.sort_values("trade_time", ascending=False)
-        for _, row in df_trades.iterrows():
-            trade_id   = row["id"]
-            symbol     = row["symbol"]
-            market     = row["market"]
-            action     = row["action"].upper()
-            trade_time = row["trade_time"][:10]
-            price      = row["price"]
-            qty   = row["qty"]
-
-            exp = st.expander(f"{trade_time} | {action} | {symbol}/{market}", expanded=False)
-            with exp:
-                # 1행 3컬럼 레이아웃
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    new_date   = st.date_input("거래일", value=pd.to_datetime(trade_time),
-                                               key=f"date_{trade_id}")
-                    new_action = st.selectbox("행동", ["buy","sell"],
-                                              index=0 if action=="BUY" else 1,
-                                              key=f"act_{trade_id}")
-                with c2:
-                    new_symbol = st.text_input("종목코드", value=symbol,
-                                               key=f"sym_{trade_id}")
-                    new_market = st.selectbox("시장", ["KR","US"],
-                                              index=0 if market=="KR" else 1,
-                                              key=f"mk_{trade_id}")
-                with c3:
-                    new_price  = st.number_input("단가", value=float(price),
-                                                 key=f"pr_{trade_id}")
-                    new_qty    = st.number_input("수량", value=float(qty),
-                                                 key=f"qty_{trade_id}")
-
-
-                # 버튼 배치
-                btn_col1, btn_col2 = st.columns([1,1])
-                with btn_col1:
-                    st.button("수정 저장",
-                              key=f"edit_{trade_id}",
-                              on_click=update_trade,
-                              args=(trade_id, new_date, new_action,
-                                    new_symbol, new_market,
-                                    new_price, new_qty,))
-                with btn_col2:
-                    st.button("삭제",
-                              key=f"del_{trade_id}",
-                              on_click=delete_trade,
-                              args=(trade_id,))
-
 
 # ③ 보유 종목 테이블
 st.subheader("현재 보유주식 현황")
@@ -450,35 +409,15 @@ else:
     )
     st.dataframe(display_df, use_container_width=True)
 
-st.subheader("🤖 AI 코칭")
-res_latest = (
-    supabase.table("ai_coaching")
-    .select("*")
-    .eq("user_id", USER_ID)
-    .order("created_at", desc=True)
-    .limit(1)
-    .execute()
-)
-
-if res_latest.data:
-    latest = res_latest.data[0]
-    st.markdown(
-        f"📌 최근 AI 코칭 결과 ({latest['created_at'][:10]})"
-    )
-    st.write(latest["result"])
-    st.divider()
-
-if st.button("AI 코칭 받기"):
+st.subheader("🤖 AI 코칭 받기")
+if st.button("AI 조언 받기"):
     # 0) 사용자 이름 조회
     ures = supabase.table("profiles") \
         .select("name") \
         .eq("id", USER_ID) \
-        .limit(1) \
+        .single() \
         .execute()
-    name = ures.data[0]["name"]
-
-    
-
+    name = ures.data.get("name", USER_ID)
 
     # 1) 최근 거래내역 조회 (10건)
     trades = supabase.table("trade_history") \
@@ -490,26 +429,24 @@ if st.button("AI 코칭 받기"):
 
     # 2) 프롬프트 기본 문장
     prompt_lines = [
-        "당신은 친절하고 논리적인 투자 코치입니다.",
-        f"사용자({name})의 최근 거래내역과 오늘 기준 기술지표,펀더멘털,per를 참고하여",
-        "향후 매수·매도 타이밍과 위험 관리 전략을 제안해주는데 주식 초보도 이해할수 있도록 풀어서 설명해주세요.",
-        "예시: “주식 가치가 높으니 100달러까지 보유를 추천…”"
+        "=== 입력 데이터 ===",
+        f"사용자: {name}"
     ]
 
     # 3) 최근 거래내역 요약
-    prompt_lines.append("\n=== 최근 거래내역 ===")
+    prompt_lines.append("\n최근 거래내역 :")
     for t in trades:
         sym, mk = t["symbol"], t["market"]
         action = t["action"].upper()
         dt = t["trade_time"][:10]
-        vol, pr = t["qty"], t["price"]
+        vol, pr = t["quantity"], t["price"]
         cur_price = fetch_current_price(sym, mk)
         prompt_lines.append(
             f"- {dt} {action} {sym}/{mk} {vol}주 @ {pr:.2f}, 현재가 {cur_price:.2f}"
         )
 
     # 4) 오늘 기준 요약 지표(compute_advanced_stats) & 펀더멘털
-    prompt_lines.append("\n=== 오늘 기술지표 & 펀더멘털 ===")
+    prompt_lines.append("\n오늘 기술지표 & 펀더멘털:")
     # 거래된 종목들을 중복 없이
     symbols = list({t["symbol"] for t in trades})
     for sym in symbols:
@@ -529,9 +466,15 @@ if st.button("AI 코칭 받기"):
         cur_price = fetch_current_price(sym, mk)
         idx = len(df_price) - 1
 
+        print("---------------")
+        print(sym)
         # 4-3) 지표 계산 (action은 여기에 영향 없으므로 "buy"로 통일)
         stats = compute_advanced_stats(df_price, cur_price, idx, action="buy")
         stats_json = json.dumps(stats, ensure_ascii=False, indent=2)
+
+        print("---------------")
+        print(stats)
+        print(stats_json)
 
         # 4-4) 펀더멘털 정보 가져오기
         fnd = fetch_fundamentals(sym, mk)
@@ -543,35 +486,54 @@ if st.button("AI 코칭 받기"):
             f"PER: {fnd['PER']}, PBR: {fnd['PBR']}, EPS: {fnd['EPS']}\n"
             f"사업개요: {fnd['사업개요']}\n"
         )
+    
+    role_json = {
+      "symbol":      "종목코드/시장 (예: AAPU/US)",
+      "buy_timing":  "구체적인 매수 시점 제안 float값으로 표시",
+      "sell_timing": "구체적인 매도 시점 제안 float값으로 표시",
+      "stop_loss":   "손절가 제안 float값으로 표시",
+      "rationale":   "제안 근거를 간략하게 설명"
+    }
+    role_json = json.dumps(role_json, ensure_ascii=False, indent=2)
+
+    prompt_lines.append("\n=== 응답 JSON 스키마 ===")
+    prompt_lines.append("결과는 반드시 각 기술지표 & 펀더멘털당 하나씩 아래 JSON 형태로만 반환하세요.")
+    prompt_lines.append("```json\n" + role_json + "\n```")
 
     full_prompt = "\n".join(prompt_lines)
+
+    system_message = [
+        "당신은 친절하고 논리적인 투자 코치입니다.",
+        "사용자가 제시한 과거 거래내역과 기술지표·펀더멘털 데이터를 보고,",
+        "매수·매도 타이밍과 손절가를 제안해주세요.",
+        "출력은 반드시 아래 JSON 스키마를 준수해야 합니다."
+    ]
+    full_system_message = "\n".join(system_message)
+
+    #디버그
+    st.text_area("시스템 프롬프트", full_system_message, height=300)
     st.text_area("프롬프트", full_prompt, height=300)
+    
 
     # 5) OpenAI API 호출
     with st.spinner("AI 코칭 생성 중..."):
+        # 2) 새 인터페이스로 호출
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o-mini",    # 혹은 gpt-5-2025-08-07
             messages=[
-                {"role":"system","content":"당신은 투자 코치입니다. 마지막에 반드시 2문장으로 요약해주세요."},
+                {"role":"system","content": full_system_message},
                 {"role":"user","content": full_prompt}
             ],
-            temperature=0.7,
-            max_tokens=500
+            temperature=0.7,        # GPT-4 계열은 temperature 조정 가능
+            max_tokens=500          # 최대 생성 토큰 수
         )
+
+        # 디버그
+        # st.write(response)
+        # st.write("finish_reason:", response.choices[0].finish_reason)
+        # st.write("usage:", response.usage)
+
 
         ai_text = response.choices[0].message.content
         st.markdown("**✨ AI 코칭 결과**")
         st.write(ai_text)
-
-        # ✅ 결과 DB에 저장
-        save_data = {
-            "user_id": USER_ID,
-            "prompt": full_prompt,
-            "result": ai_text
-        }
-        save_res = supabase.table("ai_coaching").insert(save_data).execute()
-
-        if getattr(save_res, "status_code", 0) < 300:
-            st.success("AI 코칭 결과 저장 완료 ✅")
-        else:
-            st.error("AI 코칭 결과 저장 실패 ❌")
