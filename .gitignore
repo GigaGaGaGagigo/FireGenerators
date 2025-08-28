@@ -27,9 +27,13 @@ db.sqlite3
 # Claude code settings
 CLAUDE.md
 
+# GEMINI code settings
+GEMINI.md
+
 # mcp server
 .mcp.json
 test.json
 
 # vscode settings
 .vscode/
+my_app/ui/level_quiz/data/
