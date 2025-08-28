@@ -1,15 +1,10 @@
-# --- bootstrap: root on sys.path + load .env ---
-import sys, os
+import sys
 from pathlib import Path
-ROOT = Path(__file__).resolve().parent.parent   
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-try:
-    from dotenv import load_dotenv
-    load_dotenv(ROOT / ".env")
-except Exception:
-    pass
-# --------------------------------------------------------------
+
+# Add project root to sys.path
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
+
 import streamlit as st
 from streamlit.navigation.page import Page as Page
 from streamlit_option_menu import option_menu
