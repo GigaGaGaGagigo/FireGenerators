@@ -9,7 +9,11 @@ import json
 from typing import List, Dict, Any
 from openai import OpenAI
 from dotenv import load_dotenv
+from pathlib import Path
+ENV_PATH: Path = Path(__file__).parents[3] / ".env"
 
+if ENV_PATH.exists():
+    load_dotenv(ENV_PATH) 
     
 # 카드 스타일(원하는대로 조정 가능)
 _CARD_CSS = """
@@ -28,7 +32,6 @@ _CARD_CSS = """
 
 
 # OpenAI client (reads OPENAI_API_KEY from environment)
-load_dotenv()
 _client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
@@ -201,7 +204,7 @@ def main():
     st.title("📈 내 맞춤 주식 추천")
 
     # 1) 사용자 프로필: secrets.toml의 USER_PROFILE_JSON에서 바로 로드
-    user_profile = json.loads(st.secrets["USER_PROFILE_JSON"])
+    user_profile = st.write(st.secrets["user_profile"]["USER_PROFILE_JSON"])
     st.subheader("👤 투자자 프로필")
     st.json(user_profile)
 
