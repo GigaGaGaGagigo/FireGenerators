@@ -9,7 +9,7 @@ from explanation_generator import generate_explanation
 
 load_dotenv()
 
-# 로컬 json 파일로 실행
+# 로컬 json 파일로 룰베이스 기반 콘텐츠 추천 실행
 
 class Recommender:
     """

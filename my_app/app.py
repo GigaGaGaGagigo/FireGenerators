@@ -65,7 +65,7 @@ USER_MENUS = {
     "User": [
         ("Chatbot", "chatbot"),
         ("오늘의 퀴즈", "quiz"),
-        ("맞춤형 금융 콘텐츠", "content"),
+        ("맞춤형 금융 지식", "content"),
         ("맞춤형 상품 추천", "recommendation"),
         ("투자 시뮬레이션", "simulation"),
         ("모의 투자 및 분석", "analysis"),
@@ -75,6 +75,7 @@ USER_MENUS = {
     "Admin": [
         ("Chatbot", "chatbot"),
         ("Dashboard", "dashboard"),
+        ("맞춤형 금융 지식", "content"),
         ("Admin 1", "admin1"),
         ("Admin 2", "admin2"),
         ("Settings", "settings"),
@@ -473,12 +474,13 @@ def route_to_page():
                 
         elif current_page == "content":
             try:
-                from ui.contents.recomendation_contents import render
+                from ui.contents.user_recommender import render
                 render()
-            except ImportError:
-                st.title("📚 맞춤형 금융 콘텐츠")
-                st.info("ui/content/content.py 파일을 생성해주세요.")
-                
+            except ImportError as e:
+                st.title("🔥 맞춤형 금융 지식")
+                st.error(f"페이지를 불러올 수 없습니다: {e}")
+                st.info("ui/contents/user_recommender.py 파일을 확인해주세요.")
+             
         elif current_page == "recommendation":
             try:
                 from ui.recommendation.recommendation import render
@@ -486,7 +488,7 @@ def route_to_page():
             except ImportError:
                 st.title("🎁 맞춤형 상품 추천")
                 st.info("ui/recommendation/recommendation.py 파일을 생성해주세요.")
-                
+                                
         elif current_page == "simulation":
             try:
                 from ui.simulation.simulation_sample import render
