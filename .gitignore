@@ -36,3 +36,4 @@ test.json
 
 # vscode settings
 .vscode/
+.venv/
