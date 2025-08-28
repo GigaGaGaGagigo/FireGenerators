@@ -1,65 +1,91 @@
 {
+  "indicator_settings": {
+    "EMA": [5, 20, 60],
+    "RSI": [14, 2],
+    "MACD": { "fast": 12, "slow": 26, "signal": 9 },
+    "BBANDS": { "period": 20, "stddev": 2.0 },
+    "STOCH": { "k": 14, "d": 3, "smooth": 3 },
+    "KELTNER": { "period": 20, "mult": 1.5 },
+    "VWAP": true,
+    "ANCHORS": { "ytd": true, "mtd": true }
+  },
+
+  "feedback_policy": {
+    "analysis_mode": "backtest",
+    "peer_group_size": 100,
+    "peer_min_samples": 30,
+    "peer_window_days": 3,
+    "min_data_period_days": 60,
+    "analysis_window_days": 7,
+    "rank_definition": "BUY: lower price → higher percentile; SELL: higher price → higher percentile"
+  },
+
+  "execution": {
+    "slippage_bps": 5,
+    "account_risk_per_trade": 0.01,
+    "account_size": 10000000,
+    "stop_atr_mult": 1.2,
+    "tp1_atr_mult": 2.0,
+
+    "cost_model": {
+      "KR": { "fee_buy": 0.00015, "fee_sell": 0.00015, "tax_sell": 0.002, "min_fee": 0.0 },
+      "US": { "fee_buy": 0.0005,  "fee_sell": 0.0005,  "tax_sell": 0.0,   "min_fee": 0.0 }
+    },
+
+    "kr_tick_table": [
+      [0, 1000, 1],
+      [1000, 5000, 5],
+      [5000, 10000, 10],
+      [10000, 50000, 50],
+      [50000, 100000, 100],
+      [100000, 1000000000, 500]
+    ]
+  },
+
+  "calc": {
+    "winsorize_sigma": 4.0,
+    "min_consecutive_bars": 200,
+    "obv_z_window": 20,
+    "vol_z_window": 20
+  },
+
+  "calendar": {
+    "market": "KR",
+    "use_market_calendars": true,
+    "exchange_codes": {
+      "KR": "XKRX",
+      "US": "XNYS"
+    }
+  },
+
   "tone_guide": {
-    "friendly": "최대한 쉽고, 친절하고, 일상 대화체로 설명합니다. 초보자도 거부감 없이 이해할 수 있게 예시와 쉬운 용어 사용.",
-    "expert": "투자 전문가/애널리스트 보고서 스타일. 디테일, 논리성, 근거 중심. 기술적 용어/지표/시장 트렌드 활용.",
-    "youth": "요즘 MZ/젊은 세대가 선호하는 간결하고, 캐주얼하며, 핵심만 콕 집는 피드백. 밈/짧은 문구/톡톡 튀는 말투 허용.",
-    "serious": "위험/리스크 경고 등은 정중하고 단호하게. 손실 가능성, 시장 급변동, 경고 안내는 반드시 포함."
+    "friendly": "최대한 쉽고, 친절하고, 일상 대화체로 설명합니다.",
+    "expert": "투자 전문가/애널리스트 보고서 스타일. 디테일과 논리 중심.",
+    "youth": "요즘 MZ가 좋아하는 캐주얼하고 짧은 말투. 핵심만 콕!",
+    "serious": "단호하고 정중하게. 리스크 경고에 집중."
   },
 
   "investor_level_guide": {
-    "beginner": "투자 입문자, 기초 용어부터 천천히, 실수/오해 예방, 예시 필수, 질문 유도.",
-    "intermediate": "실전 경험이 있는 투자자. 디테일과 전략, 추가 팁 제공. 경험자 노하우/조심할 포인트 강조.",
-    "expert": "고급 투자자/직업 투자자. 기술적 분석, 종합 데이터 해석, 전략적 접근/포트폴리오 분산 등 심층적 코칭."
-  },
-
-  "ai_coaching_goal": "투자자의 실제 경험, 수준, 감정상태, 선택 말투에 맞춰 맞춤형 피드백과 전략을 제공. 수익률, 위험 관리, 실전 적용을 최우선 목표로 함.",
-
-  "feedback_policy": {
-    "min_data_period_days": 60,
-    "analysis_window_days": 7,
-    "peer_group_size": 100,
-    "always_show_chart": true,
-    "enable_peer_compare": true,
-    "recommend_risk_control": true
-  },
-
-  "strategy_guide": {
-    "short_term": "단기 트레이딩 (5~20일) : EMA, RSI, 볼린저밴드, 스토캐스틱, 단타 수익 실현 타이밍 분석.",
-    "swing": "스윙/중기 매매 (20~60일): MACD, VWAP, 거래량 급증, 추세 전환포착, 단기 조정 후 반등 신호.",
-    "long_term": "장기/가치 투자 (60일~): 추세선, 이동평균, 장기 RSI/CCI, 분할매수, 평균회귀, 포트 분산, 배당전략.",
-    "momentum": "모멘텀 전략: 가격과 거래량 동반 급등, RSI, MACD, BB 상단 돌파, peer 대비 수익률 비교.",
-    "risk_control": "손절/익절/비중조절, 과매수/과매도 경고, 고변동성 종목 주의, 수익실현 시점 안내."
-  },
-
-  "message_template": {
-    "good_buy": "👍 상승 모멘텀 진입! 매수 후 최대 {max_profit}% 수익 가능.",
-    "late_sell": "😬 조금만 더 기다렸으면 {missed_profit}% 추가 수익이 가능했어요.",
-    "perfect_timing": "🥇 최적의 매수·매도 타이밍! Peer 그룹 내 {rank_in_group}위!",
-    "risk_warning": "⚠️ 고변동성 구간 진입, 손실 위험 주의! 포트폴리오 분산/비중조절 권장.",
-    "group_compare": "유사 투자자 {group_size}명 중 {rank_in_group}위. Peer 평균 대비 {'더 나은' if outperformed else '더 낮은'} 실적.",
-    "commission_notice": "실질 수익률은 수수료 차감 후 계산되었습니다."
-  },
-
-  "indicator_settings": {
-    "EMA": [20, 60, 120],
-    "RSI": [14],
-    "MACD": {"fast": 12, "slow": 26, "signal": 9},
-    "BBANDS": {"period": 20, "stddev": 2},
-    "STOCH": {"k": 14, "d": 3, "smooth": 3},
-    "VWAP": true
+    "beginner": "투자 입문자 – 기초 지식부터 설명 필요.",
+    "intermediate": "경험 보유 – 개념 설명보다 전략 중심 코칭.",
+    "advanced": "시장 경험 多 – 고급 지표 해석 가능.",
+    "expert": "전문가 수준 – 기술적/퀀트 기반의 고급 설명 선호."
   },
 
   "user_customization": {
-    "allow_tone_select": true,
-    "default_tone": "friendly",
-    "allow_ai_coaching_onoff": true
+    "default_tone": "friendly"
   },
 
-  "chart_policy": {
-    "show_elements": [
-      "종가", "EMA20", "EMA60", "VWAP", "볼린저밴드", "RSI", "MACD", "스토캐스틱", "매수/매도시점", "Peer평균", "가상수익선"
-    ],
-    "shareable": true,
-    "image_format": "png"
-  }
+  "ai_coaching_goal": "사용자의 매매 타이밍을 개선하고, 전략적 인사이트를 제공한다.",
+
+  "llm": {
+    "enabled_default": false,
+    "model": "gemini-1.5-flash-latest"
+  },
+
+  "privacy": {
+    "mask_pii_logs": true
+  },
+
+  "version": "indicators-v2.2.0"
 }
