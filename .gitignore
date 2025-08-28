@@ -1,25 +1,36 @@
-# api 참고 자료
+# ============== Environment ==============
+
+# API
 api_test/
 
-# environment variables
+# environment
 .env
 
-# python virtual environment
+# virtual environment
 .venv/
 venv/
+
+# metadata in macOS
+.DS_Store
 
 # pycache
 *.pyc
 __pycache__/
 
-# metadata in macOS
-.DS_Store
+
+# ================== Data ==================
 
 # sqlite data
 db.sqlite3
 
-# Jupyter 자동 저장 체크포인트
+# Jupyter checkpoints
 .ipynb_checkpoints/
+
+# test files
+test.json
+test.py
+
+# ================ Settings ================
 
 # Streamlit settings
 .streamlit/
@@ -27,24 +38,17 @@ db.sqlite3
 # vscode settings
 .vscode/
 
-# ================= Personal Settings =================
 
-# Claude code and Gemini CLI settings
-CLAUDE.md
-GEMINI.md
-REFACTORING_GUIDE.md
+# ================ Extention ================
 
-# mcp server
-.mcp.json
-test.json
 
-# Jupyter notebook
-test.ipynb
+# INFO: personal settings files when committing, turn on to ignore these files
 
-# Project settings
-project.toml
-pyproject.toml
-pyrefly.toml
-
-# pyreflyignore
-.pyreflyignore
+mcp server
+.mcp.json  
+*.md
+*.toml
+.claude**
+.gemini**
+.ruff**
+my_app/chatbot/notebooks/
