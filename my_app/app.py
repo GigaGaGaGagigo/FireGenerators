@@ -76,7 +76,7 @@ USER_MENUS = {
         ("맞춤형 금융 지식", "content"),
         ("맞춤형 상품 추천", "rag_recommendation"),
         ("현재 보유주식 AI코칭", "simulation"),
-        ("모의 투자 및 분석", "analysis"),
+        ("종목 피드백", "analysis"),
         ("Settings", "settings"),
         ("Logout", "logout")
     ],
@@ -515,10 +515,10 @@ def route_to_page():
                 
         elif current_page == "analysis":
             try:
-                from ui.analysis.analysis import render
+                from ui.analysis.streamlit_app import render
                 render()
             except ImportError:
-                st.title("📊 모의 투자 및 분석")
+                st.title("📊 종목 피드백")
                 st.info("ui/analysis/analysis.py 파일을 생성해주세요.")
                 
         elif current_page == "settings":

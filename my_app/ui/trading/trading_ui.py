@@ -489,12 +489,16 @@ def render ():
             .execute().data or []
 
         # 2) 프롬프트 기본 문장
-        prompt_lines = [
+        system_message = [
             "당신은 친절하고 논리적인 투자 코치입니다.",
             f"사용자({name})의 최근 거래내역과 오늘 기준 기술지표,펀더멘털,per를 참고하여",
-            "향후 매수·매도 타이밍과 위험 관리 전략을 제안해주는데 주식 초보도 이해할수 있도록 풀어서 설명해주세요.",
-            "예시: “주식 가치가 높으니 100달러까지 보유를 추천…”"
+            "매수·매도 타이밍과 손절가를 제안해주세요.",
+            "기술지표를 어린이도 알기 쉽게 풀어서 설명해 주면서 예상 상승 가격 또는 하락 가격을 알려줘"
         ]
+        full_system_message = "\n".join(system_message)
+
+
+        prompt_lines = []
 
         # 3) 최근 거래내역 요약
         prompt_lines.append("\n=== 최근 거래내역 ===")
@@ -552,7 +556,7 @@ def render ():
             response = client.chat.completions.create(
                 model="gpt-4",
                 messages=[
-                    {"role":"system","content":"당신은 투자 코치입니다. 마지막에 반드시 2문장으로 요약해주세요."},
+                    {"role":"system","content": full_system_message},
                     {"role":"user","content": full_prompt}
                 ],
                 temperature=0.7,
