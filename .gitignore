@@ -36,4 +36,10 @@ test.json
 
 # vscode settings
 .vscode/
-my_app/ui/level_quiz/data/
+.venv/
+
+# 민형님 가이드 md
+HOW_TO_FIX_SECRETS.md
+PROJECT_STRUCTURE_REVIEW.md
+PROJECT_STRUCTURE.md
+RAG_IMPLEMENTATION_GUIDE.md

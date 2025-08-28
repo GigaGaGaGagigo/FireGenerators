@@ -59,6 +59,7 @@ PAGE_ICONS = {
     "quiz": "question-circle",
     "content": "book",
     "recommendation": "gift",
+    "rag_recommendation": "robot",
     "simulation": "graph-up",
     "analysis": "bar-chart-line",
     "admin1": "person-add",
@@ -73,7 +74,7 @@ USER_MENUS = {
         ("Chatbot", "chatbot"),
         ("오늘의 퀴즈", "quiz"),
         ("맞춤형 금융 지식", "content"),
-        ("맞춤형 상품 추천", "recommendation"),
+        ("맞춤형 상품 추천", "rag_recommendation"),
         ("현재 보유주식 AI코칭", "simulation"),
         ("모의 투자 및 분석", "analysis"),
         ("Settings", "settings"),
@@ -488,14 +489,22 @@ def route_to_page():
                 st.error(f"페이지를 불러올 수 없습니다: {e}")
                 st.info("ui/contents/user_recommender.py 파일을 확인해주세요.")
              
-        elif current_page == "recommendation":
+        # elif current_page == "recommendation":
+        #     try:
+        #         from ui.recommendation.recommendation import render
+        #         render()
+        #     except ImportError:
+        #         st.title("🎁 맞춤형 상품 추천")
+        #         st.info("ui/recommendation/recommendation.py 파일을 생성해주세요.")
+                
+        elif current_page == "rag_recommendation":
             try:
-                from ui.recommendation.recommendation import render
+                from ui.recommendation.rag_recommendation import render
                 render()
             except ImportError:
-                st.title("🎁 맞춤형 상품 추천")
-                st.info("ui/recommendation/recommendation.py 파일을 생성해주세요.")
-                                
+                st.title("🤖 RAG 맞춤 추천")
+                st.info("ui/recommendation/rag_recommendation.py 파일을 생성해주세요.")
+
         elif current_page == "simulation":
             try:
                 from ui.trading.trading_ui import render

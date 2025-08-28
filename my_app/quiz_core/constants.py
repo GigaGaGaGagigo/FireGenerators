@@ -1,11 +1,12 @@
 import os
 from pathlib import Path
 
-# 이 파일 기준: my_app/quiz_core/constants.py → parents[2] = my_app/
-BASE_DIR = Path(__file__).resolve().parents[2]
+# app.py 파일이 있는 디렉토리 (my_app)
+BASE_DIR = Path(__file__).resolve().parent
 
-COMMON_PATH = str(BASE_DIR / "my_app" / "ui" / "level_quiz" / "data" / "common_questions.json")
-GENERATED_DIR = str(BASE_DIR / "my_app" / "ui" / "level_quiz" / "data" / "generated")
+# 경로들
+COMMON_PATH = BASE_DIR / "ui" / "level_quiz" / "data" / "common_questions.json"
+GENERATED_DIR = BASE_DIR / "ui" / "level_quiz" / "data" / "generated"
 
 TOTAL_QUESTIONS = 10
 COMMON_COUNT    = 3
