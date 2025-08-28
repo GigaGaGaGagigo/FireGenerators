@@ -1,8 +1,16 @@
+import sys
+from pathlib import Path
+
+# Add project root to sys.path
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
+
 import streamlit as st
 from streamlit.navigation.page import Page as Page
 from streamlit_option_menu import option_menu
 from supabase import create_client, Client
 from pathlib import Path
+import uuid
 
 # ========================================
 # 🚀 팀원을 위한 개발 가이드
@@ -64,9 +72,9 @@ USER_MENUS = {
     "User": [
         ("Chatbot", "chatbot"),
         ("오늘의 퀴즈", "quiz"),
-        ("맞춤형 금융 콘텐츠", "content"),
+        ("맞춤형 금융 지식", "content"),
         ("맞춤형 상품 추천", "recommendation"),
-        ("투자 시뮬레이션", "simulation"),
+        ("현재 보유주식 AI코칭", "simulation"),
         ("모의 투자 및 분석", "analysis"),
         ("Settings", "settings"),
         ("Logout", "logout")
@@ -74,6 +82,7 @@ USER_MENUS = {
     "Admin": [
         ("Chatbot", "chatbot"),
         ("Dashboard", "dashboard"),
+        ("맞춤형 금융 지식", "content"),
         ("Admin 1", "admin1"),
         ("Admin 2", "admin2"),
         ("Settings", "settings"),
@@ -429,21 +438,56 @@ def route_to_page():
                 ''', language='python')
                                 
         elif current_page == "quiz":
+            # 1) import 단계 에러는 그대로 보여주기
             try:
                 from ui.level_quiz.quiz import render
-                render()
-            except ImportError:
+            except Exception as e:
                 st.title("🧠 오늘의 퀴즈")
-                st.info("ui/quiz/quiz.py 파일을 생성해주세요.")
+                st.error("퀴즈 모듈 임포트 중 오류가 발생했습니다.")
+                st.exception(e)  # traceback 포함한 예쁘게 출력
+                # 아래 한 줄로 텍스트 트레이스백을 코드 블록으로도 보여줄 수 있어요.
+                # st.code(traceback.format_exc(), language="text")
+                st.stop()
+
+            # 2) 환영 메시지 푸시 (정상 임포트된 경우에만)
+            try:
+                if "messages" not in st.session_state or not isinstance(st.session_state.messages, list):
+                    st.session_state.messages = []
+
+                if not st.session_state.get("quiz_welcome_pushed", False):
+                    st.session_state.messages.append({
+                        "id": str(uuid.uuid4()),
+                        "role": "assistant",
+                        "content": "안녕하세요! 금융 지식 퀴즈를 시작해보세요. 아래 버튼으로 시작할 수 있어요."
+                    })
+                    st.session_state.quiz_welcome_pushed = True
+                    st.session_state.streaming = True  # 스트리밍 효과
+                    st.rerun()  # 즉시 반영
+            except Exception as e:
+                st.error("퀴즈 환영 메시지 세팅 중 오류가 발생했습니다.")
+                st.exception(e)
+                st.stop()
+
+            # 3) render 실행 중 에러도 그대로 보여주기
+            try:
+                render()
+            except Exception as e:
+                st.title("🧠 오늘의 퀴즈")
+                st.error("퀴즈 화면 렌더링 중 오류가 발생했습니다.")
+                st.exception(e)
+                # st.code(traceback.format_exc(), language="text")
+                st.stop()
+
                 
         elif current_page == "content":
             try:
-                from ui.contents.recomendation_contents import render
+                from ui.contents.user_recommender import render
                 render()
-            except ImportError:
-                st.title("📚 맞춤형 금융 콘텐츠")
-                st.info("ui/content/content.py 파일을 생성해주세요.")
-                
+            except ImportError as e:
+                st.title("🔥 맞춤형 금융 지식")
+                st.error(f"페이지를 불러올 수 없습니다: {e}")
+                st.info("ui/contents/user_recommender.py 파일을 확인해주세요.")
+             
         elif current_page == "recommendation":
             try:
                 from ui.recommendation.recommendation import render
@@ -451,14 +495,14 @@ def route_to_page():
             except ImportError:
                 st.title("🎁 맞춤형 상품 추천")
                 st.info("ui/recommendation/recommendation.py 파일을 생성해주세요.")
-                
+                                
         elif current_page == "simulation":
             try:
-                from ui.simulation.simulation_sample import render
+                from ui.trading.trading_ui import render
                 render()
             except ImportError:
-                st.title("📈 투자 시뮬레이션")
-                st.info("ui/simulation/simulation.py 파일을 생성해주세요.")
+                st.title("📈 현재 보유주식 AI코칭")
+                st.info("ui/trading/trading_ui.py 파일을 생성해주세요.")
                 
         elif current_page == "analysis":
             try:
