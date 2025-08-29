@@ -12,8 +12,18 @@ def update_user_profile(state: OverallState, config: RunnableConfig):
     )
 
     if profile_service is not None:
+        # target_profile_category가 None이거나 비어있는 경우 안전하게 처리
+        if not state.target_profile_category or len(state.target_profile_category) == 0:
+            return {
+                "target_profile_category": [],
+                "user_meta_data": {
+                    **state.user_meta_data,
+                    "profile_status": "completed",
+                },
+            }
+        
         current_category = state.target_profile_category[0]
-        current_data = state.user_meta_data[current_category]
+        current_data = state.user_meta_data.get(current_category, {})
 
         profile_service.update_category(current_category, current_data)
 
@@ -42,7 +52,7 @@ def update_user_profile(state: OverallState, config: RunnableConfig):
         }
     else:
         return {
-            "target_profile_category": state.target_profile_category,
+            "target_profile_category": state.target_profile_category or [],
             "user_meta_data": {
                 **state.user_meta_data,
                 "profile_status": "completed",
