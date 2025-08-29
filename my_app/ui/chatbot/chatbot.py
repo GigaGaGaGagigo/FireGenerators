@@ -17,7 +17,6 @@ try:
     from my_app.chatbot.services import ProfileService
     from my_app.chatbot.utils import (
         CATEGORY_KEYS,
-        # debug_state_info,
         determine_profile_status,
         find_missing_profile_categories,
         get_current_question_info,
@@ -360,7 +359,7 @@ def render():
         st.session_state.config = config
         st.session_state["ai"]["initialized"] = True
 
-        user_data = InputState(
+        input_state = InputState(
             target_profile_category=categories_to_update,
             user_meta_data={
                 "name": user_name,
@@ -373,10 +372,6 @@ def render():
                 "risk_tolerance": user_data["risk_tolerance"],
             },
         )
-
-        # user_data = InputState(
-        #     target_profile_category=[
-        #         "investment_goal",
         #         "investment_emotions",
         #         "interests_categories",
         #         "investment_level",
@@ -393,11 +388,12 @@ def render():
         #         "knowledge_level": [],
         #         "risk_tolerance": 0,
         #     },
+        #
         # )
 
-        run_graph(user_data, resume=False)
+        run_graph(input_state, resume=False)
 
-        st.write(st.session_state["chatbot"]["logs"])
+        # st.write(st.session_state["chatbot"]["logs"])
 
     render_chat(st.session_state["chat_placeholder"])
     render_quiz(st.session_state["quiz_placeholder"])
