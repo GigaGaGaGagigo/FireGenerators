@@ -52,3 +52,4 @@ mcp server
 .gemini**
 .ruff**
 my_app/chatbot/notebooks/
+my_app/ui/level_quiz/data/generated/
