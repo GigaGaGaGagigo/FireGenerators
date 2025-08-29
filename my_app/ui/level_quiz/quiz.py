@@ -115,7 +115,13 @@ def parallel_eval_and_qgen(
     else:
         return eval_res, first_q, user_answer, correct, weight, eval_dt, qgen_dt
 
-    
+def _ensure_list_session_key(key: str):
+    if key not in st.session_state or not isinstance(st.session_state[key], list):
+        st.session_state[key] = []
+
+def _ensure_number_session_key(key: str, default: int | float = 0):
+    if key not in st.session_state or not isinstance(st.session_state[key], (int, float)):
+        st.session_state[key] = default
 
 def render_quiz_section():
     inject_styles()
@@ -125,23 +131,27 @@ def render_quiz_section():
     if not st.session_state.get("quiz_started", False):
         return
 
-    if not st.session_state.quiz_questions:
-        st.session_state.quiz_questions = []
-        st.session_state.quiz_index = 0
-        st.session_state.quiz_score = 0
-        st.session_state.quiz_questions = 0
-        st.session_state.proficiency = 5
-        st.session_state.wrong_notes = []
-        st.session_state.history = []
-        st.session_state.generated_count = 0
+    # ── 세션키 타입 가드 ──────────────────────────────────────────────
+    _ensure_list_session_key("quiz_questions")
+    _ensure_number_session_key("quiz_index", 0)
+    _ensure_number_session_key("quiz_score", 0)
+    _ensure_number_session_key("proficiency", 5)
+    _ensure_list_session_key("wrong_notes")
+    _ensure_list_session_key("history")
+    _ensure_number_session_key("generated_count", 0)
+    _ensure_number_session_key("total_weight", 0)
 
-        # 공통문항도 append할 때마다 total_weight 증가
+    # 최초 진입 시(빈 상태) 공통문항 적재
+    if len(st.session_state.quiz_questions) == 0 and st.session_state.quiz_index == 0:
+        # 공통문항 append
         for q in load_common_questions():
             st.session_state.quiz_questions.append(q)
 
+    # total_weight 동기화 (세션/로컬)
     total_weight = sum(q.get("weight", 1) for q in st.session_state.quiz_questions)
+    st.session_state.total_weight = total_weight
 
-
+    # 사이드바 상태
     render_sidebar_status(
         total_questions=TOTAL_QUESTIONS,
         score=st.session_state.quiz_score,
@@ -154,20 +164,23 @@ def render_quiz_section():
     mode = "공통문제" if st.session_state.quiz_index < COMMON_COUNT else "LLM 생성"
     st.markdown(f"""
     <div class="quiz-header">
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
         <div><strong>💡 금융 퀴즈</strong></div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <span class="badge mode">🧭 {mode}</span>
-          <span class="badge score">🏆 점수 {st.session_state.quiz_score}/{total_weight or 1}</span>
-          <span class="badge">🧠 Proficiency {st.session_state.proficiency}/10</span>
+        <span class="badge mode">🧭 {mode}</span>
+        <span class="badge score">🏆 점수 {st.session_state.quiz_score}/{total_weight or 1}</span>
+        <span class="badge">🧠 Proficiency {st.session_state.proficiency}/10</span>
         </div>
-      </div>
+    </div>
     </div>
     """, unsafe_allow_html=True)
     st.progress((st.session_state.quiz_index) / (TOTAL_QUESTIONS or 1))
 
-    # LLM 생성부(필요 시)
-    while len(st.session_state.quiz_questions) < TOTAL_QUESTIONS and st.session_state.quiz_index >= len(st.session_state.quiz_questions):
+    # LLM 생성부: 현재 인덱스가 꼬리를 물면 새 문항 생성
+    while (
+        len(st.session_state.quiz_questions) < TOTAL_QUESTIONS 
+        and st.session_state.quiz_index >= len(st.session_state.quiz_questions)
+    ):
         _t0 = time.perf_counter()
         _next_q_no = len(st.session_state.quiz_questions) + 1
 
@@ -181,15 +194,26 @@ def render_quiz_section():
         )
 
         dt = time.perf_counter() - _t0
+        _ensure_number_session_key("timing_qgen_total", 0.0)
+        _ensure_number_session_key("timing_qgen_n", 0)
         st.session_state.timing_qgen_total += dt
         st.session_state.timing_qgen_n += 1
         print(f"[QGEN] Q{_next_q_no}: {dt:.2f}s")
 
+        # append 직전 리스트 타입 보장
+        _ensure_list_session_key("quiz_questions")
         st.session_state.quiz_questions.append(q)
         st.session_state.generated_count += 1
 
+        # 새 문항 반영 후 총 가중 재계산/세션 반영
+        total_weight = sum(q_.get("weight", 1) for q_ in st.session_state.quiz_questions)
+        st.session_state.total_weight = total_weight
+
     # 생성셋 저장(1회)
-    if (len(st.session_state.quiz_questions) == TOTAL_QUESTIONS and not st.session_state.get("generated_saved", False)):
+    if (
+        len(st.session_state.quiz_questions) == TOTAL_QUESTIONS 
+        and not st.session_state.get("generated_saved", False)
+    ):
         save_generated_question(
             st.session_state.quiz_questions,
             meta={
@@ -209,7 +233,7 @@ def render_quiz_section():
         quiz = st.session_state.quiz_questions[st.session_state.quiz_index]
         st.markdown(f"""
         <div class="question-card">
-          <div class="question-title">Q{st.session_state.quiz_index + 1}. {quiz['question_text']}</div>
+        <div class="question-title">Q{st.session_state.quiz_index + 1}. {quiz['question_text']}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -244,7 +268,8 @@ def render_quiz_section():
 
         next_disabled = selected_answer is None
         if st.button("다음 ▶", type="primary", disabled=next_disabled, use_container_width=True, key=f"next_{st.session_state.quiz_index}"):
-            if st.session_state.get("processing"): st.stop()
+            if st.session_state.get("processing"): 
+                st.stop()
             st.session_state.processing = True
             user_answer = (selected_answer or "").strip()
             correct = (quiz["answer"] or "").strip()
@@ -279,6 +304,10 @@ def render_quiz_section():
             print(f"[PER-QUESTION TOTAL] {total_dt:.2f}s (eval {eval_dt:.2f}s + qgen {qgen_dt:.2f}s)")
 
             # 타이밍 누적
+            _ensure_number_session_key("timing_eval_total", 0.0)
+            _ensure_number_session_key("timing_eval_n", 0)
+            _ensure_number_session_key("timing_qgen_total", 0.0)
+            _ensure_number_session_key("timing_qgen_n", 0)
             if eval_dt and eval_dt > 0:
                 st.session_state.timing_eval_total += eval_dt
                 st.session_state.timing_eval_n += 1
@@ -289,13 +318,14 @@ def render_quiz_section():
             avg_eval = (st.session_state.timing_eval_total / st.session_state.timing_eval_n) if st.session_state.timing_eval_n else 0.0
             avg_qgen = (st.session_state.timing_qgen_total / st.session_state.timing_qgen_n) if st.session_state.timing_qgen_n else 0.0
 
+            _ensure_number_session_key("timing_summary", 0.0)
             print(
                 f"[TIMING SUMMARY] QGEN total {st.session_state.timing_qgen_total:.2f}s, "
                 f"avg {avg_qgen:.2f}s | EVAL total {st.session_state.timing_eval_total:.2f}s, "
                 f"avg {avg_eval:.2f}s | SUMMARY {st.session_state.timing_summary:.2f}s"
             )
 
-            # --- 평가 결과 반영/피드백/히스토리 (이하 동일) ---
+            # --- 평가 결과 반영/피드백/히스토리 ---
             is_correct = (user_answer.strip().lower() == correct.strip().lower())
             delta = int(eval_res.get("delta", 0)) if isinstance(eval_res, dict) else (1 if is_correct else -1)
             feedback_text_model = (eval_res.get("feedback") if isinstance(eval_res, dict) else "") or ""
@@ -317,6 +347,7 @@ def render_quiz_section():
 
             feedback_text = "정답입니다! ✅" if is_correct else f"오답입니다 ❌ . 정답은 {correct}입니다."
             full_feedback = f"{feedback_text}\n{feedback_text_model}".strip()
+            _ensure_list_session_key("messages")
             st.session_state.messages.append({
                 "id": str(uuid.uuid4()),
                 "role": "assistant",
@@ -326,8 +357,9 @@ def render_quiz_section():
             # 다음 문제 큐에 추가 (준비되어 있으면)
             if next_q and len(st.session_state.quiz_questions) < TOTAL_QUESTIONS:
                 st.session_state.quiz_questions.append(next_q)
-
-            total_weight = sum(q.get("weight", 1) for q in st.session_state.quiz_questions)    
+                # total_weight 갱신
+                total_weight = sum(q_.get("weight", 1) for q_ in st.session_state.quiz_questions)
+                st.session_state.total_weight = total_weight
 
             st.session_state.processing = False
             st.session_state.quiz_index += 1
@@ -336,6 +368,7 @@ def render_quiz_section():
     else:
         # 완료
         total_weight = sum(q.get("weight", 1) for q in st.session_state.quiz_questions)
+        st.session_state.total_weight = total_weight
         score = st.session_state.quiz_score
         level_eng = classify_level(score, total_weight)  # Beginner/Intermediate/Advanced
         level_map = {"Beginner": "초급", "Intermediate": "중급", "Advanced": "상급"}
@@ -350,6 +383,8 @@ def render_quiz_section():
         )
         st.session_state.timing_summary = time.perf_counter() - _t0
         print(f"[SUMMARY] built in {st.session_state.timing_summary:.2f}s")
+
+        # 타입 정규화
         if isinstance(level_summary, list):
             level_summary = {
                 "level": level_kor,
@@ -364,7 +399,6 @@ def render_quiz_section():
                 "evidence": None,
                 "next_actions": None,
             }
-
 
         model_version = "gpt5_chatcompletions"
         if not level_summary:
@@ -382,7 +416,7 @@ def render_quiz_section():
                     "weak_topics": [{"topic": n, "accuracy": round(c/t,2) if t else 0.0, "n": t} for n,t,c,_ in weak],
                 }
 
-        # 타입 정규화 (혹시 리스트로 오더라도 방어)
+        # 재보정 안전막 (형태 보장)
         if isinstance(level_summary, list):
             level_summary = {
                 "level": level_kor,
@@ -397,6 +431,7 @@ def render_quiz_section():
             }
 
         if not st.session_state.get("completion_announced", False):
+            _ensure_list_session_key("messages")
             st.session_state.messages.append({
                 "id": str(uuid.uuid4()),
                 "role": "assistant",
@@ -417,12 +452,11 @@ def render_quiz_section():
         overall_pct = int(agg["overall_accuracy"] * 100)
         weighted = agg["weighted_score"]
 
-        # level_summary가 dict면 evidence를 재계산 값으로 덮어써 저장 일관성 확보
+        # evidence 일관성 확보
         if isinstance(level_summary, dict):
             level_summary["evidence"] = {
                 "overall_accuracy": agg["overall_accuracy"],
                 "weighted_score": agg["weighted_score"],
-                # strong/weak 주제는 필요 없으면 생략 가능
                 "strong_topics": [
                     {"topic": n, "accuracy": round(c/t, 2) if t else 0.0, "n": t}
                     for n, t, c, _ in _rank_topics(agg["topic_stats"])[0]
@@ -433,7 +467,7 @@ def render_quiz_section():
                 ],
             }
 
-        # 요약 문장 안전 추출 (list가 와도 안전)
+        # 요약 문장 안전 추출
         if isinstance(level_summary, dict):
             sents = list(level_summary.get("summary_sentences", []))
         elif isinstance(level_summary, list):
@@ -444,21 +478,22 @@ def render_quiz_section():
         s1, s2, s3 = (sents + ["", "", ""])[:3]
         st.markdown(f"""
         <div style="border:1px solid rgba(148,163,184,.28);border-radius:16px;padding:16px;margin-top:10px;background:#fff;">
-          <div style="font-weight:800;margin-bottom:6px;">🌟 금융 지식 요약 ({level_summary.get('level','')})</div>
-          <ul style="margin:0 0 8px 18px;line-height:1.55;">
+        <div style="font-weight:800;margin-bottom:6px;">🌟 금융 지식 요약 ({level_summary.get('level','')})</div>
+        <ul style="margin:0 0 8px 18px;line-height:1.55;">
             <li>{s1}</li>
             <li>{s2}</li>
             <li>{s3}</li>
-          </ul>
-          <div style="opacity:.8;font-size:.9rem;">
+        </ul>
+        <div style="opacity:.8;font-size:.9rem;">
             정답률 {overall_pct}% · 가중점수 {weighted}
-          </div>
+        </div>
         </div>
         """, unsafe_allow_html=True)
 
         c1, c2 = st.columns(2)
         with c1:
             if st.button("🔁 다시 시작", use_container_width=True):
+                # 안전 초기화
                 st.session_state.quiz_questions = []
                 st.session_state.quiz_index = 0
                 st.session_state.quiz_score = 0
@@ -483,6 +518,7 @@ def render_quiz_section():
                 st.session_state.quiz_index = 0
                 st.session_state.quiz_score = 0
                 st.rerun()
+
 
 
 def render():
