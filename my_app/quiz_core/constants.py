@@ -1,15 +1,14 @@
 import os
 from pathlib import Path
 
-# app.py 파일이 있는 디렉토리 (my_app)
-BASE_DIR = Path(__file__).resolve().parent
-
 # 경로들
-COMMON_PATH = BASE_DIR / "ui" / "level_quiz" / "data" / "common_questions.json"
-GENERATED_DIR = BASE_DIR / "ui" / "level_quiz" / "data" / "generated"
+COMMON_PATH = "my_app/ui/level_quiz/data/common_questions.json"
+GENERATED_DIR = "my_app/ui/level_quiz/data/generated"
 
 TOTAL_QUESTIONS = 10
 COMMON_COUNT    = 3
+MAX_CONTEXT_TURNS = 4           # 슬라이딩 윈도우 크기
+ROLLING_SUMMARY_MAX_CHARS = 300 # 롤링 요약 길이 제한
 
 TOPIC_KEYWORDS = {
     "예금/금리": [r"예금", r"금리", r"복리", r"단리"],
