@@ -46,18 +46,62 @@ def _normalize_content(raw: Dict) -> Dict:
     }
 
 def load_all_cards(contents_dir: str = None):
-    """여러 json 파일을 합쳐 리스트로 반환"""
-    if contents_dir is None:
-        # 기본값: 현재 디렉토리 ../contents
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        contents_dir = os.path.join(base_dir, "..", "contents")
-    
-    all_data = []
-    for file_path in glob.glob(os.path.join(contents_dir, "contents_*.json")):
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            all_data.extend(data)
-    return all_data
+    """Supabase에서 콘텐츠 데이터를 가져와서 반환"""
+    try:
+        from dotenv import load_dotenv
+        from supabase import create_client
+        import os
+        
+        # .env 파일 로드
+        env_path = Path(__file__).parent.parent.parent / ".env"
+        load_dotenv(env_path)
+        
+        # Supabase 연결
+        url = os.getenv('SUPABASE_URL')
+        key = os.getenv('SUPABASE_KEY')
+        
+        if not url or not key:
+            # 환경변수가 없으면 폴백용 더미 데이터
+            return [
+                {"card_id": "dummy_1", "title": "투자 기초", "content": "투자의 기본 개념", 
+                 "level": "Beginner", "tags": ["투자", "기초"], "topic_id": "investment"},
+                {"card_id": "dummy_2", "title": "주식 분석", "content": "주식 분석 방법", 
+                 "level": "Intermediate", "tags": ["주식", "분석"], "topic_id": "stock"}
+            ]
+        
+        client = create_client(url, key)
+        
+        # contents 테이블에서 모든 데이터 가져오기
+        result = client.table('contents').select('*').execute()
+        
+        if not result.data:
+            # DB에 데이터가 없으면 폴백용 더미 데이터
+            return [
+                {"card_id": "dummy_1", "title": "투자 기초", "content": "투자의 기본 개념", 
+                 "level": "Beginner", "tags": ["투자", "기초"], "topic_id": "investment"},
+                {"card_id": "dummy_2", "title": "주식 분석", "content": "주식 분석 방법", 
+                 "level": "Intermediate", "tags": ["주식", "분석"], "topic_id": "stock"}
+            ]
+        
+        # DB 데이터를 정규화하여 반환
+        all_data = []
+        for raw_item in result.data:
+            normalized_item = _normalize_content(raw_item)
+            all_data.append(normalized_item)
+            
+        return all_data
+        
+    except Exception as e:
+        print(f"DB 연결 오류, 폴백 데이터 사용: {e}")
+        # 오류 발생시 폴백용 더미 데이터
+        return [
+            {"card_id": "fallback_1", "title": "투자 기초", "content": "투자의 기본 개념을 알아보세요", 
+             "level": "Beginner", "tags": ["투자", "기초", "경제"], "topic_id": "investment"},
+            {"card_id": "fallback_2", "title": "주식 분석", "content": "주식 분석 방법을 배워보세요", 
+             "level": "Intermediate", "tags": ["주식", "분석", "금융"], "topic_id": "stock"},
+            {"card_id": "fallback_3", "title": "부동산 투자", "content": "부동산 투자 전략 가이드", 
+             "level": "Advanced", "tags": ["부동산", "투자", "자산"], "topic_id": "realestate"}
+        ]
 
 def make_content_text(content: Dict) -> str:
     tags_txt = " ".join(content.get("tags") or [])

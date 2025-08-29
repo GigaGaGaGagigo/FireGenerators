@@ -582,7 +582,7 @@ def route_to_page():
                 st.info("ui/trading/trading_ui.py 파일을 생성해주세요.")
         elif current_page == "analysis":
             try:
-                from ui.analysis.analysis import render  # type: ignore
+                from ui.analysis.streamlit_app import render  # type: ignore
                 render()
             except ImportError:
                 st.title("📊 종목 피드백")
