@@ -15,7 +15,7 @@ from openai import OpenAI
 load_dotenv()
 
 # Supabase 초기화
-SUPABASE_URL = os.getenv("SUPABASE_URL") 
+SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -23,10 +23,12 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # 세션 user_id
-if "user_id" not in st.session_state:
-    st.session_state.user_id = "0bfc599a-db77-49ef-8556-31d2be8ffdaf"
+USER_ID = ""
 
-USER_ID = st.session_state.user_id
+print(USER_ID)
+
+if USER_ID == "":
+    USER_ID = "62f90625-6e2d-4125-8d22-2214eb0da631"
 
 
 st.title("📊 모의투자 보유주식 관리")
@@ -75,16 +77,16 @@ def compute_advanced_stats(df, trade_price, trade_idx, action):
         "BB_LOWER": float(df['BB_LOWER'].iloc[idx]),
         "VWAP": float(df['VWAP'].iloc[idx])
     }
-    if action == "buy":
-        after = df.iloc[idx:idx+7]['종가']
-        max_profit = np.round((after.max() - trade_price) / trade_price * 100, 2)
-        min_profit = np.round((after.min() - trade_price) / trade_price * 100, 2)
-        result["max_profit"] = float(max_profit)
-        result["min_profit"] = float(min_profit)
-    else:
-        after = df.iloc[idx:idx+7]['종가']
-        missed_profit = np.round((after.max() - trade_price) / trade_price * 100, 2)
-        result["missed_profit"] = float(missed_profit)
+    # if action == "buy":
+    #     after = df.iloc[idx:idx+7]['종가']
+    #     max_profit = np.round((after.max() - trade_price) / trade_price * 100, 2)
+    #     min_profit = np.round((after.min() - trade_price) / trade_price * 100, 2)
+    #     result["max_profit"] = float(max_profit)
+    #     result["min_profit"] = float(min_profit)
+    # else:
+    #     after = df.iloc[idx:idx+7]['종가']
+    #     missed_profit = np.round((after.max() - trade_price) / trade_price * 100, 2)
+    #     result["missed_profit"] = float(missed_profit)
     return result
 
 def fetch_fundamentals(symbol: str, market: str) -> dict:
@@ -126,11 +128,10 @@ def save_trade(
     symbol: str,
     market: str,
     price: float,
-    quantity: float,
+    qty: float,
     action: str,
     trade_time: date,
-    commission: float = 0.0,
-    memo: str = ""
+    commission: float = 0.0
 ):
     # 1️⃣ trade_history 저장
     data = {
@@ -138,11 +139,10 @@ def save_trade(
         "symbol":     symbol.upper(),
         "market":     market,
         "price":      price,
-        "quantity":     quantity,
+        "qty":     qty,
         "action":     action.lower(),
         "trade_time": trade_time.isoformat(),
-        "commission": commission,
-        "memo":       memo
+        "commission": commission
     }
     res = supabase.table("trade_history").insert(data).execute()
 
@@ -170,9 +170,7 @@ def save_trade(
         "trade_id": trade_id,
         "chart_url": "",  # 추후 차트 이미지 URL 생성 가능
         "summary_stats": summary_stats,
-        "style_type": "default",
-        "rank_in_group": None,
-        "benchmark_return": None
+        "style_type": "default"
     }
     res_fb = supabase.table("trade_feedback").insert(feedback_data).execute()
     if getattr(res_fb, "status_code", 0) >= 400:
@@ -223,155 +221,264 @@ def get_company_name(symbol: str, market: str) -> str:
     except:
         return symbol
 
-# ====== 입력 영역 ======
-st.subheader("① 보유주식 입력")
-with st.form("holding_form"):
-    col1, col2 = st.columns(2)
-    with col1:
-        symbol = st.text_input("종목코드", placeholder="005930 or AAPL")
-        market = st.selectbox("시장", ["KR", "US"])
-        purchase_date = st.date_input("구매일", value=date.today())
-    with col2:
-        purchase_price = st.number_input("매입단가", min_value=0.0, step=0.01)
-        quantity = st.number_input("수량", min_value=0.0, step=1.0)
-        memo = st.text_area("메모(선택)", height=50)
-
-    submitted = st.form_submit_button("매수 저장")
-    if submitted:
-        if not symbol or quantity <= 0 or purchase_price <= 0:
-            st.error("종목, 단가, 수량을 모두 입력해주세요.")
-        else:
-            save_trade(USER_ID, symbol, market, purchase_price, quantity, "buy", purchase_date, 0, memo)
-
-# ====== 현황 영역 ======
-st.subheader("② 현재 보유주식 현황")
-
-def render_holdings_table():
-    """보유 주식 현황 표와 총 손익 표시"""
-    df = get_trade_history(USER_ID)
+def get_holdings_data(user_id: str):
+    """
+    trade_history를 읽어
+    - 종목별(심볼, 시장) 순보유수량, 평균매입가 계산
+    - 현재가 조회해 투자금액, 평가금액, 손익 계산
+    반환값: (holdings_df, total_invested, total_value)
+    """
+    df = get_trade_history(user_id)
     if df.empty:
-        st.info("입력된 보유주식이 없습니다.")
-        return pd.DataFrame()
+        return pd.DataFrame(), 0.0, 0.0
 
-    # 미리 환율을 한 번만 조회
-    usdkrw = fetch_usd_krw_rate()
+    # 1) 매수/매도 집계 → 순보유량
+    buy_df = df[df.action=="buy"].groupby(["symbol","market"]) \
+               .agg(avg_price=("price","mean"), qty_buy=("qty","sum")) \
+               .reset_index()
+    sell_df= df[df.action=="sell"].groupby(["symbol","market"]) \
+               .agg(qty_sell=("qty","sum")) \
+               .reset_index()
+    merged = buy_df.merge(sell_df, how="left", on=["symbol","market"])
+    merged.qty_sell = merged.qty_sell.fillna(0)
+    merged["net_qty"] = merged.qty_buy - merged.qty_sell
+    merged = merged[merged.net_qty>0].copy()
 
-    # 종목별 매수, 매도 집계
-    buy_df = df[df["action"] == "buy"].groupby(["symbol", "market"]).agg({"price": "mean", "quantity": "sum"}).reset_index()
-    sell_df = df[df["action"] == "sell"].groupby(["symbol", "market"]).agg({"quantity": "sum"}).reset_index()
-
-    # 매도 수량을 매수 집계에서 차감
-    merged = pd.merge(buy_df, sell_df, on=["symbol", "market"], how="left", suffixes=("_buy", "_sell"))
-    merged["quantity_sell"] = merged["quantity_sell"].fillna(0)
-    merged["net_quantity"] = merged["quantity_buy"] - merged["quantity_sell"]
-
-    # 순보유량이 0 이하이면 제외
-    holdings = merged[merged["net_quantity"] > 0].copy()
-
+    # 2) 각 종목별 현재가·PL 계산
     rows = []
     total_invested = 0.0
     total_value    = 0.0
+    usdkrw = fetch_usd_krw_rate()
 
-    for _, row in holdings.iterrows():
-        sym      = row["symbol"]
-        mk       = row["market"]
-        buy_price= float(row["price"])
-        qty      = int(row["net_quantity"])
-        cur_price= fetch_current_price(sym, mk)
-        name     = get_company_name(sym, mk)
-
-        # 마켓별로 원화 환산
-        if mk == "US":
-            invested_krw    = buy_price * qty * usdkrw
-            current_val_krw = cur_price * qty * usdkrw
-        else:  # KR
-            invested_krw    = buy_price * qty
-            current_val_krw = cur_price * qty
-
-        pl_amount = current_val_krw - invested_krw
-        pl_rate   = (pl_amount / invested_krw * 100) if invested_krw else 0.0
-
-        total_invested += invested_krw
-        total_value    += current_val_krw
+    for _, r in merged.iterrows():
+        sym, mk = r.symbol, r.market
+        buy_p, qty = float(r.avg_price), int(r.net_qty)
+        cur_p = fetch_current_price(sym,mk)
+        # 환산
+        inv_krw = buy_p*qty*(usdkrw if mk=="US" else 1)
+        val_krw = cur_p*qty*(usdkrw if mk=="US" else 1)
+        pl       = val_krw - inv_krw
+        pl_pct   = pl/ inv_krw*100 if inv_krw else 0
 
         rows.append({
-            "종목":       f"{name} ({sym}/{mk})",
-            "매입단가":    buy_price,
+            "종목": f"{get_company_name(sym,mk)} ({sym}/{mk})",
+            "매입단가":    buy_p,
             "보유수량":    qty,
-            "투자금액(원)":   invested_krw,
-            "현재가":      cur_price,
-            "평가금액(원)":   current_val_krw,
-            "손익금액(원)":   pl_amount,
-            "수익률(%)":   pl_rate,
-            "symbol":     sym,
-            "market":     mk
+            "투자금액(원)":inv_krw,
+            "현재가":      cur_p,
+            "평가금액(원)":val_krw,
+            "손익금액(원)":pl,
+            "수익률(%)":   pl_pct,
+            "symbol":sym, "market":mk
         })
+        total_invested += inv_krw
+        total_value    += val_krw
 
-    # 총 손익 계산 (원화 기준)
-    total_pl      = total_value - total_invested
-    total_pl_rate = (total_pl / total_invested * 100) if total_invested else 0.0
+    holdings_df = pd.DataFrame(rows)
+    return holdings_df, total_invested, total_value
 
-    st.markdown(
-        f"### 📈 총 손익(원화): "
-        f"{'+' if total_pl>=0 else ''}{total_pl:,.0f}원 "
-        f"({total_pl_rate:+.2f}%) | 환율 USD/KRW: {usdkrw:.2f}"
-    )
+# 콜백 함수: 삭제
+def delete_trade(trade_id):
+    resp = supabase.table("trade_history") \
+                   .delete() \
+                   .eq("id", trade_id) \
+                   .execute()
+    if getattr(resp, "status_code", 0) < 300:
+        st.success("삭제 완료")
+    else:
+        st.error("삭제 실패")
 
-    # DataFrame 및 스타일링 (기존과 동일하되 컬럼명 변경)
-    result_df = pd.DataFrame(rows)
-    styled = (
-        result_df
-        .drop(columns=["symbol", "market"])
+# 콜백 함수: 수정
+def update_trade(trade_id, new_date, new_action, new_symbol, new_market,
+                 new_price, new_qty):
+    update_data = {
+        "trade_time": new_date.isoformat(),
+        "action":     new_action,
+        "symbol":     new_symbol.upper(),
+        "market":     new_market,
+        "price":      float(new_price),
+        "qty":   float(new_qty)
+    }
+    resp = supabase.table("trade_history") \
+                   .update(update_data) \
+                   .eq("id", trade_id) \
+                   .execute()
+    if getattr(resp, "status_code", 0) < 300:
+        st.success("수정 완료")
+    else:
+        st.error("수정 실패")
+
+# ① 총 손익 영역
+holdings_df, total_inv, total_val = get_holdings_data(USER_ID)
+total_pl      = total_val - total_inv
+total_pl_pct  = total_pl/total_inv*100 if total_inv else 0
+usdkrw = fetch_usd_krw_rate()
+
+st.markdown(
+    f"## 📈 총 손익(원화): "
+    f"{total_pl:+,.0f}원 ({total_pl_pct:+.2f}%)  |  환율 USD/KRW: {usdkrw:.2f}"
+)
+
+# ====== 입력 영역 ======
+tab_buy, tab_sell, tab_history = st.tabs(["💹 매수", "💰 매도", "📜 거래내역"])
+
+# ▶ 매수 탭
+with tab_buy:
+    st.subheader("① 보유주식 입력 (매수)")
+    with st.form("buy_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            buy_symbol = st.text_input("종목코드", placeholder="005930 or AAPL")
+            buy_market = st.selectbox("시장", ["KR", "US"], key="buy_market")
+            buy_date   = st.date_input("구매일", value=date.today(), key="buy_date")
+        with col2:
+            buy_price = st.number_input("매입단가", min_value=0.0, step=0.01, key="buy_price")
+            buy_qty   = st.number_input("수량",     min_value=0.0, step=1.0, key="buy_qty")
+
+        submitted_buy = st.form_submit_button("매수 저장")
+        if submitted_buy:
+            if not buy_symbol or buy_price <= 0 or buy_qty <= 0:
+                st.error("종목, 단가, 수량을 모두 입력해주세요.")
+            else:
+                save_trade(
+                    USER_ID,
+                    buy_symbol, buy_market,
+                    float(buy_price),
+                    float(buy_qty),
+                    "buy",
+                    buy_date,
+                    commission=0
+                )
+
+# ▶ 매도 탭
+with tab_sell:
+    st.subheader("매도 입력")
+    if holdings_df.empty:
+        st.info("매도할 보유주식이 없습니다.")
+    else:
+        selected = st.selectbox("매도 종목 선택", holdings_df["종목"])
+        row = holdings_df[holdings_df["종목"]==selected].iloc[0]
+        sym, mk, max_qty = row["symbol"], row["market"], int(row["보유수량"])
+        default_price = fetch_current_price(sym, mk)
+        sell_price = st.number_input("매도 단가", value=default_price, step=0.01)
+        sell_qty   = st.number_input("매도 수량", min_value=1, max_value=max_qty, step=1)
+        sell_date  = st.date_input("매도일", value=date.today())
+        if st.button("매도 저장"):
+            save_trade(USER_ID, sym, mk, sell_price, sell_qty, "sell", sell_date)
+            st.success("매도 저장 완료")
+            # 탭 안에서는 바로 holdings_df 를 갱신해도 됨
+
+# ▶ 거래내역 탭
+with tab_history:
+    st.subheader("거래내역 수정/삭제")
+    df_trades = get_trade_history(USER_ID)
+    if df_trades.empty:
+        st.info("거래내역이 없습니다.")
+    else:
+        # 최근 순으로 정렬
+        df_trades = df_trades.sort_values("trade_time", ascending=False)
+        for _, row in df_trades.iterrows():
+            trade_id   = row["id"]
+            symbol     = row["symbol"]
+            market     = row["market"]
+            action     = row["action"].upper()
+            trade_time = row["trade_time"][:10]
+            price      = row["price"]
+            qty   = row["qty"]
+
+            exp = st.expander(f"{trade_time} | {action} | {symbol}/{market}", expanded=False)
+            with exp:
+                # 1행 3컬럼 레이아웃
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    new_date   = st.date_input("거래일", value=pd.to_datetime(trade_time),
+                                               key=f"date_{trade_id}")
+                    new_action = st.selectbox("행동", ["buy","sell"],
+                                              index=0 if action=="BUY" else 1,
+                                              key=f"act_{trade_id}")
+                with c2:
+                    new_symbol = st.text_input("종목코드", value=symbol,
+                                               key=f"sym_{trade_id}")
+                    new_market = st.selectbox("시장", ["KR","US"],
+                                              index=0 if market=="KR" else 1,
+                                              key=f"mk_{trade_id}")
+                with c3:
+                    new_price  = st.number_input("단가", value=float(price),
+                                                 key=f"pr_{trade_id}")
+                    new_qty    = st.number_input("수량", value=float(qty),
+                                                 key=f"qty_{trade_id}")
+
+
+                # 버튼 배치
+                btn_col1, btn_col2 = st.columns([1,1])
+                with btn_col1:
+                    st.button("수정 저장",
+                              key=f"edit_{trade_id}",
+                              on_click=update_trade,
+                              args=(trade_id, new_date, new_action,
+                                    new_symbol, new_market,
+                                    new_price, new_qty,))
+                with btn_col2:
+                    st.button("삭제",
+                              key=f"del_{trade_id}",
+                              on_click=delete_trade,
+                              args=(trade_id,))
+
+
+# ③ 보유 종목 테이블
+st.subheader("현재 보유주식 현황")
+if holdings_df.empty:
+    st.info("보유종목이 없습니다.")
+else:
+    # .applymap → .map 으로 교체
+    display_df = (
+        holdings_df
+        .drop(columns=["symbol","market"])
         .style
         .format({
-            "매입단가": "{:,.2f}",
+            "매입단가":    "{:,.2f}",
             "투자금액(원)": "{:,.0f}",
-            "현재가": "{:,.2f}",
+            "현재가":      "{:,.2f}",
             "평가금액(원)": "{:,.0f}",
             "손익금액(원)": "{:+,.0f}",
-            "수익률(%)": "{:+.2f}%",
-            "보유수량": "{:,.0f}"
+            "수익률(%)":   "{:+.2f}%"
         })
-        .applymap(lambda v: "color: red"   if v>0 
-                         else "color: blue" if v<0 
-                         else "color: black",
-                  subset=["손익금액(원)", "수익률(%)"])
+        .map(lambda v: "color:red" if v>0 
+                       else "color:blue" if v<0 
+                       else None,
+             subset=["손익금액(원)", "수익률(%)"])
     )
-    st.dataframe(styled, use_container_width=True)
-    return result_df
+    st.dataframe(display_df, use_container_width=True)
 
-# 최초 표 출력
-result_df = render_holdings_table()
+st.subheader("🤖 AI 코칭")
+res_latest = (
+    supabase.table("ai_coaching")
+    .select("*")
+    .eq("user_id", USER_ID)
+    .order("created_at", desc=True)
+    .limit(1)
+    .execute()
+)
 
-# ====== 매도 기능 ======
-st.subheader("💰 매도하기")
-if not result_df.empty:
-    sell_symbol = st.selectbox("매도 종목 선택", result_df["종목"])
-    sell_qty = st.number_input("매도 수량", min_value=1, step=1, format="%d")
-    sell_date = st.date_input("매도일", value=date.today())
+if res_latest.data:
+    latest = res_latest.data[0]
+    st.markdown(
+        f"📌 최근 AI 코칭 결과 ({latest['created_at'][:10]})"
+    )
+    st.write(latest["result"])
+    st.divider()
 
-    if st.button("매도 실행"):
-        sel_row = result_df[result_df["종목"] == sell_symbol].iloc[0]
-        sym, mk = sel_row["symbol"], sel_row["market"]
-        cur_price = fetch_current_price(sym, mk)
-
-        if sell_qty > sel_row["보유수량"]:
-            st.error("보유 수량보다 많이 매도할 수 없습니다.")
-        else:
-            save_trade(USER_ID, sym, mk, cur_price, sell_qty, "sell", sell_date, 0, "매도")
-            st.success("매도 완료! 현황을 갱신합니다.")
-            # 매도 후 즉시 표 갱신
-            result_df = render_holdings_table()
-
-st.subheader("🤖 AI 코칭 받기")
-if st.button("AI 조언 받기"):
+if st.button("AI 코칭 받기"):
     # 0) 사용자 이름 조회
     ures = supabase.table("profiles") \
         .select("name") \
         .eq("id", USER_ID) \
-        .single() \
+        .limit(1) \
         .execute()
-    name = ures.data.get("name", USER_ID)
+    name = ures.data[0]["name"]
+
+    
+
 
     # 1) 최근 거래내역 조회 (10건)
     trades = supabase.table("trade_history") \
@@ -395,7 +502,7 @@ if st.button("AI 조언 받기"):
         sym, mk = t["symbol"], t["market"]
         action = t["action"].upper()
         dt = t["trade_time"][:10]
-        vol, pr = t["quantity"], t["price"]
+        vol, pr = t["qty"], t["price"]
         cur_price = fetch_current_price(sym, mk)
         prompt_lines.append(
             f"- {dt} {action} {sym}/{mk} {vol}주 @ {pr:.2f}, 현재가 {cur_price:.2f}"
@@ -442,23 +549,29 @@ if st.button("AI 조언 받기"):
 
     # 5) OpenAI API 호출
     with st.spinner("AI 코칭 생성 중..."):
-        # 2) 새 인터페이스로 호출
         response = client.chat.completions.create(
-            model="gpt-5-mini-2025-08-07",    # 혹은 gpt-5-2025-08-07
+            model="gpt-4",
             messages=[
                 {"role":"system","content":"당신은 투자 코치입니다. 마지막에 반드시 2문장으로 요약해주세요."},
                 {"role":"user","content": full_prompt}
             ],
-            max_completion_tokens=500,        # reasoning+prediction 합계
-            reasoning_effort="low",           # reasoning 에 쓰는 토큰 최소화
-            verbosity="high"                  # 남는 토큰은 전부 최종출력에 할당
+            temperature=0.7,
+            max_tokens=500
         )
-
-        st.write(response)
-        st.write("finish_reason:", response.choices[0].finish_reason)
-        st.write("usage:", response.usage)
-
 
         ai_text = response.choices[0].message.content
         st.markdown("**✨ AI 코칭 결과**")
         st.write(ai_text)
+
+        # ✅ 결과 DB에 저장
+        save_data = {
+            "user_id": USER_ID,
+            "prompt": full_prompt,
+            "result": ai_text
+        }
+        save_res = supabase.table("ai_coaching").insert(save_data).execute()
+
+        if getattr(save_res, "status_code", 0) < 300:
+            st.success("AI 코칭 결과 저장 완료 ✅")
+        else:
+            st.error("AI 코칭 결과 저장 실패 ❌")
