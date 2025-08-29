@@ -89,7 +89,7 @@ def chat_json(system_prompt: str, user_prompt: str, json_schema: dict | None = N
     return _safe_json_loads(_extract_json(raw), None)
 
 
-# ✅ 강화版: 현재 상태를 모두 반영하는 롤링 요약 갱신
+# 현재 상태를 모두 반영하는 롤링 요약 갱신
 def update_rolling_summary(
     prev_summary: str,
     new_turns: list[dict],
