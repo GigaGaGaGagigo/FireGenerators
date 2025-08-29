@@ -1,0 +1,28 @@
+{
+    "user_state": {
+        "user_email": "test@example.com",
+        "name": "홍길동",
+        "age": 35,
+        "gender": "남성",
+        "investment_goal": [
+            "안정적인 수익",
+            "장기적인 자산 증대"
+        ],
+        "emotions": [
+            "AI 주식이 무서워요"
+        ],
+        "interests_categories": [
+            "AI",
+            "주식"
+        ],
+        "investment_level": "중급",
+        "knowledge_level": 7
+    },
+    "conversation_analysis": {
+        "사용자 감정": "AI 주식이 무서워요",
+        "conversation_node": "분석 필요 판단 ✓",
+        "analysis_node": "감정(무서움) + 키워드(AI, 주식) 추출",
+        "memory_node": "사용자 프로필에 'AI 관심사' + '불안감' 기록",
+        "response_node": "불안감을 이해합니다. AI는 좋은 분야입니다만..."
+    }
+}

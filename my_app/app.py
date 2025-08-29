@@ -1,4 +1,5 @@
 import sys
+import uuid
 from pathlib import Path
 
 # Add project root to sys.path
@@ -8,9 +9,8 @@ sys.path.insert(0, str(project_root))
 import streamlit as st
 from streamlit.navigation.page import Page as Page
 from streamlit_option_menu import option_menu
-from supabase import create_client, Client
-from pathlib import Path
-import uuid
+from supabase import Client, create_client
+from supabase._sync.client import SyncClient
 
 # ========================================
 # 🚀 팀원을 위한 개발 가이드
@@ -55,16 +55,17 @@ ROLES: list[str | None] = [None, "User", "Admin"]
 # 페이지별 아이콘 매핑 - 팀원이 쉽게 수정 가능
 PAGE_ICONS = {
     "chatbot": "chat-dots",
-    "dashboard": "bar-chart-line", 
+    "dashboard": "bar-chart-line",
     "quiz": "question-circle",
     "content": "book",
     "recommendation": "gift",
+    "rag_recommendation": "robot",
     "simulation": "graph-up",
     "analysis": "bar-chart-line",
     "admin1": "person-add",
     "admin2": "security",
     "settings": "gear",
-    "logout": "box-arrow-right"
+    "logout": "box-arrow-right",
 }
 
 # 사용자 역할별 메뉴 구성 - 새로운 메뉴 추가시 여기서 수정
@@ -72,45 +73,46 @@ USER_MENUS = {
     "User": [
         ("Chatbot", "chatbot"),
         ("오늘의 퀴즈", "quiz"),
-        ("맞춤형 금융 콘텐츠", "content"),
-        ("맞춤형 상품 추천", "recommendation"),
-        ("투자 시뮬레이션", "simulation"),
-        ("모의 투자 및 분석", "analysis"),
+        ("맞춤형 금융 지식", "content"),
+        ("맞춤형 상품 추천", "rag_recommendation"),
+        ("현재 보유주식 AI코칭", "simulation"),
+        ("종목 피드백", "analysis"),
         ("Settings", "settings"),
-        ("Logout", "logout")
+        ("Logout", "logout"),
     ],
     "Admin": [
         ("Chatbot", "chatbot"),
         ("Dashboard", "dashboard"),
+        ("맞춤형 금융 지식", "content"),
         ("Admin 1", "admin1"),
         ("Admin 2", "admin2"),
         ("Settings", "settings"),
-        ("Logout", "logout")
-    ]
+        ("Logout", "logout"),
+    ],
 }
 
 # ========================================
 # CORE FUNCTIONS - 핵심 기능
 # ========================================
 
+
 @st.cache_resource
-def init_supabase():
+def init_supabase() -> SyncClient:
     """
     Supabase 클라이언트 초기화 및 캐싱
-    
+
     Returns:
         Client: 데이터베이스 작업을 위한 Supabase 클라이언트 인스턴스
-        
+
     Raises:
         Exception: Supabase 초기화 실패시 예외 발생
-        
+
     Note:
         @st.cache_resource 데코레이터로 인해 한 번만 실행되고 캐시됨
     """
     try:
         supabase: Client = create_client(
-            st.secrets["supabase"]["url"], 
-            st.secrets["supabase"]["key"]
+            st.secrets["supabase"]["url"], st.secrets["supabase"]["key"]
         )
         return supabase
     except Exception as e:
@@ -118,15 +120,15 @@ def init_supabase():
         st.stop()
 
 
-def check_auth_params():
+def check_auth_params() -> None:
     """
     OAuth 콜백 처리 - Google 로그인 후 리다이렉트 처리
-    
+
     Purpose:
         - Google 로그인 완료 후 앱으로 돌아올 때 실행
         - URL에 포함된 'authorization code'를 세션으로 교환
         - 사용자 정보를 세션 스테이트에 저장
-        
+
     Process:
         1. URL 파라미터에서 'code' 확인
         2. code가 있으면 Supabase와 세션 교환
@@ -137,17 +139,61 @@ def check_auth_params():
 
     if "code" in query_params:
         code = query_params["code"]
-        supabase = init_supabase()
+        supabase: SyncClient | None = init_supabase()
+
+        if supabase is None:
+            raise ValueError("Supabase client is not initialized")
+
         st.session_state.supabase = supabase
 
         try:
-            # 핵심: Google에서 받은 임시 코드를 실제 세션으로 교환
-            response = supabase.auth.exchange_code_for_session({"auth_code": code})
+            supabase_session = supabase.auth.exchange_code_for_session(
+                {"auth_code": code}  # type: ignore
+            )
 
-            if response.session:
-                # 세션 정보 저장
-                st.session_state.session = response.session
-                st.session_state.user = response.user
+            if supabase_session.session:
+                st.session_state.session = supabase_session.session
+                st.session_state.user = supabase_session.user
+
+                # 사용자 기본 데이터 로드
+                response_user_data = (
+                    supabase.table("profiles")
+                    .select("*")
+                    .eq("id", st.session_state.user.id)
+                    .execute()
+                )
+                if "user_data" not in st.session_state:
+                    user_data: dict = {
+                        "user_email": response_user_data.data[0]["email"],
+                        "name": response_user_data.data[0]["name"],
+                        "age": response_user_data.data[0]["age"],
+                        "gender": response_user_data.data[0]["gender"],
+                        "investment_goal": response_user_data.data[0][
+                            "investment_goal"
+                        ],
+                        "investment_emotions": response_user_data.data[0][
+                            "investment_emotions"
+                        ],
+                        "interests_categories": response_user_data.data[0][
+                            "interests_categories"
+                        ],
+                        "investment_level": response_user_data.data[0][
+                            "investment_level"
+                        ],
+                        "knowledge_level": response_user_data.data[0][
+                            "knowledge_level"
+                        ],
+                        "risk_tolerance": response_user_data.data[0]["risk_tolerance"],
+                    }
+                    st.session_state.user_data = user_data
+
+                if response_user_data.data and response_user_data.data[0]["role"] in [
+                    "User",
+                    "Admin",
+                ]:
+                    st.session_state.role = response_user_data.data[0]["role"]
+                else:
+                    raise Exception("User role is not valid")
 
                 # ── profiles 기준으로 역할/프로필 동기화 ──
                 uid = st.session_state.user.id
@@ -159,20 +205,37 @@ def check_auth_params():
                 rows = sel.data if hasattr(sel, "data") else sel
 
                 if not rows:
-                    ins = supabase.table("profiles").insert({
-                        "id": uid,
-                        "email": email,
-                        "name": name,
-                        "role": "User",
-                    }).execute()
-                    profile = (ins.data or [])[0] if hasattr(ins, "data") else {
-                        "id": uid, "email": email, "name": name, "role": "User"
-                    }
+                    ins = (
+                        supabase.table("profiles")
+                        .insert(
+                            {
+                                "id": uid,
+                                "email": email,
+                                "name": name,
+                                "role": "User",
+                            }
+                        )
+                        .execute()
+                    )
+                    profile = (
+                        (ins.data or [])[0]
+                        if hasattr(ins, "data")
+                        else {"id": uid, "email": email, "name": name, "role": "User"}
+                    )
                 else:
                     profile = rows[0]
                     if not profile.get("role"):
-                        upd = supabase.table("profiles").update({"role": "User"}).eq("id", uid).execute()
-                        profile = (upd.data or [])[0] if hasattr(upd, "data") else {**profile, "role": "User"}
+                        upd = (
+                            supabase.table("profiles")
+                            .update({"role": "User"})
+                            .eq("id", uid)
+                            .execute()
+                        )
+                        profile = (
+                            (upd.data or [])[0]
+                            if hasattr(upd, "data")
+                            else {**profile, "role": "User"}
+                        )
 
                 st.session_state.profile = profile
                 st.session_state.role = profile.get("role", "User")
@@ -186,48 +249,23 @@ def check_auth_params():
             st.query_params.clear()
 
 
-def logout() -> None:
-    """
-    사용자 로그아웃 처리
-    
-    Process:
-        1. Supabase 서버에서 로그아웃
-        2. 세션 스테이트에서 인증 관련 정보 삭제
-        3. 페이지 새로고침으로 로그인 페이지로 이동
-        
-    Note:
-        안전한 접근을 위해 선택적으로 세션 정보 삭제
-    """
-    if "session" in st.session_state and st.session_state.session:
-        supabase = init_supabase()
-        try:
-            supabase.auth.sign_out()
-        except:
-            pass  # 서버 로그아웃 실패해도 로컬 로그아웃은 진행
-
-    # 인증 관련 세션 정보만 선택적으로 삭제
-    auth_keys = ["session", "user", "role", "current_page"]
-    for key in auth_keys:
-        if key in st.session_state:
-            del st.session_state[key]
-
-    st.rerun()
-
-
 def login() -> None:
     """
     Google OAuth를 통한 사용자 로그인 처리
-    
+
     Features:
         - 중앙 정렬된 로그인 버튼
         - 동적 리다이렉트 URL 생성
         - 에러 처리 포함
     """
-    st.markdown("""
+    st.markdown(
+        """
         <center>
             <h1>FIREgenerator</h1>
         </center>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     # 3열 레이아웃으로 버튼 중앙 배치
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -239,7 +277,7 @@ def login() -> None:
             _, img_col, _ = st.columns([0.5, 1, 0.5])
             with img_col:
                 st.image(image_path)
-        
+
         # 버튼 크기 조절을 위한 추가 컬럼 생성
         _, btn_col, _ = st.columns([1, 2, 1])
         with btn_col:
@@ -253,13 +291,15 @@ def login() -> None:
                     redirect_url = f"http://{current_url}:{port}/"
 
                     # Google OAuth 로그인 프로세스 시작
-                    response = supabase.auth.sign_in_with_oauth({
-                        "provider": "google",
-                        "options": {
-                            "redirect_to": redirect_url,
-                            "scopes": "email profile",
-                        },
-                    })
+                    response = supabase.auth.sign_in_with_oauth(
+                        {
+                            "provider": "google",
+                            "options": {
+                                "redirect_to": redirect_url,
+                                "scopes": "email profile",
+                            },
+                        }
+                    )
 
                     if response and response.url:
                         # Google 로그인 페이지로 자동 리다이렉트
@@ -273,20 +313,62 @@ def login() -> None:
                     st.error(f"로그인 실패: {e}")
 
 
+def logout() -> None:
+    """
+    사용자 로그아웃 처리
+
+    Process:
+        1. Supabase 서버에서 로그아웃
+        2. 세션 스테이트에서 인증 관련 정보 삭제
+        3. 페이지 새로고침으로 로그인 페이지로 이동
+
+    Note:
+        안전한 접근을 위해 선택적으로 세션 정보 삭제
+    """
+    from ui.chatbot import USER_DATA_KEY
+
+    if "session" in st.session_state and st.session_state.session:
+        supabase: SyncClient | None = init_supabase()
+
+        if supabase is None:
+            raise ValueError("Supabase client is not initialized")
+
+        try:
+            supabase.auth.sign_out()
+        except Exception:
+            pass  # 서버 로그아웃 실패해도 로컬 로그아웃은 진행
+
+    # 인증 관련 세션 정보만 선택적으로 삭제
+    AUTH_KEYS: list[str] = ["session", "user", "role", "current_page"]
+
+    RESSETABLE_KEYS: list[str] = USER_DATA_KEY + AUTH_KEYS
+
+    for key in RESSETABLE_KEYS:
+        if key in st.session_state:
+            del st.session_state[key]
+
+    st.cache_data.clear()
+    st.cache_resource.clear()
+
+    st.rerun()
+
+
 # ========================================
 # UI COMPONENTS - 사용자 인터페이스 구성요소
 # ========================================
 
+
 def apply_global_styles():
     """
     전체 애플리케이션에 적용될 CSS 스타일 정의
-    
+
     Features:
         - 배경색 및 카드 스타일
         - 반응형 디자인
         - 브랜드 컬러 적용 (#FE7743, #273F4F)
     """
-    st.markdown("""
+    st.markdown(
+        """
         <style>
             /* 전체 배경 스타일 */
             .css-1aumxhk { 
@@ -333,12 +415,15 @@ def apply_global_styles():
             }
 
         </style>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
+
 
 def render_sidebar():
     """
     사이드바 메뉴 렌더링
-    
+
     Features:
         - 사용자 역할에 따른 동적 메뉴 구성
         - 현재 페이지 상태 유지
@@ -348,22 +433,24 @@ def render_sidebar():
     with st.sidebar:
         # 로고 표시
         try:
-            logo_path = Path(__file__).parent / "assets" / "FIREgen_horizontal_logo_edit.png"
+            logo_path = (
+                Path(__file__).parent / "assets" / "FIREgen_horizontal_logo_edit.png"
+            )
             if logo_path.exists():
                 st.image(logo_path, width=200)
-        except:
+        except Exception:
             st.markdown("## FIREgenerator")
-        
+
         # 사용자 역할에 따른 메뉴 구성
         role = st.session_state.get("role", "User")
         if not isinstance(role, str):
             role = "User"  # 문자열이 아닐 경우 기본값
         menu_config = USER_MENUS.get(role, USER_MENUS["User"])
-        
+
         menu_options = [label for label, _ in menu_config]
         menu_icons = [PAGE_ICONS.get(page_key, "circle") for _, page_key in menu_config]
         page_mapping = {label: page_key for label, page_key in menu_config}
-        
+
         # 현재 선택된 메뉴 인덱스 찾기
         current_page = st.session_state.get("current_page", "chatbot")
         current_index = 0
@@ -371,7 +458,7 @@ def render_sidebar():
             if page_key == current_page:
                 current_index = i
                 break
-        
+
         # 메뉴 렌더링
         selected = option_menu(
             menu_title=None,
@@ -396,7 +483,7 @@ def render_sidebar():
         # 사용자 정보 표시
         user_email = st.session_state.get("profile", {}).get("email", "Unknown")
         st.success(f"로그인됨: {user_email}")
-        
+
         # 메뉴 선택 처리
         new_page = page_mapping[selected]
         if new_page == "logout":
@@ -410,46 +497,45 @@ def render_sidebar():
 # PAGE ROUTING - 페이지 라우팅 시스템
 # ========================================
 
+
 def route_to_page():
     """
     현재 선택된 페이지에 따라 적절한 콘텐츠를 렌더링
-    
+
     Note:
         각 페이지의 실제 구현은 ui/ 폴더의 해당 파일에서 import하여 사용
     """
     current_page = st.session_state.get("current_page", "chatbot")
-    
+
     try:
         if current_page == "chatbot":
             try:
-                from ui.chatbot.chatbot_sample import render
+                from ui.chatbot import render
+
                 render()
+
             except ImportError:
                 st.title("💬 Chatbot")
-                st.info("ui/chatbot/chatbot.py 파일을 생성하고 render() 함수를 구현해주세요.")
-                st.code('''
+                st.info(
+                    "ui/chatbot/chatbot.py 파일을 생성하고 render() 함수를 구현해주세요."
+                )
+                st.code(
+                    """
                     # ui/chatbot/chatbot.py
                     import streamlit as st
 
                     def render():
                         st.title("💬 AI Chatbot")
                         st.write("채팅봇 기능을 여기에 구현하세요.")
-                ''', language='python')
-                                
+                """,
+                    language="python",
+                )
+
         elif current_page == "quiz":
-            # 1) import 단계 에러는 그대로 보여주기
             try:
                 from ui.level_quiz.quiz import render
-            except Exception as e:
-                st.title("🧠 오늘의 퀴즈")
-                st.error("퀴즈 모듈 임포트 중 오류가 발생했습니다.")
-                st.exception(e)  # traceback 포함한 예쁘게 출력
-                # 아래 한 줄로 텍스트 트레이스백을 코드 블록으로도 보여줄 수 있어요.
-                # st.code(traceback.format_exc(), language="text")
-                st.stop()
-
-            # 2) 환영 메시지 푸시 (정상 임포트된 경우에만)
-            try:
+                
+                # 환영 메시지 설정
                 if "messages" not in st.session_state or not isinstance(st.session_state.messages, list):
                     st.session_state.messages = []
 
@@ -460,68 +546,61 @@ def route_to_page():
                         "content": "안녕하세요! 금융 지식 퀴즈를 시작해보세요. 아래 버튼으로 시작할 수 있어요."
                     })
                     st.session_state.quiz_welcome_pushed = True
-                    st.session_state.streaming = True  # 스트리밍 효과
-                    st.rerun()  # 즉시 반영
-            except Exception as e:
-                st.error("퀴즈 환영 메시지 세팅 중 오류가 발생했습니다.")
-                st.exception(e)
-                st.stop()
+                    st.session_state.streaming = True
+                    st.rerun()
 
-            # 3) render 실행 중 에러도 그대로 보여주기
-            try:
                 render()
             except Exception as e:
                 st.title("🧠 오늘의 퀴즈")
-                st.error("퀴즈 화면 렌더링 중 오류가 발생했습니다.")
+                st.error("퀴즈 모듈 임포트 중 오류가 발생했습니다.")
                 st.exception(e)
-                # st.code(traceback.format_exc(), language="text")
                 st.stop()
 
-                
         elif current_page == "content":
             try:
-                from ui.contents.recomendation_contents import render
+                from ui.contents.user_recommender import render
                 render()
-            except ImportError:
-                st.title("📚 맞춤형 금융 콘텐츠")
-                st.info("ui/content/content.py 파일을 생성해주세요.")
+            except ImportError as e:
+                st.title("🔥 맞춤형 금융 지식")
+                st.error(f"페이지를 불러올 수 없습니다: {e}")
+                st.info("ui/contents/user_recommender.py 파일을 확인해주세요.")
                 
-        elif current_page == "recommendation":
+        elif current_page == "rag_recommendation":
             try:
-                from ui.recommendation.recommendation import render
+                from ui.recommendation.rag_recommendation import render
                 render()
             except ImportError:
-                st.title("🎁 맞춤형 상품 추천")
-                st.info("ui/recommendation/recommendation.py 파일을 생성해주세요.")
-                
+                st.title("🤖 RAG 맞춤 추천")
+                st.info("ui/recommendation/rag_recommendation.py 파일을 생성해주세요.")
+
         elif current_page == "simulation":
             try:
-                from ui.simulation.simulation_sample import render
+                from ui.trading.trading_ui import render
                 render()
             except ImportError:
-                st.title("📈 투자 시뮬레이션")
-                st.info("ui/simulation/simulation.py 파일을 생성해주세요.")
-                
+                st.title("📈 현재 보유주식 AI코칭")
+                st.info("ui/trading/trading_ui.py 파일을 생성해주세요.")
         elif current_page == "analysis":
             try:
-                from ui.analysis.analysis import render
+                from ui.analysis.analysis import render  # type: ignore
                 render()
             except ImportError:
-                st.title("📊 모의 투자 및 분석")
+                st.title("📊 종목 피드백")
                 st.info("ui/analysis/analysis.py 파일을 생성해주세요.")
-                
+
         elif current_page == "settings":
             try:
                 from ui.settings.settings_sample import render
+
                 render()
             except ImportError:
                 st.title("⚙️ Settings")
                 st.info("ui/settings/settings.py 파일을 생성해주세요.")
-                
+
         else:
             st.title("🏠 홈")
             st.write("환영합니다! 사이드바에서 원하는 메뉴를 선택해주세요.")
-            
+
     except Exception as e:
         st.error(f"페이지 로딩 중 오류가 발생했습니다: {e}")
         st.write("파일 구조와 import 경로를 확인해주세요.")
@@ -530,27 +609,29 @@ def route_to_page():
 def main_app():
     """
     메인 애플리케이션 실행
-    
+
     Flow:
         1. 스타일 적용
-        2. 헤더 렌더링  
+        2. 헤더 렌더링
         3. 사이드바 렌더링 (커스텀 메뉴)
         4. 현재 페이지에 따른 콘텐츠 표시
     """
     apply_global_styles()
     render_sidebar()
-    
+
     # 현재 선택된 페이지에 따른 콘텐츠 렌더링
     route_to_page()
+
 
 # ========================================
 # MAIN EXECUTION - 메인 실행부
 # ========================================
 
+
 def main():
     """
     애플리케이션 엔트리 포인트
-    
+
     Flow:
         1. 페이지 설정
         2. 세션 상태 초기화
@@ -559,15 +640,13 @@ def main():
     """
     # 페이지 설정을 가장 먼저 해야 함
     st.set_page_config(
-        page_title="FIREgenerator", 
-        layout="wide",
-        initial_sidebar_state="expanded"
+        page_title="FIREgenerator", layout="wide", initial_sidebar_state="expanded"
     )
-    
+
     # 세션 상태 초기화
     if "role" not in st.session_state:
         st.session_state.role = None
-    
+
     if "current_page" not in st.session_state:
         st.session_state.current_page = "chatbot"
 
@@ -584,7 +663,7 @@ def main():
         main_app()
     else:
         # 미로그인 사용자: 로그인 페이지 표시
-        pg = st.navigation([st.Page(login)])
+        pg = st.navigation([st.Page(login)])  # type: ignore
         pg.run()
 
 
