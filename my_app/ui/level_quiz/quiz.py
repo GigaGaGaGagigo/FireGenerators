@@ -29,16 +29,20 @@ def parallel_eval_and_qgen(
     wrong_notes: list,
     history: list,
     keywords: list,
+    do_qgen: bool = True,
 ):
     """
-    채점(EVAL)과 다음문제생성(QGEN)을 병렬로 실행하고,
-    각각의 소요 시간(eval_dt, qgen_dt)도 함께 반환한다.
-    반환: (eval_res, next_question, user_answer, correct, weight, eval_dt, qgen_dt)
+    반환 형식 고정:
+    (eval_res: dict, next_question: dict|None, user_answer: str, correct: str, weight: int, eval_dt: float, qgen_dt: float)
     """
-    question_text = quiz["question_text"]
-    correct = (quiz["answer"] or "").strip()
+    import time
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    # --- 입력 정규화 ---
+    options_list = options if isinstance(options, list) else []
+    question_text = str(quiz.get("question_text", "") or "")
+    correct = str((quiz.get("answer") or "")).strip()
     level = quiz.get("level", "easy")
-    options_list = options if options else []
     weight = int(quiz.get("weight", 1))
 
     # user_answer: mcq면 "1"~"4", ox면 "O"/"X"
@@ -46,74 +50,95 @@ def parallel_eval_and_qgen(
         try:
             idx = options_list.index(user_answer_text)
             user_answer = str(idx + 1)
-        except ValueError:
+        except Exception:
             user_answer = "0"
     else:
         user_answer = (user_answer_text or "").strip()
 
-    def _eval_call():
+    def _safe_eval():
         t0 = time.perf_counter()
-        res = evaluate_answer(
-            question_text=question_text,
-            options=options_list,
-            answer=correct,
-            user_answer=user_answer,
-            level=level,
-            proficiency=proficiency
-        )
-        return res, (time.perf_counter() - t0)
+        try:
+            res = evaluate_answer(
+                question_text=question_text,
+                options=options_list,
+                answer=correct,
+                user_answer=user_answer,
+                level=level,
+                proficiency=proficiency
+            )
+            if not isinstance(res, dict):
+                res = {"delta": 0, "feedback": "", "note": "non-dict eval result"}
+            return res, time.perf_counter() - t0
+        except Exception as e:
+            return {"delta": 0, "feedback": "", "error": f"eval_error: {type(e).__name__}: {e}"}, time.perf_counter() - t0
 
-    def _qgen_call(current_prof: int, current_score: int, current_total_weight: int):
+    def _safe_qgen(cur_prof: int, cur_score: int, cur_total_weight: int):
         t0 = time.perf_counter()
-        res = generate_next_question(
-            proficiency=current_prof,
-            score=current_score,
-            max_score=current_total_weight or 1,
-            wrong_notes=wrong_notes,
-            history=history,
-            keywords=keywords
-        )
-        return res, (time.perf_counter() - t0)
+        try:
+            nq = generate_next_question(
+                proficiency=cur_prof,
+                score=cur_score,
+                max_score=cur_total_weight or 1,
+                wrong_notes=wrong_notes if isinstance(wrong_notes, list) else [],
+                history=history if isinstance(history, list) else [],
+                keywords=keywords if isinstance(keywords, list) else []
+            )
+            if isinstance(nq, dict):
+                nq.setdefault("question_text", "")
+                nq.setdefault("answer", "")
+                nq.setdefault("options", [])
+                nq.setdefault("question_type", "mcq" if nq.get("options") else "ox")
+                nq.setdefault("weight", 1)
+            else:
+                nq = None
+            return nq, time.perf_counter() - t0
+        except Exception:
+            return None, time.perf_counter() - t0
 
+    # --- do_qgen=False: 채점만 동기 실행 ---
+    if not do_qgen:
+        eval_res, eval_dt = _safe_eval()
+        return eval_res, None, user_answer, correct, weight, eval_dt, 0.0
+
+    # --- do_qgen=True: 채점 + 생성 병렬 ---
     eval_res, eval_dt = None, 0.0
     first_q, qgen_dt = None, 0.0
-
     with ThreadPoolExecutor(max_workers=2) as ex:
-        fut_eval = ex.submit(_eval_call)
-        fut_qgen = ex.submit(_qgen_call, proficiency, score, total_weight)
-
+        fut_eval = ex.submit(_safe_eval)
+        fut_qgen = ex.submit(_safe_qgen, proficiency, score, total_weight)
         for fut in as_completed([fut_eval, fut_qgen]):
             if fut is fut_eval:
-                eval_res, eval_dt = fut.result()
+                try:
+                    eval_res, eval_dt = fut.result()
+                except Exception:
+                    eval_res, eval_dt = {"delta": 0, "feedback": "", "error": "eval_future_error"}, 0.0
             else:
                 try:
                     first_q, qgen_dt = fut.result()
                 except Exception:
                     first_q, qgen_dt = None, 0.0
 
-    # 평가 실패 시: QGEN만 반환
-    if not eval_res:
-        if first_q is None:
-            first_q, qgen_dt = _qgen_call(proficiency, score, total_weight)
-        return None, first_q, user_answer, correct, weight, 0.0, qgen_dt
+    if not isinstance(eval_res, dict):
+        eval_res = {"delta": 0, "feedback": "", "error": "eval_none"}
 
-    # delta 반영 후 리롤 판단
-    delta = int(eval_res.get("delta", 0)) if isinstance(eval_res, dict) else 0
+    # 델타 기반 리롤
+    try:
+        delta = int(eval_res.get("delta", 0))
+    except Exception:
+        delta = 0
     new_prof = max(0, min(10, proficiency + delta))
     need_reroll = abs(delta) >= 2 or first_q is None
 
     if need_reroll:
-        try:
-            bumped_score = score + (weight if (user_answer.lower() == correct.lower()) else 0)
-            second_q, qgen_dt2 = _qgen_call(new_prof, bumped_score, total_weight)
-            # 리롤로 대체
+        bumped = score + (weight if (user_answer.lower() == correct.lower()) else 0)
+        second_q, qgen_dt2 = _safe_qgen(new_prof, bumped, total_weight)
+        if second_q is not None:
             return eval_res, second_q, user_answer, correct, weight, eval_dt, qgen_dt2
-        except Exception:
-            if first_q is None:
-                first_q, qgen_dt = _qgen_call(proficiency, score, total_weight)
-            return eval_res, first_q, user_answer, correct, weight, eval_dt, qgen_dt
-    else:
+        # 리롤 실패 시 first_q라도 반환
         return eval_res, first_q, user_answer, correct, weight, eval_dt, qgen_dt
+
+    return eval_res, first_q, user_answer, correct, weight, eval_dt, qgen_dt
+
 
 def _ensure_list_session_key(key: str):
     if key not in st.session_state or not isinstance(st.session_state[key], list):
@@ -178,7 +203,8 @@ def render_quiz_section():
 
     # LLM 생성부: 현재 인덱스가 꼬리를 물면 새 문항 생성
     while (
-        len(st.session_state.quiz_questions) < TOTAL_QUESTIONS 
+        st.session_state.quiz_index >= COMMON_COUNT
+        and len(st.session_state.quiz_questions) < TOTAL_QUESTIONS
         and st.session_state.quiz_index >= len(st.session_state.quiz_questions)
     ):
         _t0 = time.perf_counter()
@@ -200,14 +226,19 @@ def render_quiz_section():
         st.session_state.timing_qgen_n += 1
         print(f"[QGEN] Q{_next_q_no}: {dt:.2f}s")
 
-        # append 직전 리스트 타입 보장
-        _ensure_list_session_key("quiz_questions")
-        st.session_state.quiz_questions.append(q)
-        st.session_state.generated_count += 1
+        # ── append는 단 한 번만 ──
+        if isinstance(q, dict) and q.get("question_text") and q.get("answer"):
+            _ensure_list_session_key("quiz_questions")
+            st.session_state.quiz_questions.append(q)
+            st.session_state.generated_count += 1
+        else:
+            print("[WARN] invalid qgen result; skip")
+            break
 
-        # 새 문항 반영 후 총 가중 재계산/세션 반영
+        # 총 가중치 갱신
         total_weight = sum(q_.get("weight", 1) for q_ in st.session_state.quiz_questions)
         st.session_state.total_weight = total_weight
+
 
     # 생성셋 저장(1회)
     if (
@@ -281,6 +312,11 @@ def render_quiz_section():
                     user_answer = str(idx + 1)
                 except ValueError:
                     user_answer = "0"
+            # 현재 문항 인덱스(0-based)
+            cur_idx = st.session_state.quiz_index
+            
+            # 다음 문항 생성이 필요한가?
+            need_next_q = (cur_idx >= COMMON_COUNT) and (cur_idx < TOTAL_QUESTIONS - 1)
 
             # --- 병렬: 채점 + 다음문제 생성 ---
             t0_total = time.perf_counter()
@@ -296,10 +332,12 @@ def render_quiz_section():
                     wrong_notes=st.session_state.wrong_notes,
                     history=st.session_state.history,
                     keywords=st.session_state.user_keywords,
+                    do_qgen=need_next_q,   # ← 마지막 문제에서는 False
                 )
             except Exception as e:
                 st.session_state.processing = False
                 raise RuntimeError(f"채점 LLM 호출 실패: {type(e).__name__}: {e}")
+            
             total_dt = time.perf_counter() - t0_total  # ← 한 문제당 전체 소요 시간
             print(f"[PER-QUESTION TOTAL] {total_dt:.2f}s (eval {eval_dt:.2f}s + qgen {qgen_dt:.2f}s)")
 
@@ -354,8 +392,8 @@ def render_quiz_section():
                 "content": full_feedback
             })
 
-            # 다음 문제 큐에 추가 (준비되어 있으면)
-            if next_q and len(st.session_state.quiz_questions) < TOTAL_QUESTIONS:
+            #  마지막 문제 전(0~8)이고, 공통 이후부터만 next_q 넣기
+            if need_next_q and next_q and isinstance(next_q, dict) and len(st.session_state.quiz_questions) < TOTAL_QUESTIONS:
                 st.session_state.quiz_questions.append(next_q)
                 # total_weight 갱신
                 total_weight = sum(q_.get("weight", 1) for q_ in st.session_state.quiz_questions)
