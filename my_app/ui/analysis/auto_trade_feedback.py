@@ -712,7 +712,7 @@ def make_trade_chart(
         if key in df.columns:
             if key in ["BB_UPPER","BB_LOWER"]:
                 plt.plot(df.index, df[key], alpha=0.3, label=key)
-            elif key in ["KC_UPPER","KC_LOWER","AVWAP_YTD","AVWAP_MTD","VWAP"]:
+            elif key in ["KC_UPPER","KC_LOWER","AVWAP_YTD","AVWAP_MTD", "VWAP"]:
                 plt.plot(df.index, df[key], alpha=0.5, label=key)
             else:
                 plt.plot(df.index, df[key], style, label=key)
@@ -984,6 +984,8 @@ def analyze_and_feedback(
     # === 차트 업로드 (xpt 전달) ===
     chart_url = None
     try:
+        # 1. Chart creation
+        logger.info("Creating chart...")
         # 차트에서는 전체 df를 사용하되, 사건선은 xpt로 고정
         # 지표 라인(EMA 등)은 df_hist 기준으로만 계산했으므로 시각화를 위해 df에 병합(선택)
         for col in ["EMA_FAST","EMA_MID","EMA_SLOW","BB_UPPER","BB_LOWER","KC_UPPER","KC_LOWER",
@@ -991,19 +993,36 @@ def analyze_and_feedback(
             if col in df_hist.columns:
                 df[col] = df_hist[col]
         buf = make_trade_chart(df, xpt, price, action, peer_median=p50, bench_price=bench_px)
+        logger.info("Chart created successfully.")
+
+        # 2. Upload to Supabase
         filename = f"{trade['id']}.png"
+        logger.info(f"Uploading {filename} to bucket {STORAGE_BUCKET_NAME}...")
         try:
-            supabase.storage.from_(STORAGE_BUCKET_NAME).upload(
+            # Try v2 syntax first
+            response = supabase.storage.from_(STORAGE_BUCKET_NAME).upload(
                 filename, buf.getvalue(), file_options={"content-type": "image/png", "upsert": "true"}
             )
-        except Exception:
-            supabase.storage.from_(STORAGE_BUCKET_NAME).upload(
+            logger.info(f"Upload response (v2 style): {response}")
+        except TypeError: # Catching specific error for syntax change
+            logger.warning("Upload with file_options failed (likely v1 client), trying legacy syntax.")
+            # Fallback to v1 syntax
+            response = supabase.storage.from_(STORAGE_BUCKET_NAME).upload(
                 filename, buf.getvalue(), {"content-type": "image/png", "upsert": True}
             )
+            logger.info(f"Upload response (v1 style): {response}")
+        logger.info("Upload successful.")
+
+        # 3. Get public URL
+        logger.info(f"Getting public URL for {filename}...")
         url_info = supabase.storage.from_(STORAGE_BUCKET_NAME).get_public_url(filename)
+        logger.info(f"Public URL response: {url_info}")
         chart_url = url_info.get("publicUrl") if isinstance(url_info, dict) else url_info
+        if not chart_url:
+            logger.warning("Could not extract publicUrl from response.")
+
     except Exception as e:
-        logger.warning(f"chart upload failed: {e}")
+        logger.error(f"Chart generation or upload process failed: {e}", exc_info=True) # Use error and exc_info
         chart_url = None
 
     # === 스타일 예시 ===
@@ -1016,15 +1035,16 @@ def analyze_and_feedback(
     # === LLM 코칭 (옵션 + config 기본값) ===
     _use_llm = bool(use_llm or LLM_ENABLED_DEFAULT)
     ai_msg = None
+    llm_prompt = None
     if _use_llm:
         try:
-            ctx = build_llm_context(user, trade, feedback_text, stats, cfg, selected_tone)
-            ai_msg = ai_commentary(ctx)
+            llm_prompt = build_llm_context(user, trade, feedback_text, stats, cfg, selected_tone)
+            ai_msg = ai_commentary(llm_prompt)
         except Exception as e:
             logger.warning(f"LLM commentary error: {e}")
             ai_msg = None
 
-    return feedback_text, chart_url, stats, style_type, rank_percentile, bench_ret, ai_msg
+    return feedback_text, chart_url, stats, style_type, rank_percentile, bench_ret, ai_msg, llm_prompt
 
 
 # =========================
@@ -1035,7 +1055,7 @@ def auto_trade_feedback(
     user_id: str,
     selected_tone: str = "friendly",
     use_llm: bool = False
-) -> Tuple[str, Optional[str], Optional[str]]:
+) -> Tuple[str, Optional[str], Optional[str], Optional[str]]:
     trade = fetch_trade(trade_id)
     if not trade:
         raise ValueError("trade not found")
@@ -1063,7 +1083,7 @@ def auto_trade_feedback(
     logger.info(f"user record: {_mask_user(user)}")
     logger.info(f"cfg.keys: {list(service_config.keys())}")
 
-    fb, img, stats, stype, r, bench, ai = analyze_and_feedback(
+    fb, img, stats, stype, r, bench, ai, llm_prompt = analyze_and_feedback(
         trade, user, service_config, selected_tone, use_llm
     )
 
@@ -1093,8 +1113,8 @@ def auto_trade_feedback(
             supabase.table("trade_feedback").insert(payload).execute()
         except Exception as e2:
             logger.error(f"feedback insert failed: {e2}")
-    
-    return fb, img, ai
+
+    return fb, img, ai, llm_prompt
 
 
 # =========== 사용 예 ===========
