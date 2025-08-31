@@ -184,6 +184,8 @@ def check_auth_params() -> None:
                             "knowledge_level"
                         ],
                         "risk_tolerance": response_user_data.data[0]["risk_tolerance"],
+                        "user_summary": response_user_data.data[0].get("user_summary", ""),
+                        "knowledge_summary": response_user_data.data[0].get("knowledge_summary", ""),
                     }
                     st.session_state.user_data = user_data
 

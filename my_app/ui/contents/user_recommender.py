@@ -23,8 +23,9 @@ try:
         get_recommendation_summary,
         adjust_level_by_emotion
     )
-    from contents.recommendation.data_access import load_all_cards
     from contents.recommendation.explanation_generator import generate_explanation
+    import google.generativeai as genai
+    import os
 except ImportError:
     st.error("시스템 오류가 발생했습니다.")
     st.stop()
@@ -148,6 +149,94 @@ def safe_tags(tags):
     return [str(tags)]
 
 # ==================
+# Gemini를 활용한 감정 점수 분석
+# ==================
+@st.cache_data(ttl=300)  # 5분 캐싱
+def analyze_emotion_score_with_gemini(emotions_text):
+    """Gemini를 사용해서 감정 텍스트를 점수로 변환 (-50 ~ +50)"""
+    if not emotions_text or emotions_text in ['[]', '{}', 'null']:
+        return 0
+    
+    try:
+        # Gemini API 초기화
+        api_key = os.getenv('GOOGLE_API_KEY')
+        if not api_key:
+            return 0
+            
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        prompt = f"""
+        다음은 사용자의 투자 관련 감정 상태입니다: {emotions_text}
+        
+        이 감정들을 분석해서 전체적인 감정 점수를 -50부터 +50 사이의 숫자로 평가해주세요.
+        
+        평가 기준:
+        - 긍정적 감정 (기대감, 설렘, 자신감, 희망 등): +점수
+        - 부정적 감정 (불안감, 걱정, 후회, 두려움 등): -점수
+        - 중립적 감정 (평범함, 보통 등): 0 근처
+        
+        결과는 숫자만 답해주세요. 예: 15 또는 -20
+        """
+        
+        response = model.generate_content(prompt)
+        score_text = response.text.strip()
+        
+        # 숫자 추출
+        import re
+        numbers = re.findall(r'-?\d+', score_text)
+        if numbers:
+            score = int(numbers[0])
+            return max(-50, min(50, score))  # -50~50 범위로 제한
+        return 0
+        
+    except Exception as e:
+        st.warning(f"감정 분석 중 오류: {e}")
+        return 0
+
+def parse_user_profile_data():
+    """Supabase profiles 테이블 데이터를 파싱해서 UI용 데이터로 변환"""
+    user_data = st.session_state.get('user_data', {})
+    
+    # 사용자 이름 추출
+    user_name = user_data.get('name', '사용자님')
+    
+    # knowledge_level 변환
+    knowledge_level = user_data.get('knowledge_level', 'Beginner')
+    level_mapping = {'Beginner': '입문자', 'Intermediate': '중급자', 'Advanced': '고급자'}
+    user_level = level_mapping.get(knowledge_level, '입문자')
+    
+    # investment_emotions를 Gemini로 분석
+    investment_emotions_raw = user_data.get('investment_emotions', '[]')
+    emotions_score = analyze_emotion_score_with_gemini(str(investment_emotions_raw))
+    
+    # interests_categories 파싱
+    interests_categories = user_data.get('interests_categories', '[]')
+    if isinstance(interests_categories, str):
+        try:
+            import json
+            interests_categories = json.loads(interests_categories)
+        except:
+            interests_categories = []
+    
+    # user_summary와 knowledge_summary 추출
+    user_summary = user_data.get('user_summary', '').strip()
+    knowledge_summary = user_data.get('knowledge_summary', '').strip()
+    
+    return {
+        'user_name': user_name,
+        'user_level': user_level,
+        'knowledge_level': knowledge_level,
+        'emotions': emotions_score,
+        'interest_tags': interests_categories,
+        'user_summary': user_summary,
+        'knowledge_summary': knowledge_summary,
+        'risk_tolerance': user_data.get('risk_tolerance', 50),
+        'investment_goal': user_data.get('investment_goal', ''),
+        'investment_level': user_data.get('investment_level', 'None')
+    }
+
+# ==================
 # 사용자 뷰
 # ==================
 def render_user_view():
@@ -156,35 +245,131 @@ def render_user_view():
     st.title("🕹️ 맞춤 금융 지식")
     st.caption("당신의 수준과 관심사에 따라 추천된 맞춤형 금융 정보를 확인해보세요!")
 
-
-    # 세션 상태에서 사용자 설정 가져오기 (향후 디비에서 바로 받아오기)
-    user_level = st.session_state.get('user_level', '입문자')
-    english_level = st.session_state.get('english_level', 'Beginner')
-    emotions = st.session_state.get('emotions', 10)
-    interest_tags = st.session_state.get('interest_tags', all_tags[:2] if 'all_tags' in locals() else [])
+    # Supabase profiles 테이블에서 실제 사용자 데이터 파싱 (읽기 전용)
+    profile_data = parse_user_profile_data()
+    user_name = profile_data['user_name']
+    user_level = profile_data['user_level']
+    knowledge_level = profile_data['knowledge_level']
+    emotions = profile_data['emotions']
+    interest_tags = profile_data['interest_tags']
+    user_summary = profile_data['user_summary']
+    knowledge_summary = profile_data['knowledge_summary']
+    risk_tolerance = profile_data['risk_tolerance']
+    
     top_n = st.session_state.get('top_n', 3)
 
-    # 챗봇형 학습 프로필
-    st.markdown('### 📋 나의 금융 프로필')
-    profile_text = f"""
-    <p>👋 안녕하세요! 챗봇과 퀴즈로 분석한 당신의 금융 프로필을 알려드릴게요.</p>
-    <p>🏦 당신의 금융 수준은 <strong>{english_level}</strong> 입니다.</p>
-    <p>🔥 오늘의 학습 의욕: <strong>{emotions}</strong> 점</p>
-    <p>💡 관심 분야: {', '.join(interest_tags) if interest_tags else '없음'}</p>
-    """
-    st.markdown(f'<div class="profile-card">{profile_text}</div>', unsafe_allow_html=True)
+    # 2x2 그리드 레이아웃: 왼쪽(프로필) | 오른쪽(분석 결과들)
+    col_left, col_right = st.columns([1, 1])
+    
+    # 왼쪽: 메인 금융 프로필 카드
+    with col_left:
+        st.markdown('### 📋 나의 금융 프로필')
+        
+        # 감정 상태에 따른 이모지
+        emotion_emoji = "😊" if emotions > 10 else "😔" if emotions < -10 else "😐"
+        
+        main_profile_text = f"""
+        <p>👋 안녕하세요, <strong>{user_name}</strong>님! 챗봇과 퀴즈로 분석한 당신의 금융 프로필을 알려드릴게요.</p>
+        <br>
+        <p>🏦 <strong>금융 지식 수준:</strong> {user_level} ({knowledge_level})</p>
+        <p>🔥 <strong>현재 감정 점수:</strong> {emotion_emoji} {emotions}점 (-50~+50)</p>
+        <p>📊 <strong>위험 허용도:</strong> {risk_tolerance}점</p>
+        <p>💡 <strong>관심 분야:</strong> {', '.join(interest_tags) if interest_tags else '아직 설정되지 않음'}</p>
+        <br>
+        <p>이제 금융 프로필을 바탕으로 <strong>{user_name}</strong>님의 지식 레벨을 높일 시간입니다. 맞춤 추천 받기 버튼을 누르면 당신을 위한 맞춤 정보가 추천됩니다.🙌</p>
+        """
+        
+        st.markdown(f'<div class="profile-card" style="height: 385px;">{main_profile_text}</div>', unsafe_allow_html=True)
+    
+    # 오른쪽: 분석 결과들 (퀴즈 UI 스타일)
+    with col_right:
+        # 퀴즈 스타일 CSS 추가
+        st.markdown("""
+        <style>
+        .quiz-card {
+            border: 1px solid rgba(148,163,184,.28);
+            border-radius: 16px;
+            padding: 18px;
+            margin: 10px 0 14px 0;
+            background: rgba(2,6,23,.02);
+            height: 150px;
+            overflow-y: auto;
+        }
+        .quiz-header {
+            background: linear-gradient(135deg, rgba(99,102,241,.10), rgba(16,185,129,.10));
+            border: 1px solid rgba(148,163,184,.22);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        .quiz-content {
+            line-height: 1.6;
+            font-size: 0.9rem;
+            color: #374151;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # 상단: AI 투자 성향 분석
+        if user_summary and user_summary.strip() and user_summary not in ['NULL', 'null', 'None']:
+            st.markdown(f"""
+            <div class="quiz-header">
+                📑 {user_name}님의 투자 성향
+            </div>
+            <div class="quiz-card">
+                <div class="quiz-content">
+                    {user_summary}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class="quiz-header">
+                📑 {user_name}님의 투자 성향
+            </div>
+            <div class="quiz-card">
+                <div class="quiz-content">
+                    💬 {user_name}님, 챗봇과 대화를 나누시면 투자 성향을 분석해드릴게요!
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # 하단: 금융 지식 수준 분석
+        if knowledge_summary and knowledge_summary.strip() and knowledge_summary not in ['NULL', 'null', 'None']:
+            st.markdown(f"""
+            <div class="quiz-header">
+                🎓 {user_name}님의 금융 레벨 
+            </div>
+            <div class="quiz-card">
+                <div class="quiz-content">
+                    {knowledge_summary}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class="quiz-header">
+                🎓 {user_name}님의 금융 레벨 
+            </div>
+            <div class="quiz-card">
+                <div class="quiz-content">
+                    📝 {user_name}님, 퀴즈를 완료하시면 금융 지식 수준을 분석해드릴게요!
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-    # 맞춤 콘텐츠 추천 버튼 (프로필 바로 아래)
-    col1, col2, col3 = st.columns([1,2,1])
-    with col3:
-        if st.button("💫 맞춤 추천 받기"):
+    # 맞춤 콘텐츠 추천 버튼 
+    if 'last_recommendation' not in st.session_state:
+        if st.button("💫 맞춤 추천 받기", use_container_width=True):
             if not interest_tags:
                 st.warning("관심 분야를 최소 1개 선택해주세요!")
                 st.stop()
-            with st.spinner("🤖 AI가 맞춤 정보를 찾고 있어요..."):
+            with st.spinner("🚥 AI가 맞춤 정보를 찾고 있어요..."):
                 rec_result = get_hybrid_recommendations({
                     "user_id": f"user_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                    "level": english_level,
+                    "level": knowledge_level,
                     "emotions": emotions,
                     "interest_tags": interest_tags,
                     "recent_seen_card_ids": [],
@@ -192,9 +377,12 @@ def render_user_view():
                 }, top_n=top_n)
             if rec_result["success"]:
                 st.session_state['last_recommendation'] = rec_result
-                st.success(f"✨ {len(rec_result['results'])}개의 맞춤 콘텐츠를 찾았어요!")
+                st.rerun()
             else:
                 st.error("추천을 가져올 수 없어요. 잠시 후 다시 시도해주세요.")
+    else:
+        # 추천 완료 안내 메시지
+        st.success("✨ 맞춤 정보가 추천되었습니다!")
 
     st.divider()
     
@@ -221,7 +409,7 @@ def render_user_view():
                             try:
                                 # 원래 설명(content) 전달만 하고 화면엔 출력 하지 않음
                                 explanation = generate_explanation(
-                                    level=english_level,
+                                    level=knowledge_level,  # knowledge_level 사용
                                     content_title=content.get('title',''),
                                     content_description=content.get('content','')[:300]  # 화면엔 안 보임
                                 )
@@ -300,11 +488,12 @@ def render_admin_view():
     st.title("🔍 하이브리드 정보 추천 시스템 분석 ")
     st.caption("개발자를 위한 분석 페이지 입니다. 룰베이스 + 벡터 서치 기반으로 하이브리드 방식으로 추천되고 있는 상세 결과를 확인하세요.")
     
-    # 세션에서 사용자 설정 가져오기
-    user_level = st.session_state.get('user_level', '입문자')
-    english_level = st.session_state.get('english_level', 'Beginner')
-    emotions = st.session_state.get('emotions', 10)
-    interest_tags = st.session_state.get('interest_tags', [])
+    # 실제 DB 데이터 가져오기
+    profile_data = parse_user_profile_data()
+    user_level = profile_data['user_level']
+    knowledge_level = profile_data['knowledge_level']
+    emotions = profile_data['emotions']
+    interest_tags = profile_data['interest_tags']
     top_n = st.session_state.get('top_n', 3)
 
 
@@ -332,7 +521,7 @@ def render_admin_view():
     
     user_data = {
         "user_id": f"admin_user_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}",
-        "level": english_level,
+        "level": knowledge_level,  # knowledge_level 사용
         "emotions": emotions,
         "interest_tags": interest_tags,
         "recent_seen_card_ids": [],
@@ -379,7 +568,7 @@ def render_admin_view():
     # 감정 기반 레벨 조정 분석
     st.markdown('### 🧠 감정 기반 레벨 조정 분석')
     
-    original_level = english_level
+    original_level = knowledge_level  # knowledge_level 사용
     adjusted_level, reason = adjust_level_by_emotion(original_level, emotions)
     
     col1, col2, col3 = st.columns(3)
@@ -542,47 +731,15 @@ def render_admin_view():
 def render():
     apply_styles()
 
-    # 공통 사이드바에서 사용자 설정 관리
+    # 사이드바에서 추천 설정만 관리
     with st.sidebar:
-        st.header("🎯 나의 설정")
-        user_level = st.selectbox("내 금융 지식 수준", ["입문자","중급자","고급자"], 
-                                 index=["입문자","중급자","고급자"].index(st.session_state.get('user_level', '입문자')), 
-                                 key="user_level_common")
-        level_mapping = {"입문자": "Beginner", "중급자": "Intermediate", "고급자": "Advanced"}
-        english_level = level_mapping[user_level]
-        
-        emotions = st.slider("오늘의 학습 의욕", -50, 50, st.session_state.get('emotions', 10), 
-                            key="emotions_common")
-        
-        try:
-            all_cards = load_all_cards()
-            all_tags = set()
-            for card in all_cards:
-                tags = card.get("tags", [])
-                if isinstance(tags, list):
-                    all_tags.update([str(tag) for tag in tags if tag])
-                elif isinstance(tags, str):
-                    all_tags.update([t.strip() for t in tags.split(",") if t.strip()])
-            all_tags = sorted(list(all_tags))
-        except:
-            all_tags = ["투자","경제","주식","금융","부동산","자산관리"]
-            
-        interest_tags = st.multiselect("관심 분야", all_tags, 
-                                     default=st.session_state.get('interest_tags', all_tags[:2]), 
-                                     key="interest_tags_common")
-        
+        st.header("⚙️ 추천 설정")
         top_n = st.select_slider("추천 받을 개수", [1,2,3,4,5], 
                                 value=st.session_state.get('top_n', 3), 
                                 key="top_n_common")
         
-        # 세션에 업데이트된 설정 저장
-        st.session_state.update({
-            'user_level': user_level,
-            'english_level': english_level,
-            'emotions': emotions,
-            'interest_tags': interest_tags,
-            'top_n': top_n
-        })
+        # 세션에 top_n만 저장
+        st.session_state['top_n'] = top_n
 
     tab1, tab2 = st.tabs(["맞춤 금융 지식", "추천 시스템 분석"])
 
