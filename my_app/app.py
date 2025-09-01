@@ -73,7 +73,7 @@ USER_MENUS = {
     "User": [
         ("Chatbot", "chatbot"),
         ("오늘의 퀴즈", "quiz"),
-        ("맞춤형 금융 지식", "content"),
+        ("맞춤 금융 지식", "content"),
         ("맞춤형 상품 추천", "rag_recommendation"),
         ("현재 보유주식 AI코칭", "simulation"),
         ("종목 피드백", "analysis"),
@@ -83,7 +83,7 @@ USER_MENUS = {
     "Admin": [
         ("Chatbot", "chatbot"),
         ("Dashboard", "dashboard"),
-        ("맞춤형 금융 지식", "content"),
+        ("맞춤 금융 지식", "content"),
         ("Admin 1", "admin1"),
         ("Admin 2", "admin2"),
         ("Settings", "settings"),
@@ -164,6 +164,7 @@ def check_auth_params() -> None:
                 )
                 if "user_data" not in st.session_state:
                     user_data: dict = {
+                        "id": st.session_state.user.id,
                         "user_email": response_user_data.data[0]["email"],
                         "name": response_user_data.data[0]["name"],
                         "age": response_user_data.data[0]["age"],
@@ -563,7 +564,7 @@ def route_to_page():
                 from ui.contents.user_recommender import render
                 render()
             except ImportError as e:
-                st.title("🔥 맞춤형 금융 지식")
+                st.title("🔥 맞춤 금융 지식")
                 st.error(f"페이지를 불러올 수 없습니다: {e}")
                 st.info("ui/contents/user_recommender.py 파일을 확인해주세요.")
                 

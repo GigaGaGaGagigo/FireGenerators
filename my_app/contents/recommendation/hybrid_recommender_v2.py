@@ -1,6 +1,6 @@
 """
 개선된 하이브리드 추천 시스템 - Streamlit 최적화 버전
-- ko-sroberta + upstage + bge-m3 모델 지원
+- ko-sroberta + bge-m3 모델 지원 (upstage 제외)
 - 레벨/태그/card_id 정규화로 안전성 강화
 """
 
@@ -66,6 +66,7 @@ def normalize_card(raw: Dict) -> Dict:
     tags = normalize_tags(raw.get("tags", []))
 
     normalized = {
+        "id": raw.get("id"),
         "card_id": card_id,
         "title": raw.get("title"),
         "content": raw.get("content"),
@@ -103,7 +104,7 @@ def get_supabase_client():
     return _supabase_client
 
 # 선택된 임베딩 모델들
-SELECTED_MODELS = ["ko-sroberta", "upstage", "bge-m3"]
+SELECTED_MODELS = ["ko-sroberta", "bge-m3"]
 
 # 기본 파라미터
 DEFAULT_PARAMS = {
@@ -145,8 +146,13 @@ def query_contents_by_level_and_tags(user_level: str, interest_tags: List[str],
         adjusted_level, level_reason = adjust_level_by_emotion(user_level, emotions)
         supabase = get_supabase_client()
 
-        # level은 DB에 소문자로 저장되었을 수 있음
-        query = supabase.table("contents").select("*").eq("level", adjusted_level.lower())
+        # Advanced 레벨의 경우 Intermediate와 Advanced 모두 조회
+        if adjusted_level == "Advanced":
+            query = supabase.table("contents").select("*").or_("level.eq.intermediate,level.eq.advanced")
+            query_levels = ["intermediate", "advanced"]
+        else:
+            query = supabase.table("contents").select("*").eq("level", adjusted_level.lower())
+            query_levels = [adjusted_level.lower()]
 
         # 태그 필터 (가능하면 or-contains)
         if interest_tags:
@@ -159,7 +165,10 @@ def query_contents_by_level_and_tags(user_level: str, interest_tags: List[str],
 
         # 없으면 태그 완화
         if not response.data:
-            response = supabase.table("contents").select("*").eq("level", adjusted_level.lower()).limit(limit).execute()
+            if adjusted_level == "Advanced":
+                response = supabase.table("contents").select("*").or_("level.eq.intermediate,level.eq.advanced").limit(limit).execute()
+            else:
+                response = supabase.table("contents").select("*").eq("level", adjusted_level.lower()).limit(limit).execute()
 
         # 정규화
         contents = [normalize_card(item) for item in response.data]
@@ -181,11 +190,12 @@ def query_contents_by_level_and_tags(user_level: str, interest_tags: List[str],
             "original_level": user_level,
             "adjusted_level": adjusted_level,
             "level_adjustment": level_reason,
+            "queried_levels": query_levels,
             "interest_tags": list(safe_interest_set),
             "total_found": len(contents),
             "max_tag_score": max_tag_score,
             "final_selected": len(final_contents),
-            "reason": f"Supabase DB에서 레벨 '{adjusted_level}' 필터링 후 태그 매칭 점수 기준 정렬"
+            "reason": f"Supabase DB에서 레벨 {query_levels} 필터링 후 태그 매칭 점수 기준 정렬"
         }
         return final_contents, query_details
 
@@ -228,7 +238,13 @@ def emotion_based_rule_recommend(contents: List[Dict], knowledge_level: str,
     # 정규화 보장
     contents = [normalize_card(c) for c in contents]
 
-    candidates = [c for c in contents if c.get("level") == adjusted_level]
+    # Advanced 레벨의 경우 Intermediate와 Advanced 모두 포함
+    if adjusted_level == "Advanced":
+        candidates = [c for c in contents if c.get("level") in ["Intermediate", "Advanced"]]
+        allowed_levels = ["Intermediate", "Advanced"]
+    else:
+        candidates = [c for c in contents if c.get("level") == adjusted_level]
+        allowed_levels = [adjusted_level]
 
     safe_interest = set([str(t).strip() for t in (interests_categories or []) if str(t).strip()])
 
@@ -243,7 +259,8 @@ def emotion_based_rule_recommend(contents: List[Dict], knowledge_level: str,
             "level_adjustment": level_reason,
             "candidates_found": 0,
             "max_tag_score": 0,
-            "reason": "조정된 레벨에 해당하는 콘텐츠가 없음"
+            "allowed_levels": allowed_levels,
+            "reason": f"조정된 레벨 {allowed_levels}에 해당하는 콘텐츠가 없음"
         }
 
     max_score = max(score for _, score in scored)
@@ -261,10 +278,11 @@ def emotion_based_rule_recommend(contents: List[Dict], knowledge_level: str,
         "level_adjustment": level_reason,
         "original_level": normalize_level(knowledge_level),
         "adjusted_level": adjusted_level,
+        "allowed_levels": allowed_levels,
         "candidates_found": len(candidates),
         "max_tag_score": max_score,
         "selected_count": len(selected),
-        "reason": f"감정 기반 레벨 조정 후 태그 매칭 점수 {max_score}점 기준 선별"
+        "reason": f"감정 기반 레벨 조정 후 레벨 {allowed_levels}에서 태그 매칭 점수 {max_score}점 기준 선별"
     }
     return result_ids, details
 
@@ -286,7 +304,11 @@ def get_level_compatible_contents(cards: List[Dict], user_level: str, strict: bo
         except ValueError:
             allowed_levels = [user_level]
     else:
-        allowed_levels = [user_level]
+        # Advanced 레벨의 경우 Intermediate 콘텐츠도 포함
+        if user_level == "Advanced":
+            allowed_levels = ["Intermediate", "Advanced"]
+        else:
+            allowed_levels = [user_level]
 
     filtered = [c for c in cards if c.get("level") in allowed_levels]
     return filtered

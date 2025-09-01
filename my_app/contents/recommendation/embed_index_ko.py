@@ -20,9 +20,14 @@ CONTENT_IDS_PATH = os.path.join(INDEX_DIR, "content_ids.json")
 CONTENT_META_PATH = os.path.join(INDEX_DIR, "content_meta.json")
 
 # ===== 1) 콘텐츠 로드 =====
-contents = load_all_cards(CONTENTS_DIR)
+print("[INFO] JSON 파일에서 콘텐츠 로드 시도...")
+contents = load_all_cards(CONTENTS_DIR, use_db=False)  # JSON 파일 우선 사용
 if not contents:
-    raise ValueError("contents 폴더 안에 콘텐츠 JSON이 없습니다. 샘플 데이터를 넣어주세요.")
+    print("[WARNING] JSON 파일에서 로드 실패, Supabase DB 시도...")
+    contents = load_all_cards(CONTENTS_DIR, use_db=True)  # DB에서 시도
+    
+if not contents:
+    raise ValueError("contents 폴더 안에 콘텐츠 JSON이 없고 DB에도 데이터가 없습니다.")
 
 print(f"[INFO] 총 {len(contents)}개의 콘텐츠 로드 완료")
 

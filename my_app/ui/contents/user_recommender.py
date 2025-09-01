@@ -4,6 +4,7 @@ import datetime
 import sys, os
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 # ==============
 # 환경 세팅
@@ -21,10 +22,13 @@ try:
         get_hybrid_recommendations,
         validate_user_input,
         get_recommendation_summary,
-        adjust_level_by_emotion
+        adjust_level_by_emotion,
+        load_contents_from_supabase
     )
     from contents.recommendation.explanation_generator import generate_explanation
+    from contents.recommendation.user_contents_logger import get_logger
     import google.generativeai as genai
+    from supabase import create_client, Client
     import os
 except ImportError:
     st.error("시스템 오류가 발생했습니다.")
@@ -401,30 +405,98 @@ def render_user_view():
 
                 # 1:2 비율로 버튼 + 설명
                 col_btn, col_exp = st.columns([1, 2])
-                explanation_key = f"explanation_{content.get('card_id', i)}"
-                
+                card_identifier = content.get('card_id', content.get('id', i))
+                explanation_key = f"explanation_{card_identifier}"
+                log_id_key = f"log_id_{card_identifier}"
+
                 with col_btn:
-                    if st.button("💡 AI 맞춤 설명", key=f"user_explain_btn_{i}"):
+                    if st.button("💡 AI 맞춤 설명", key=f"user_explain_btn_{card_identifier}"):
                         with st.spinner("당신을 위한 맞춤 설명을 만들고 있어요..."):
                             try:
-                                # 원래 설명(content) 전달만 하고 화면엔 출력 하지 않음
                                 explanation = generate_explanation(
-                                    level=knowledge_level,  # knowledge_level 사용
+                                    level=knowledge_level,
                                     content_title=content.get('title',''),
-                                    content_description=content.get('content','')[:300]  # 화면엔 안 보임
+                                    content_description=content.get('content','')[:300]
                                 )
                                 st.session_state[explanation_key] = explanation
+                                
+                                # 실시간 로그 저장
+                                try:
+                                    supabase_client = st.session_state.get("supabase")
+                                    logger = get_logger(supabase_client)
+                                    if logger:
+                                        user_data = st.session_state.get('user_data', {})
+                                        user_id = user_data.get('id', 'anonymous')
+                                        contents_id_for_log = content.get('id')
+
+                                        if contents_id_for_log:
+                                            user_context = {
+                                                'emotions': emotions,
+                                                'interest_tags': interest_tags,
+                                                'risk_tolerance': profile_data.get('risk_tolerance', 50),
+                                                'investment_goal': profile_data.get('investment_goal', ''),
+                                                'user_summary': profile_data.get('user_summary', ''),
+                                                'knowledge_summary': profile_data.get('knowledge_summary', '')
+                                            }
+                                            
+                                            log_id = logger.log_content_view(
+                                                user_id=str(user_id),
+                                                contents_id=contents_id_for_log,
+                                                content_title=content.get('title', ''),
+                                                original_content=content.get('content', ''),
+                                                ai_explanation=explanation,
+                                                user_level=knowledge_level,
+                                                user_context=user_context,
+                                                recommendation_source=content.get('recommendation_source', 'unknown'),
+                                                recommendation_rank=content.get('recommendation_rank', i)
+                                            )
+                                            if log_id:
+                                                st.session_state[log_id_key] = log_id
+                                        else:
+                                            st.warning(f"콘텐츠의 UUID가 없어 로그 저장이 불가능합니다: card_id={content.get('card_id')}")
+
+                                except Exception as log_error:
+                                    st.error(f"로그 저장 중 오류 발생: {log_error}")
+                                
                                 st.success("✅ 설명이 준비됐어요!")
-                            except:
-                                st.error("설명을 만들 수 없어요 😅")
+                            except Exception as e:
+                                st.error(f"설명을 만들 수 없어요 😅: {e}")
                 
                 with col_exp:
-                    # 버튼 누른 후에만 설명 표시
                     if explanation_key in st.session_state:
                         st.markdown(
                             f'<div class="ai-explanation">{st.session_state[explanation_key]}</div>',
                             unsafe_allow_html=True
                         )
+                        
+                        # 피드백 버튼
+                        feedback_recorded_key = f"feedback_recorded_{card_identifier}"
+                        if log_id_key in st.session_state and feedback_recorded_key not in st.session_state:
+                            st.write("이 설명이 도움이 되었나요?")
+                            fb_cols = st.columns([1, 1, 8])
+                            with fb_cols[0]:
+                                if st.button("👍", key=f"fb_pos_{card_identifier}"):
+                                    supabase_client = st.session_state.get("supabase")
+                                    logger = get_logger(supabase_client)
+                                    if logger:
+                                        logger.log_feedback(st.session_state[log_id_key], 'positive')
+                                        st.toast("피드백 감사합니다! 👍")
+                                        st.session_state[feedback_recorded_key] = 'positive'
+                                        st.rerun()
+                            with fb_cols[1]:
+                                if st.button("👎", key=f"fb_neg_{card_identifier}"):
+                                    supabase_client = st.session_state.get("supabase")
+                                    logger = get_logger(supabase_client)
+                                    if logger:
+                                        logger.log_feedback(st.session_state[log_id_key], 'negative')
+                                        st.toast("피드백 감사합니다! 개선에 참고할게요.")
+                                        st.session_state[feedback_recorded_key] = 'negative'
+                                        st.rerun()
+                        elif feedback_recorded_key in st.session_state:
+                            if st.session_state[feedback_recorded_key] == 'positive':
+                                st.success("👍 피드백이 반영되었습니다.")
+                            else:
+                                st.warning("👎 아쉬운 점을 알려주셔서 감사합니다.")
 
                 # 태그
                 tags = safe_tags(content.get('tags', []))
@@ -434,10 +506,58 @@ def render_user_view():
                 
                 st.markdown("<br>", unsafe_allow_html=True)
 
+    # 이전 조회 콘텐츠 히스토리
+    st.divider()
+    st.markdown('### 📚 나의 학습 히스토리')
+    
+    try:
+        supabase_client = st.session_state.get("supabase")
+        logger = get_logger(supabase_client)
+        if logger:
+            user_data = st.session_state.get('user_data', {})
+            user_id = user_data.get('id', 'anonymous')
+            
+            if user_id != 'anonymous':
+                history = logger.get_user_content_history(str(user_id), limit=10)
+                
+                if history:
+                    st.markdown(f"**최근 확인한 콘텐츠 {len(history)}개**")
+                    
+                    for idx, log_item in enumerate(history[:5], 1):
+                        with st.expander(f"{idx}. {log_item['content_title']} ({log_item['user_level']})", expanded=False):
+                            col_hist1, col_hist2 = st.columns([3, 1])
+                            
+                            with col_hist1:
+                                # AI 설명 표시
+                                if log_item.get('ai_explanation'):
+                                    st.markdown("**AI 설명:**")
+                                    st.markdown(
+                                        f'<div class="ai-explanation">{log_item["ai_explanation"]}</div>',
+                                        unsafe_allow_html=True
+                                    )
+                                
+                                # 피드백이 있는 경우 표시
+                                if log_item.get('feedback_type'):
+                                    feedback_emoji = {"positive": "👍", "neutral": "😐", "negative": "👎"}
+                                    feedback_text = {"positive": "도움됨", "neutral": "보통", "negative": "아쉬움"}
+                                    st.success(f"{feedback_emoji.get(log_item['feedback_type'], '❓')} {feedback_text.get(log_item['feedback_type'], '알 수 없음')}으로 평가")
+                            
+                            with col_hist2:
+                                st.markdown("**📊 상세 정보**")
+                                viewed_at = datetime.datetime.fromisoformat(log_item['viewed_at'].replace('Z', '+00:00'))
+                                st.write(f"조회 시간: {viewed_at.strftime('%m/%d %H:%M')}")
+                else:
+                    st.info("아직 조회한 콘텐츠가 없습니다. 맞춤 추천을 받아보세요!")
+            else:
+                st.info("로그인 후 학습 히스토리를 확인할 수 있습니다.")
+    except Exception as e:
+        st.warning("학습 히스토리를 불러올 수 없습니다.")
+        print(f"히스토리 로드 실패: {e}")
+
     # 학습 현황
     if 'last_recommendation' in st.session_state:
         st.divider() 
-        st.markdown('### 📊 나의 학습 현황')
+        st.markdown('### 📊 현재 세션 학습 현황')
         
         rec_result = st.session_state['last_recommendation']
         if rec_result.get("success"):
@@ -480,95 +600,259 @@ def render_user_view():
                     """, unsafe_allow_html=True)
 
 # ==================
+# 콘텐츠 데이터 시각화 함수들
+# ==================
+
+@st.cache_data(ttl=600)  # 10분 캐싱
+def load_and_analyze_contents():
+    """Supabase에서 콘텐츠 데이터를 로드하고 분석"""
+    try:
+        all_contents = load_contents_from_supabase()
+        
+        # topic_id를 카테고리명으로 매핑
+        topic_mapping = {
+            2: "경제",
+            4: "과학", 
+            5: "금융",
+            6: "사회"
+        }
+        
+        # topic_id를 카테고리명으로 변환
+        for content in all_contents:
+            topic_id = content.get('topic_id')
+            if topic_id in topic_mapping:
+                content['category_name'] = topic_mapping[topic_id]
+            else:
+                content['category_name'] = content.get('category', '기타')
+        
+        # 데이터 분석
+        df = pd.DataFrame(all_contents)
+        
+        analysis = {
+            'total_contents': len(all_contents),
+            'level_distribution': df['level'].value_counts().to_dict() if 'level' in df.columns else {},
+            'category_distribution': df['category_name'].value_counts().to_dict() if 'category_name' in df.columns else {},
+            'contents_df': df,
+            'raw_contents': all_contents
+        }
+        
+        return analysis
+    except Exception as e:
+        st.error(f"콘텐츠 데이터 로드 실패: {e}")
+        return None
+
+def render_content_overview_charts():
+    """콘텐츠 전체 규모 시각화"""
+    st.markdown('#### 📈 콘텐츠 데이터 전체 규모')
+    
+    analysis = load_and_analyze_contents()
+    if not analysis:
+        st.error("콘텐츠 데이터를 불러올 수 없습니다.")
+        return
+    
+    # 상단 메트릭 표시
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("총 콘텐츠 수", analysis['total_contents'])
+    
+    with col2:
+        beginner_count = analysis['level_distribution'].get('Beginner', 0)
+        st.metric("입문 레벨", beginner_count)
+    
+    with col3:
+        intermediate_count = analysis['level_distribution'].get('Intermediate', 0)
+        st.metric("중급 레벨", intermediate_count)
+    
+    with col4:
+        advanced_count = analysis['level_distribution'].get('Advanced', 0)
+        st.metric("고급 레벨", advanced_count)
+    
+    # 차트 영역
+    col_left, col_right = st.columns(2)
+    
+    with col_left:
+        # 레벨별 분포 파이 차트
+        if analysis['level_distribution']:
+            fig_level = px.pie(
+                values=list(analysis['level_distribution'].values()),
+                names=list(analysis['level_distribution'].keys()),
+                title="레벨별 콘텐츠 분포",
+                color_discrete_map={
+                    'Beginner': '#D0EBD1',  
+                    'Intermediate': '#7DC679', 
+                    'Advanced': '#249148'  
+                }
+            )
+            fig_level.update_traces(textposition='inside', textinfo='percent+label')
+            st.plotly_chart(fig_level, use_container_width=True)
+    
+    with col_right:
+        # 카테고리별 + 난이도별 분포 스택 바 차트
+        if analysis['category_distribution'] and not analysis['contents_df'].empty:
+            # 카테고리별, 레벨별 데이터 준비
+            df_viz = analysis['contents_df']
+            if 'category_name' in df_viz.columns and 'level' in df_viz.columns:
+                # 카테고리와 레벨별 그룹화
+                category_level_counts = df_viz.groupby(['category_name', 'level']).size().reset_index(name='count')
+                
+                fig_category = px.bar(
+                    category_level_counts,
+                    x='category_name',
+                    y='count',
+                    color='level',
+                    title="카테고리별 콘텐츠 분포",
+                    color_discrete_map={
+                        'Beginner': "#D0EBD1",    
+                        'Intermediate': "#7DC679", 
+                        'Advanced': "#249148"      
+                    },
+                    labels={
+                        'category_name': '카테고리',
+                        'count': '콘텐츠 수',
+                        'level': '난이도'
+                    }
+                )
+                fig_category.update_layout(
+                    xaxis_title="카테고리",
+                    yaxis_title="콘텐츠 수",
+                    xaxis_tickangle=-45,
+                    legend_title="난이도",
+                    legend=dict(
+                        orientation="v",
+                        yanchor="top",
+                        y=1,
+                        xanchor="left",
+                        x=1.02
+                    )
+                )
+                st.plotly_chart(fig_category, use_container_width=True)
+            else:
+                st.warning("카테고리별 난이도 분포를 표시할 수 없습니다.")
+    
+    # 상세 데이터 테이블 (확장 가능)
+    with st.expander("📊 콘텐츠 상세 데이터 테이블"):
+        if not analysis['contents_df'].empty:
+            # 주요 컬럼만 표시 (category_name 사용)
+            display_columns = ['title', 'level', 'category_name', 'topic_id']
+            if 'tags' in analysis['contents_df'].columns:
+                display_columns.append('tags')
+            
+            # 존재하는 컬럼만 필터링
+            available_columns = [col for col in display_columns if col in analysis['contents_df'].columns]
+            filtered_df = analysis['contents_df'][available_columns] if available_columns else analysis['contents_df']
+            st.dataframe(filtered_df, use_container_width=True)
+
+# ==================
 # 관리자 상세 뷰 
 # ==================
 def render_admin_view():
     """개발자/관리자용 상세 분석 뷰"""
     
-    st.title("🔍 하이브리드 정보 추천 시스템 분석 ")
+    st.title("🔍 하이브리드 추천 시스템 분석 ")
     st.caption("개발자를 위한 분석 페이지 입니다. 룰베이스 + 벡터 서치 기반으로 하이브리드 방식으로 추천되고 있는 상세 결과를 확인하세요.")
     
-    # 실제 DB 데이터 가져오기
-    profile_data = parse_user_profile_data()
-    user_level = profile_data['user_level']
-    knowledge_level = profile_data['knowledge_level']
-    emotions = profile_data['emotions']
-    interest_tags = profile_data['interest_tags']
-    top_n = st.session_state.get('top_n', 3)
-
-
-    # 메인 콘텐츠 영역에 고급 파라미터 설정
-    st.markdown('### 🎛️ 고급 파라미터 설정')
+    # 콘텐츠 데이터 전체 규모 시각화
+    render_content_overview_charts()
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("하이브리드 가중치")
-        alpha = st.slider("벡터 검색 가중치 (α)", 0.0, 1.0, 0.6, 0.1, key="alpha_admin")
-        beta = st.slider("레벨 매칭 가중치 (β)", 0.0, 1.0, 0.3, 0.1, key="beta_admin") 
-        gamma = st.slider("태그 매칭 가중치 (γ)", 0.0, 1.0, 0.1, 0.1, key="gamma_admin")
-    
-    with col2:
-        st.subheader("검색 파라미터")
-        k_vec = st.slider("벡터 검색 후보 수", 5, 20, 10, key="k_vec_admin")
-        k_rule = st.slider("룰 기반 후보 수", 5, 20, 10, key="k_rule_admin")
-        sim_threshold = st.slider("유사도 임계값", 0.0, 0.5, 0.15, 0.05, key="sim_threshold_admin")
-
     st.divider()
-
-    # 현재 사용자 데이터 표시
-    st.markdown('### 👤 현재 사용자 프로필')
     
-    user_data = {
-        "user_id": f"admin_user_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}",
-        "level": knowledge_level,  # knowledge_level 사용
-        "emotions": emotions,
-        "interest_tags": interest_tags,
-        "recent_seen_card_ids": [],
-        "liked_tags": []
-    }
+    # 사용자 행동 분석 대시보드
+    st.markdown('### 📊 사용자 행동 분석 대시보드')
     
-    col1, col2, col3, col4 = st.columns(4)
+    try:
+        supabase_client = st.session_state.get("supabase")
+        logger = get_logger(supabase_client)
+        if logger:
+            # 전체 콘텐츠 분석
+            content_analytics = logger.get_content_analytics(days=30)
+            
+            if content_analytics.get('total_views', 0) > 0:
+                # 상단 메트릭
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.metric("총 조회수", content_analytics['total_views'])
+                with col2:
+                    st.metric("순 사용자", content_analytics['unique_users'])
+                with col3:
+                    avg_length = content_analytics.get('avg_explanation_length', 0)
+                    st.metric("평균 설명 길이", f"{avg_length}자")
+                with col4:
+                    feedback_total = sum(content_analytics.get('feedback_distribution', {}).values())
+                    feedback_rate = round(feedback_total / content_analytics['total_views'] * 100, 1) if content_analytics['total_views'] > 0 else 0
+                    st.metric("피드백 비율", f"{feedback_rate}%")
+                
+                # 차트 영역
+                col_left, col_right = st.columns(2)
+                
+                with col_left:
+                    # 피드백 분포 차트
+                    feedback_dist = content_analytics.get('feedback_distribution', {})
+                    if feedback_dist:
+                        fig_feedback = px.pie(
+                            values=list(feedback_dist.values()),
+                            names=list(feedback_dist.keys()),
+                            title="사용자 피드백 분포",
+                            color_discrete_map={
+                                'positive': '#4CAF50',
+                                'neutral': '#FF9800', 
+                                'negative': '#F44336'
+                            }
+                        )
+                        st.plotly_chart(fig_feedback, use_container_width=True)
+                
+                with col_right:
+                    # 추천 소스별 효과 분석
+                    source_dist = content_analytics.get('recommendation_source_distribution', {})
+                    if source_dist:
+                        fig_source = px.bar(
+                            x=list(source_dist.keys()),
+                            y=list(source_dist.values()),
+                            title="추천 소스별 조회 분포",
+                            color=list(source_dist.values()),
+                            color_continuous_scale='Blues'
+                        )
+                        fig_source.update_layout(
+                            xaxis_title="추천 소스",
+                            yaxis_title="조회 수",
+                            showlegend=False
+                        )
+                        st.plotly_chart(fig_source, use_container_width=True)
+            else:
+                st.info("아직 사용자 행동 데이터가 충분하지 않습니다. 더 많은 콘텐츠 조회가 필요합니다.")
+        else:
+            st.error("로거 초기화에 실패했습니다.")
+    except Exception as e:
+        st.error(f"사용자 행동 분석을 불러올 수 없습니다: {e}")
     
-    with col1:
-        st.markdown(f'''
-            <div class="admin-metric">
-                <h4>지식 레벨</h4>
-                <p style="color: var(--primary-orange); font-weight: bold;">{user_level}</p>
-            </div>
-        ''', unsafe_allow_html=True)
+    st.divider()
     
-    with col2:
-        mood_emoji = "😊" if emotions > 20 else "😔" if emotions < -20 else "😐"
-        st.markdown(f'''
-            <div class="admin-metric">
-                <h4>감정 점수</h4>
-                <p style="color: var(--primary-orange); font-weight: bold;">{mood_emoji} {emotions}</p>
-            </div>
-        ''', unsafe_allow_html=True)
+    # 메인 콘텐츠 영역에 고급 파라미터 설정
+    st.markdown('### 🎛️ 하이브리드 추천 가중치 설정')
     
-    with col3:
-        st.markdown(f'''
-            <div class="admin-metric">
-                <h4>관심 분야</h4>
-                <p style="color: var(--primary-orange); font-weight: bold;">{len(interest_tags)}개 선택</p>
-            </div>
-        ''', unsafe_allow_html=True)
+    st.info("""
+    하이브리드 추천 시스템은 다음과 같은 가중치를 사용하여 콘텐츠를 추천합니다.
+    - **벡터 검색 가중치 (α):** 0.6
+    - **레벨 매칭 가중치 (β):** 0.3
+    - **태그 매칭 가중치 (γ):** 0.1
     
-    with col4:
-        st.markdown(f'''
-            <div class="admin-metric">
-                <h4>추천 파라미터</h4>
-                <p style="color: var(--primary-orange); font-weight: bold;">α{alpha} β{beta} γ{gamma}</p>
-            </div>
-        ''', unsafe_allow_html=True)
+    검색 파라미터는 다음과 같이 설정되어 있습니다.
+    - **벡터 검색 후보 수:** 10
+    - **룰 기반 후보 수:** 10
+    - **유사도 임계값:** 0.15
+    """)
 
     st.divider()
 
     # 감정 기반 레벨 조정 분석
     st.markdown('### 🧠 감정 기반 레벨 조정 분석')
     
-    original_level = knowledge_level  # knowledge_level 사용
+    profile_data = parse_user_profile_data()
+    knowledge_level = profile_data['knowledge_level']
+    emotions = profile_data['emotions']
+    
+    original_level = knowledge_level
     adjusted_level, reason = adjust_level_by_emotion(original_level, emotions)
     
     col1, col2, col3 = st.columns(3)
@@ -582,38 +866,6 @@ def render_admin_view():
         st.metric("감정 상태", emotion_status)
     
     st.info(f"**조정 사유**: {reason}")
-
-    # 고급 추천 실행
-    if st.button("🚀 고급 파라미터로 추천 실행", type="primary"):
-        if not interest_tags:
-            st.warning("관심 분야를 최소 1개 선택해주세요!")
-            st.stop()
-            
-        is_valid, error_msg = validate_user_input(user_data)
-        if not is_valid:
-            st.error(f"입력 오류: {error_msg}")
-            st.stop()
-        
-        with st.spinner("고급 하이브리드 추천 시스템 실행 중..."):
-            rec_result = get_hybrid_recommendations(
-                user_data,
-                top_n=top_n,
-                k_vec=k_vec,
-                k_rule=k_rule,
-                alpha=alpha,
-                beta=beta,
-                gamma=gamma,
-                sim_threshold=sim_threshold
-            )
-        
-        if rec_result["success"]:
-            st.session_state['last_recommendation'] = rec_result
-            st.session_state['last_admin_params'] = {
-                'alpha': alpha, 'beta': beta, 'gamma': gamma,
-                'k_vec': k_vec, 'k_rule': k_rule, 'sim_threshold': sim_threshold
-            }
-        else:
-            st.error(f"추천 실행 실패: {rec_result.get('error', '알 수 없는 오류')}")
 
     st.divider()
 
@@ -677,34 +929,61 @@ def render_admin_view():
             
             for i, content in enumerate(results, 1):
                 with st.expander(f"{i}. {content.get('title', 'Unknown')} - {content.get('recommendation_source', 'unknown')}"):
-                    col_content, col_reason = st.columns([2, 1])
-                    
-                    with col_content:
-                        st.write("**기본 정보**")
-                        st.write(f"- **레벨**: {content.get('level', 'Unknown')}")
-                        st.write(f"- **태그**: {', '.join(safe_tags(content.get('tags', [])))}")
-                        st.write(f"- **카테고리**: {content.get('category', 'Unknown')}")
+                    col_left, col_right = st.columns([2, 1])
+
+                    with col_left:
+                        # 원본 데이터와 AI 생성 설명
+                        st.markdown("##### 📜 추천된 콘텐츠 상세")
                         
-                        # 콘텐츠 미리보기
+                        # 원본 콘텐츠
                         content_text = content.get('content', content.get('description', ''))
                         if content_text:
                             content_text = str(content_text)
-                            st.write("**내용 미리보기**")
-                            st.write(content_text[:200] + "..." if len(content_text) > 200 else content_text)
-                    
-                    with col_reason:
-                        st.write("**추천 상세 정보**")
-                        st.success(f"**추천 순위**: {content.get('recommendation_rank', 'Unknown')}")
-                        st.info(f"**출처**: {content.get('recommendation_source', 'Unknown')}")
+                            st.markdown("**📝 원본 콘텐츠 내용**")
+                            st.markdown(f'<div style="background: #f9f9f9; padding: 10px; border-radius: 5px; border-left: 3px solid #666; max-height: 200px; overflow-y: auto;">{content_text}</div>', unsafe_allow_html=True)
                         
-                        # 벡터 검색인 경우 상세 정보
-                        if content.get('recommendation_source') == 'vector_search':
-                            vector_model = content.get('vector_model', 'Unknown')
-                            vector_score = content.get('vector_score', 0.0)
-                            st.success(f"**임베딩 모델**: {vector_model}")
-                            st.metric("유사도 점수", f"{vector_score:.3f}")
+                        st.markdown("<br>", unsafe_allow_html=True)
+
+                        # AI 생성 설명
+                        st.markdown("**🤖 AI 생성 맞춤 설명**")
+                        card_identifier = content.get('card_id', content.get('id', i))
+                        explanation_key = f"explanation_{card_identifier}"
                         
-                        st.warning(f"**사유**: {content.get('recommendation_reason', 'Unknown')}")
+                        if explanation_key in st.session_state:
+                            st.markdown(
+                                f'<div style="background: #e8f5e8; padding: 15px; border-radius: 8px; border-left: 4px solid #4CAF50; margin: 10px 0;">'
+                                f'{st.session_state[explanation_key]}</div>',
+                                unsafe_allow_html=True
+                            )
+                        else:
+                            st.info("💡 사용자가 아직 이 콘텐츠의 AI 설명을 생성하지 않았습니다.")
+
+                    with col_right:
+                        # 추천 방식 및 사유
+                        st.markdown("##### 🎯 어떻게 추천되었나요?")
+                        source = content.get('recommendation_source', 'Unknown')
+                        rank = content.get('recommendation_rank', 'N/A')
+                        reason = content.get('recommendation_reason', '사유 없음')
+
+                        st.info(f"**추천 방식**: {source} (순위: {rank})")
+                        
+                        if source == 'vector_search':
+                            score = content.get('vector_score', 0.0)
+                            model = content.get('vector_model', 'Unknown')
+                            st.metric("유사도 점수", f"{score:.3f}")
+                            st.caption(f"사용한 모델: {model}")
+
+                        st.warning(f"**추천 핵심 사유**: {reason}")
+                        st.divider()
+
+                        # 기타 기본 정보
+                        st.markdown("##### 📋 콘텐츠 기본 정보")
+                        st.write(f"- **레벨**: {content.get('level', 'Unknown')}")
+                        st.write(f"- **태그**: {', '.join(safe_tags(content.get('tags', [])))}")
+                        topic_mapping = {2: "경제", 4: "과학", 5: "금융", 6: "사회"}
+                        topic_id = content.get('topic_id')
+                        category_name = topic_mapping.get(topic_id, content.get('category', 'Unknown'))
+                        st.write(f"- **카테고리**: {category_name}")
             
             # 메타데이터 상세 분석
             with st.expander("🔧 메타데이터 상세 분석"):

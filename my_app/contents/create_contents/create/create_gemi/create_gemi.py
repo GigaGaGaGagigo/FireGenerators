@@ -101,7 +101,7 @@ def get_level_from_gemini(term, retries=5):
 # 메인 실행 함수
 def main():
     print("📂 파일을 읽는 중...")
-    with open("./output_by_category/경제.json", "r", encoding="utf-8") as infile:
+    with open("./과학.json", "r", encoding="utf-8") as infile:
         raw_data = json.load(infile)
     
     result = []
@@ -156,7 +156,7 @@ def main():
     
     # 결과 저장, 해당 파일명으로 변경
     print("💾 파일로 저장 중...")
-    with open("contents_경제.json", "w", encoding="utf-8") as outfile:
+    with open("contents_과학.json", "w", encoding="utf-8") as outfile:
         json.dump(result, outfile, ensure_ascii=False, indent=2)
     
     print("✅ Gemini 기반 난이도 분류 및 키워드 추출 완료!")

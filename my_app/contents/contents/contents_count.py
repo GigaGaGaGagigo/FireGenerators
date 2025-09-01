@@ -18,8 +18,8 @@ topic_id_map = {
 files = {
     "경제": "contents_경제.json",
     "사회": "contents_사회.json",
-    "산업": "contents_산업.json",
-    "동향": "contents_동향.json"
+    "과학": "contents_과학.json",
+    "금융": "contents_금융.json"
 }
 
 # 집계용 변수
