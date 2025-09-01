@@ -23,10 +23,12 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # 세션 user_id
-USER_ID = st.session_state.user.id
+#USER_ID = st.session_state.user.id
+
+USER_ID = ""
 
 if USER_ID == "":
-    USER_ID = "62f90625-6e2d-4125-8d22-2214eb0da631"
+    USER_ID = "5eb9789f-bd00-4b3c-8149-bf4652af8540"
 
 
 # 환율확인 함수
