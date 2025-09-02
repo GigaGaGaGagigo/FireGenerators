@@ -1,45 +1,55 @@
-# api 참고 자료
+# ============== Environment ==============
+
+# API
 api_test/
 
-# environment variables
+# environment
 .env
 
-# python virtual environment
+# virtual environment
 .venv/
 venv/
+
+# metadata in macOS
+.DS_Store
 
 # pycache
 *.pyc
 __pycache__/
 
-# metadata in macOS
-.DS_Store
+
+# ================== Data ==================
 
 # sqlite data
 db.sqlite3
 
-# Jupyter 자동 저장 체크포인트
+# Jupyter checkpoints
 .ipynb_checkpoints/
+
+# test files
+test.json
+test.py
+
+# ================ Settings ================
 
 # Streamlit settings
 .streamlit/
 
-# Claude code settings
-CLAUDE.md
-
-# GEMINI code settings
-GEMINI.md
-
-# mcp server
-.mcp.json
-test.json
-
 # vscode settings
 .vscode/
-.venv/
 
-# 민형님 가이드 md
-HOW_TO_FIX_SECRETS.md
-PROJECT_STRUCTURE_REVIEW.md
-PROJECT_STRUCTURE.md
-RAG_IMPLEMENTATION_GUIDE.md
+
+# ================ Extention ================
+
+
+# INFO: personal settings files when committing, turn on to ignore these files
+
+mcp server
+.mcp.json  
+*.md
+*.toml
+.claude**
+.gemini**
+.ruff**
+my_app/chatbot/notebooks/
+my_app/ui/level_quiz/data/generated/

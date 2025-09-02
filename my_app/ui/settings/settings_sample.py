@@ -10,7 +10,7 @@ def render():
     col1, col2 = st.columns([1, 2])
     
     with col1:
-        st.image("https://via.placeholder.com/150x150.png?text=Profile", width=150)
+        st.image('my_app/assets/placeholder.jpg')
         if st.button("프로필 사진 변경"):
             st.info("프로필 사진 변경 기능을 준비 중입니다.")
     
