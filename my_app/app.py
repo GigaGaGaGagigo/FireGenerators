@@ -2,15 +2,15 @@ import sys
 import uuid
 from pathlib import Path
 
+# Add project root to sys.path
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
+
 import streamlit as st
 from streamlit.navigation.page import Page as Page
 from streamlit_option_menu import option_menu
 from supabase import Client, create_client
 from supabase._sync.client import SyncClient
-
-# Add project root to sys.path
-project_root = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(project_root))
 
 # ========================================
 # 🚀 팀원을 위한 개발 가이드
@@ -534,21 +534,17 @@ def route_to_page():
         elif current_page == "quiz":
             try:
                 from ui.level_quiz.quiz import render
-
+                
                 # 환영 메시지 설정
-                if "messages" not in st.session_state or not isinstance(
-                    st.session_state.messages, list
-                ):
+                if "messages" not in st.session_state or not isinstance(st.session_state.messages, list):
                     st.session_state.messages = []
 
                 if not st.session_state.get("quiz_welcome_pushed", False):
-                    st.session_state.messages.append(
-                        {
-                            "id": str(uuid.uuid4()),
-                            "role": "assistant",
-                            "content": "안녕하세요! 금융 지식 퀴즈를 시작해보세요. 아래 버튼으로 시작할 수 있어요.",
-                        }
-                    )
+                    st.session_state.messages.append({
+                        "id": str(uuid.uuid4()),
+                        "role": "assistant",
+                        "content": "안녕하세요! 금융 지식 퀴즈를 시작해보세요. 아래 버튼으로 시작할 수 있어요."
+                    })
                     st.session_state.quiz_welcome_pushed = True
                     st.session_state.streaming = True
                     st.rerun()
@@ -563,17 +559,15 @@ def route_to_page():
         elif current_page == "content":
             try:
                 from ui.contents.user_recommender import render
-
                 render()
             except ImportError as e:
                 st.title("🔥 맞춤형 금융 지식")
                 st.error(f"페이지를 불러올 수 없습니다: {e}")
                 st.info("ui/contents/user_recommender.py 파일을 확인해주세요.")
-
+                
         elif current_page == "rag_recommendation":
             try:
                 from ui.recommendation.rag_recommendation import render
-
                 render()
             except ImportError:
                 st.title("🤖 RAG 맞춤 추천")
@@ -582,15 +576,13 @@ def route_to_page():
         elif current_page == "simulation":
             try:
                 from ui.trading.trading_ui import render
-
                 render()
             except ImportError:
                 st.title("📈 현재 보유주식 AI코칭")
                 st.info("ui/trading/trading_ui.py 파일을 생성해주세요.")
         elif current_page == "analysis":
             try:
-                from ui.analysis.analysis import render  # type: ignore
-
+                from ui.analysis.streamlit_app import render  # type: ignore
                 render()
             except ImportError:
                 st.title("📊 종목 피드백")

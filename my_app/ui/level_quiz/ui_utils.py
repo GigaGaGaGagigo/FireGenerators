@@ -49,18 +49,17 @@ def render_result_card(score: int, total_weight: int, level: str, user_name: str
     </div>
     """, unsafe_allow_html=True)
 
-def render_sidebar_status(TOTAL_QUESTIONS: Optional[int] = None):
+def render_sidebar_status(total_questions: int, score: int, total_weight: int, proficiency: int, user_keywords: list[str]):
     with st.sidebar:
         st.markdown("### 📊 진행 요약")
-        prog = (st.session_state.quiz_index) / (TOTAL_QUESTIONS or 1)
+        prog = (st.session_state.quiz_index) / (total_questions or 1)
         st.progress(min(1.0, prog))
-        st.metric("진행", f"{st.session_state.quiz_index}/{TOTAL_QUESTIONS}")
-        st.metric("획득 점수", f"{st.session_state.quiz_score}/{st.session_state.total_weight or 1}")
-        st.metric("숙련도(0~10)", st.session_state.proficiency)
-        if st.session_state.user_keywords:
+        st.metric("진행", f"{st.session_state.quiz_index}/{total_questions}")
+        st.metric("획득 점수", f"{score}/{total_weight or 1}")
+        st.metric("숙련도(0~10)", proficiency)
+        if user_keywords:
             st.caption("관심사")
-            st.markdown("".join([f"<span class='tag'>{t}</span>" for t in st.session_state.user_keywords]),
-                        unsafe_allow_html=True)
+            st.markdown("".join([f"<span class='tag'>{t}</span>" for t in user_keywords]), unsafe_allow_html=True)
         if "llm_error" in st.session_state:
             st.divider()
             st.caption("🛠 디버그")
