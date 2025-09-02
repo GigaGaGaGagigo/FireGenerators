@@ -44,12 +44,13 @@ test.py
 
 # INFO: personal settings files when committing, turn on to ignore these files
 
-mcp server
-.mcp.json  
-*.md
-*.toml
-.claude**
-.gemini**
-.ruff**
+# .mcp.json  
+# *.md
+# *.toml
+# .claude**
+# .gemini**
+# .ruff**
+.CLAUDE**
+.GEMINI**
 my_app/chatbot/notebooks/
 my_app/ui/level_quiz/data/generated/

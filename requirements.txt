@@ -13,13 +13,8 @@ geographiclib==2.0
 geopy==2.4.1
 gitdb==4.0.12
 GitPython==3.1.45
-google-ai-generativelanguage==0.6.18
-google-api-core==2.25.1
-google-api-python-client==2.179.0
 google-auth==2.40.3
 google-auth-httplib2==0.2.0
-google-genai # 최신 버전 설치
-google-generativeai==0.8.5
 googleapis-common-protos==1.70.0
 gotrue==2.12.3
 grpcio==1.74.0
