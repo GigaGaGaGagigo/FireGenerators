@@ -43,7 +43,6 @@ test.py
 
 
 # INFO: personal settings files when committing, turn on to ignore these files
-
 mcp server
 .mcp.json  
 *.md

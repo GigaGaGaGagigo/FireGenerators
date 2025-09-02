@@ -78,7 +78,7 @@ def render_result_card(score: int, total_weight: int, level: str, user_name: str
 
       <!-- 진행 현황 -->
       <div style="padding:20px;background:#f9fafb;">
-        <div style="font-weight:700;margin-bottom:10px;">📊 단계별 진행 현황</div>
+        <div style="font-weight:700;margin-bottom:10px;">단계별 진행 현황</div>
         <div style="display:flex;justify-content:space-between;gap:8px;margin:10px 0;">
           <div style="flex:1;text-align:center;">
             <div style="font-size:1.5rem;">1️⃣</div>
