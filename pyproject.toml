@@ -1,0 +1,23 @@
+[project]
+name = "firegen"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Your Name",email = "you@example.com"}
+]
+readme = "README.md"
+requires-python = ">=3.10.0,<=3.10.18"
+dependencies = [
+    "streamlit-option-menu (>=0.4.0,<0.5.0)",
+    "ruff (>=0.12.11,<0.13.0)",
+    "python-dotenv (>=1.1.1,<2.0.0)",
+    "langchain-openai (>=0.3.32,<0.4.0)",
+    "annotated-types (>=0.7.0,<0.8.0)",
+    "google-ai-generativelanguage (>=0.6.18,<0.7.0)",
+    "google-genai (>=1.32.0,<2.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

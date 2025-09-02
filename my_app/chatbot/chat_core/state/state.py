@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from typing_extensions import Annotated, Any, Dict, List, Tuple
 
 
-def merge_user_answers(
+def merge_processed_answers(
     left: Dict[str, List[Tuple[str, str]]] | None,
     right: Dict[str, List[Tuple[str, str]]] | None,
 ) -> Dict[str, List[Tuple[str, str]]]:
@@ -24,6 +24,26 @@ def merge_user_answers(
     right = right if isinstance(right, dict) else {}
 
     merged: Dict[str, List[Tuple[str, str]]] = {}
+    for k, v in left.items():
+        merged[k] = list(v)
+
+    for category, answers in right.items():
+        if category in merged:
+            merged[category] = list(merged[category]) + list(answers)
+        else:
+            merged[category] = list(answers)
+
+    return merged
+
+
+def merge_compacted_answers(
+    left: Dict[str, List[str]] | None,
+    right: Dict[str, List[str]] | None,
+) -> Dict[str, List[str]]:
+    left = left if isinstance(left, dict) else {}
+    right = right if isinstance(right, dict) else {}
+
+    merged: Dict[str, List[str]] = {}
     for k, v in left.items():
         merged[k] = list(v)
 
@@ -73,10 +93,18 @@ class OverallState(BaseModel):
     ]
     user_answers_by_category: Annotated[
         Dict[str, List[Tuple[str, str]]],
-        merge_user_answers,
+        merge_processed_answers,
         Field(
             default_factory=dict,
             description="User's answers to questions, grouped by category. Each category contains a list of tuples, each containing the question_id and a tuple of questions and user's answer.",
+        ),
+    ]
+    user_answers_compacted: Annotated[
+        Dict[str, list[str]],
+        merge_compacted_answers,
+        Field(
+            default_factory=dict,
+            description="User's answers to questions, grouped by category. Each category contains a list of strings, each containing the user's compacted answer.",
         ),
     ]
     user_meta_data: Annotated[

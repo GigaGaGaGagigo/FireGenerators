@@ -8,7 +8,7 @@ import time
 import streamlit as st
 from typing_extensions import Any, Dict
 
-from my_app.chatbot.langgraph_core.state import OverallState
+from my_app.chatbot.chat_core.state import OverallState
 
 CATEGORY_KEYS: list[str] = [
     "interests_categories",

@@ -1,0 +1,15 @@
+search-path = ["./my_app"]
+
+project-excludes = [
+    "my_app/feedbeck/**", 
+    "my_app/trading/**", 
+    "my_app/content/**", 
+    "my_app/ui/level_quiz/**", 
+    "my_app/ui/contents/**", 
+    "my_app/ui/simulation/**",
+    "my_app/contents/**",
+    "my_app/quiz_core/**",
+    "my_app/ui/analysis/**",
+    "my_app/rec/**",
+    "my_app/ui/recommendation/**"
+]

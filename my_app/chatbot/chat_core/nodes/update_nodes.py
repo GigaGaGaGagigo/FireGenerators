@@ -2,7 +2,7 @@ import time
 
 from langchain_core.runnables import RunnableConfig
 
-from my_app.chatbot.langgraph_core.state import OverallState
+from my_app.chatbot.chat_core.state import OverallState
 from my_app.chatbot.services import ProfileService
 
 

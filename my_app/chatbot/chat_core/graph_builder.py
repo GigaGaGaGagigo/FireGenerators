@@ -12,9 +12,10 @@ from langchain_core.messages import AnyMessage
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 
-from my_app.chatbot.langgraph_core.nodes import (
+from my_app.chatbot.chat_core.nodes import (
     analyze_user_answers,
     call_llm,
+    compact_user_answer,
     create_followup_qa,
     determine_next_node,
     generate_greeting_message,
@@ -23,7 +24,7 @@ from my_app.chatbot.langgraph_core.nodes import (
     summarize_user_profile,
     update_user_profile,
 )
-from my_app.chatbot.langgraph_core.state import (
+from my_app.chatbot.chat_core.state import (
     InputState,
     OutputState,
     OverallState,
@@ -79,27 +80,16 @@ class GraphBuilder:
             OverallState, input_schema=InputState, output_schema=OutputState
         )
 
-        # "analyze_user_answers",
-        # "create_followup_qa",
-        # "evaluation_analysis_data",
-        # "generate_greeting_message",
-        # "present_predefined_questions",
-        # "process_human_input_tool",
-        # "summarize_user_profile",
-        # "update_profile_status",
-        # "RequestHumanInput",
-
         workflow.add_node("start_chat", generate_greeting_message)
         workflow.add_node("ask_to_new_user", present_predefined_questions)
         workflow.add_node("agent", call_llm)
         workflow.add_node("add_qa", create_followup_qa)
+        workflow.add_node("compact_user_answer", compact_user_answer)
         workflow.add_node("determine_next", determine_next_node)
         workflow.add_node("request_input", process_human_input_tool)
         workflow.add_node("analyze_answers", analyze_user_answers)
         workflow.add_node("update_user_profile", update_user_profile)
         workflow.add_node("summarize_user_profile", summarize_user_profile)
-
-        self.memory = InMemorySaver()
 
         workflow.add_edge(START, "start_chat")
         workflow.add_conditional_edges(
@@ -119,7 +109,8 @@ class GraphBuilder:
             path_map=["request_input", "add_qa", "analyze_answers"],
         )
 
-        workflow.add_edge("request_input", "determine_next")
+        workflow.add_edge("request_input", "compact_user_answer")
+        workflow.add_edge("compact_user_answer", "determine_next")
         workflow.add_edge("determine_next", "agent")
         workflow.add_edge("add_qa", "agent")
         workflow.add_edge("analyze_answers", "update_user_profile")
@@ -129,6 +120,8 @@ class GraphBuilder:
             self._route_after_update,
             path_map=["summarize_user_profile", "ask_to_new_user"],
         )
+
+        self.memory = InMemorySaver()
 
         self.graph = workflow.compile(checkpointer=self.memory)
         return self.graph

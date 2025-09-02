@@ -11,9 +11,8 @@ from typing_extensions import Iterator
 sys.path.append(str(Path(__file__).parents[3]))
 
 try:
-    from my_app.chatbot.langgraph_core.graph_builder import GraphBuilder
-    from my_app.chatbot.langgraph_core.state import InputState
-    from my_app.chatbot.langgraph_core.state.state import OverallState
+    from my_app.chatbot.chat_core.graph_builder import GraphBuilder
+    from my_app.chatbot.chat_core.state import InputState, OverallState
     from my_app.chatbot.services import ProfileService
     from my_app.chatbot.utils import (
         CATEGORY_KEYS,
@@ -207,9 +206,13 @@ def run_graph(
                         isinstance(update["messages"][-1], AIMessage)
                         and update["messages"][-1].content != ""
                     ):
-                        st.session_state["ai"]["last_message"] = update["messages"][
-                            -1
-                        ].content
+                        if isinstance(update["messages"], list):
+                            for message in update["messages"]:
+                                st.session_state["ai"]["last_message"] = message.content
+                        else:
+                            st.session_state["ai"]["last_message"] = update["messages"][
+                                -1
+                            ].content
 
             else:
                 if isinstance(update[0], Interrupt):

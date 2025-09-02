@@ -1,28 +1,30 @@
-from my_app.chatbot.langgraph_core.nodes.analysis_nodes import (
+from my_app.chatbot.chat_core.nodes.analysis_nodes import (
     AnalyzeProfile,
     analyze_user_answers,
+    compact_user_answer,
     evaluate_analysis_result,
     summarize_user_profile,
 )
-from my_app.chatbot.langgraph_core.nodes.message_nodes import (
+from my_app.chatbot.chat_core.nodes.message_nodes import (
     generate_greeting_message,
 )
-from my_app.chatbot.langgraph_core.nodes.qa_nodes import (
+from my_app.chatbot.chat_core.nodes.qa_nodes import (
     GenerateFollowUp,
     create_followup_qa,
     present_predefined_questions,
 )
-from my_app.chatbot.langgraph_core.nodes.tool_nodes import (
+from my_app.chatbot.chat_core.nodes.tool_nodes import (
     RequestHumanInput,
     call_llm,
     determine_next_node,
     process_human_input_tool,
 )
-from my_app.chatbot.langgraph_core.nodes.update_nodes import update_user_profile
+from my_app.chatbot.chat_core.nodes.update_nodes import update_user_profile
 
 __all__: list[str] = [
     "analyze_user_answers",
     "call_llm",
+    "compact_user_answer",
     "create_followup_qa",
     "determine_next_node",
     "evaluate_analysis_result",
