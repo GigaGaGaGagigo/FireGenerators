@@ -25,8 +25,9 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # 세션 user_id
 USER_ID = st.session_state.user.id
 
+
 if USER_ID == "":
-    USER_ID = "62f90625-6e2d-4125-8d22-2214eb0da631"
+    USER_ID = "5eb9789f-bd00-4b3c-8149-bf4652af8540"
 
 
 # 환율확인 함수
@@ -452,9 +453,10 @@ def render ():
 
     st.subheader("🤖 AI 코칭")
     res_latest = (
-        supabase.table("ai_coaching")
+        supabase.table("ai_return")
         .select("*")
         .eq("user_id", USER_ID)
+        .eq("save_type","trading")
         .order("created_at", desc=True)
         .limit(1)
         .execute()
@@ -465,19 +467,46 @@ def render ():
         st.markdown(
             f"📌 최근 AI 코칭 결과 ({latest['created_at'][:10]})"
         )
+        st.text_area("시스템_프롬프트", latest["sys_prompt"], height=300)
+        st.text_area("프롬프트", latest["prompt"], height=300)
         st.write(latest["result"])
         st.divider()
 
     if st.button("AI 코칭 받기"):
-        # 0) 사용자 이름 조회
-        ures = supabase.table("profiles") \
-            .select("name") \
-            .eq("id", USER_ID) \
-            .limit(1) \
-            .execute()
-        name = ures.data[0]["name"]
+        columns = [
+            "name",
+            "investment_goal",
+            "investment_emotions",
+            "interests_categories",
+            "investment_level",
+            "knowledge_level",
+            "user_summary",
+            "knowledge_summary"
+        ]
 
-        
+        # 2) supabase 에서 한 번에 select
+        ures = (
+            supabase
+            .table("profiles")
+            .select(",".join(columns))
+            .eq("id", USER_ID)
+            .limit(1)
+            .execute()
+        )
+
+        # 3) 응답이 비어있지 않다면 data 로 꺼내오기
+        if ures.data and len(ures.data) > 0:
+            data = ures.data[0]
+            name = data["name"]
+            investment_goal       = data["investment_goal"]
+            investment_emotions   = data["investment_emotions"]
+            interests_categories  = data["interests_categories"]
+            investment_level      = data["investment_level"]
+            knowledge_level       = data["knowledge_level"]
+            user_summary          = data["user_summary"]
+            knowledge_summary     = data["knowledge_summary"]
+
+
 
 
         # 1) 최근 거래내역 조회 (10건)
@@ -489,12 +518,16 @@ def render ():
             .execute().data or []
 
         # 2) 프롬프트 기본 문장
-        prompt_lines = [
+        system_message = [
             "당신은 친절하고 논리적인 투자 코치입니다.",
             f"사용자({name})의 최근 거래내역과 오늘 기준 기술지표,펀더멘털,per를 참고하여",
-            "향후 매수·매도 타이밍과 위험 관리 전략을 제안해주는데 주식 초보도 이해할수 있도록 풀어서 설명해주세요.",
-            "예시: “주식 가치가 높으니 100달러까지 보유를 추천…”"
+            "매수·매도 타이밍과 손절가를 제안해주세요.",
+            "기술지표를 어린이도 알기 쉽게 풀어서 설명해 주면서 예상 상승 가격 또는 하락 가격을 알려줘"
         ]
+        full_system_message = "\n".join(system_message)
+
+
+        prompt_lines = []
 
         # 3) 최근 거래내역 요약
         prompt_lines.append("\n=== 최근 거래내역 ===")
@@ -544,19 +577,36 @@ def render ():
                 f"사업개요: {fnd['사업개요']}\n"
             )
 
+
+        system_message = [
+        "당신은 친절하고 논리적인 투자 코치입니다.",
+        f"사용자({name})의 투자 목표: {investment_goal}",
+        f"사용자({name})의 투자 감정: {investment_emotions}",
+        f"사용자({name})의 관심 카테고리: {interests_categories}",
+        f"사용자({name})의 투자 수준: {investment_level}",
+        f"사용자({name})의 금융 지식 수준: {knowledge_level}",
+        f"사용자 요약: {user_summary}",
+        f"지식 요약: {knowledge_summary}",
+        "사용자의 최근 거래내역과 오늘 기준 기술지표, 펀더멘털, PER를 참고하여",
+        "매수·매도 타이밍과 손절가를 제안해주세요."
+        ]
+        full_system_message = "\n".join(system_message)
+        st.text_area("시스템_프롬프트", full_system_message, height=300)
+
+
         full_prompt = "\n".join(prompt_lines)
         st.text_area("프롬프트", full_prompt, height=300)
 
         # 5) OpenAI API 호출
         with st.spinner("AI 코칭 생성 중..."):
             response = client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-5",
                 messages=[
-                    {"role":"system","content":"당신은 투자 코치입니다. 마지막에 반드시 2문장으로 요약해주세요."},
+                    {"role":"system","content": full_system_message},
                     {"role":"user","content": full_prompt}
                 ],
-                temperature=0.7,
-                max_tokens=500
+                max_completion_tokens=6000,
+            timeout=None
             )
 
             ai_text = response.choices[0].message.content
@@ -566,6 +616,8 @@ def render ():
             # ✅ 결과 DB에 저장
             save_data = {
                 "user_id": USER_ID,
+                "save_type": "trading",
+                "sys_prompt": full_prompt,
                 "prompt": full_prompt,
                 "result": ai_text
             }

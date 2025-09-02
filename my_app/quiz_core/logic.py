@@ -1,8 +1,9 @@
 import os, json, re, time, uuid
 import streamlit as st
 
-from my_app.quiz_core.services import chat_json, supabase
+from my_app.quiz_core.services import chat_json, supabase, MODEL_QGEN,MODEL_EVAL,MODEL_SUMMARY
 from my_app.quiz_core.constants import TOPIC_KEYWORDS, GENERATED_DIR
+from my_app.quiz_core.constants import TOTAL_QUESTIONS, COMMON_COUNT,MAX_CONTEXT_TURNS,ROLLING_SUMMARY_MAX_CHARS 
 from my_app.quiz_core.utils import _coerce_mc_options, _get_user_id, _get_user_field, json_cache_key
 from my_app.quiz_core.prompts import (
     SYSTEM_PROMPT_QGEN, USER_PROMPT_QGEN_TMPL, QGEN_SCHEMA,
@@ -83,7 +84,6 @@ def _build_summary_from_agg(agg: dict, level_kor: str, user_keywords: list[str])
         "level": level_kor,
         "summary_sentences": [s1, s2, s3],
         "evidence": evidence,
-        "next_actions": [f"{', '.join(weak_names)} 10문항 보충", "오답노트에 헷갈린 근거 1줄 정리"]
     }
 
 # ---- 파일 저장 ----
@@ -97,24 +97,38 @@ def save_generated_question(q: list[dict], meta: dict):
     except Exception as e:
         print(f"[WARN] 저장 실패: {e}")
 
-# ---- LLM 로직 ----
+# ---- LLM 로직 (교체본) ----
 def generate_next_question(proficiency: int, score: int, max_score: int, wrong_notes: list, history: list, keywords: list):
+    # 1) 최근 N문항만 간략화해서 포함 (슬라이딩 윈도우)
+    tail = history[-MAX_CONTEXT_TURNS:]
     short_hist = [{
-        "q": h["question_text"][:40] + ("..." if len(h["question_text"]) > 40 else ""),
-        "ans": h["answer"], "ua": h["user_answer"], "ok": h["correct"]
-    } for h in history[-5:]]
+        "q": h.get("question_text", "")[:120] + ("..." if len(h.get("question_text","")) > 120 else ""),
+        "ua": h.get("user_answer", ""),
+        "ans": h.get("answer", ""),
+        "ok": bool(h.get("correct")),
+        "w": int(h.get("weight", 1)),
+    } for h in tail]
     history_summary = json.dumps(short_hist, ensure_ascii=False)
+
+    # 2) 롤링 요약(≤300자)을 세션에서 가져와 함께 넘김
+    rolling = (st.session_state.get("rolling_summary") or "").strip()
+    if len(rolling) > ROLLING_SUMMARY_MAX_CHARS:
+        rolling = rolling[:ROLLING_SUMMARY_MAX_CHARS]
+
+    # 3) 기타 보조 컨텍스트
     wrong_summary = " / ".join(wrong_notes[-3:]) if wrong_notes else "없음"
     keywords_str = ", ".join(keywords) if keywords else "기초, 저위험, ETF, 예금, 채권"
 
+    # 4) 프롬프트 구성: “최근 N개 + 롤링요약”만 넘김 (풀 히스토리 금지)
     user_prompt = USER_PROMPT_QGEN_TMPL.format(
         proficiency=proficiency, score=score, max_score=max_score or 1,
         wrong_summary=wrong_summary, history_summary=history_summary, keywords_str=keywords_str
     )
-    data = chat_json(SYSTEM_PROMPT_QGEN, user_prompt, QGEN_SCHEMA)
+
+    data = chat_json(SYSTEM_PROMPT_QGEN, user_prompt, QGEN_SCHEMA, model=MODEL_QGEN)
+
     if not data:
-        st.error("문항 생성 LLM 호출 중 오류가 발생했습니다.")
-        st.stop()
+        raise RuntimeError("문항 생성 실패: LLM 응답 없음")
 
     q_type = (data.get("question_type") or "mcq").lower()
     q = {
@@ -133,12 +147,10 @@ def generate_next_question(proficiency: int, score: int, max_score: int, wrong_n
 
     if q_type == "mcq":
         if not q["question_text"] or len(q["options"]) != 4 or q["answer"] not in {"1","2","3","4"}:
-            st.error("생성된 문항 형식이 유효하지 않습니다.")
-            st.stop()
+            raise ValueError("생성된 문항 형식이 유효하지 않음 (mcq)")
     else:
         if not q["question_text"] or q["answer"].upper() not in {"O","X"}:
-            st.error("생성된 OX 문항 형식이 유효하지 않습니다.")
-            st.stop()
+            raise ValueError("생성된 문항 형식이 유효하지 않음 (ox)")
     return q
 
 def evaluate_answer(question_text: str, options, answer: str, user_answer: str, level:str, proficiency: int):
@@ -146,10 +158,9 @@ def evaluate_answer(question_text: str, options, answer: str, user_answer: str, 
         question_text=question_text, options=options if options else [], answer=answer,
         user_answer=user_answer, level=(level or "easy"), proficiency=proficiency
     )
-    data = chat_json(SYSTEM_PROMPT_EVAL, user_prompt, EVAL_SCHEMA)
+    data = chat_json(SYSTEM_PROMPT_EVAL, user_prompt, EVAL_SCHEMA, model=MODEL_EVAL)
     if not data:
-        st.error("채점용 LLM 호출 중 오류가 발생했습니다.")
-        st.stop()
+        raise ValueError("채점 LLM 결과 JSON 파싱 실패")
 
     return {
         "is_correct": bool(data.get("is_correct")),
@@ -178,7 +189,7 @@ def generate_level_summary_llm(level_eng: str, history: list[dict], total_weight
         history_json=json.dumps(compact, ensure_ascii=False),
         topic_json=json.dumps(topic_json, ensure_ascii=False)
     )
-    data = chat_json(SYSTEM_PROMPT_SUMMARY, user_prompt, SUMMARY_SCHEMA)
+    data = chat_json(SYSTEM_PROMPT_SUMMARY, user_prompt, SUMMARY_SCHEMA, model=MODEL_SUMMARY)
     if not data:
         return None
     level = str(data.get("level", "")).strip()
@@ -188,24 +199,27 @@ def generate_level_summary_llm(level_eng: str, history: list[dict], total_weight
     if not isinstance(summaries, list) or len(summaries) < 3:
         return None
     return {"level": level, "summary_sentences": summaries[:3],
-            "evidence": data.get("evidence"), "next_actions": data.get("next_actions")}
+            "evidence": data.get("evidence")}
 
 # ---- 결과 저장 ----
 def save_result(score, level, level_summary):
     """
-    퀴즈 결과 + LLM 요약(level_summary)을 함께 저장.
-    - quiz_results 테이블에 summary_sentences, evidence, next_actions 컬럼이 JSON으로 있어야 함.
+    퀴즈 결과 + LLM 요약(level_summary)을 저장.
+    - quiz_results: 상세 로그 보관 (summary_sentences, evidence → jsonb 컬럼)
+    - profiles: knowledge_level, knowledge_summary 최신화 (knowledge_summary는 text 컬럼)
     """
     user = st.session_state.get("user")
     if not user or not supabase:
         return None
+
+    # (1) 사용자 정보
     user_id = _get_user_id(user)
     try:
         res = supabase.table("profiles").select("name, role").eq("id", user_id).execute()
         if res.data:
             user_data = res.data[0]
-            user_name = user_data["name"] if isinstance(user_data, dict) else getattr(user_data, "name", "Anonymous")
-            st.session_state.role = user_data.get("role", "User") if isinstance(user_data, dict) else getattr(user_data, "role", "User")
+            user_name = user_data.get("name") or "Anonymous"
+            st.session_state.role = user_data.get("role", "User")
         else:
             user_name = "Anonymous"
             if not isinstance(st.session_state.role, str):
@@ -213,16 +227,45 @@ def save_result(score, level, level_summary):
     except Exception:
         user_name = "Anonymous"
 
+    # (2) 요약 정리
+    summary_sentences = (level_summary or {}).get("summary_sentences")
+    evidence = (level_summary or {}).get("evidence")
+
+    # text 컬럼에 맞게 변환
+    def _summary_for_profiles(val):
+        if val is None:
+            return None
+        if isinstance(val, list):
+            return "\n".join(val)  # text 컬럼이므로 문자열로 변환
+        return str(val)
+
+    # (3) quiz_results 로그 적재 (jsonb 컬럼)
     try:
         supabase.table("quiz_results").insert({
             "user_id": user_id,
             "user_name": user_name,
             "score": score,
-            "level": level,
-            "summary_sentences": (level_summary or {}).get("summary_sentences"),
-            "evidence": (level_summary or {}).get("evidence"),
-            "next_actions": (level_summary or {}).get("next_actions"),
+            "level": level,  # 그대로 저장 (beginner/intermediate/advanced)
+            "summary_sentences": summary_sentences,
+            "evidence": evidence
         }).execute()
     except Exception:
-        return None
-    return {"user_name": user_name, "score": score, "level": level}
+        pass
+
+    # (4) profiles 업데이트 (없으면 upsert)
+    update_payload = {
+        "knowledge_level": level,
+        "knowledge_summary": _summary_for_profiles(summary_sentences),
+    }
+
+    try:
+        upd = supabase.table("profiles").update(update_payload).eq("id", user_id).execute()
+        if not upd.data:  # 업데이트된 행이 없으면 upsert
+            supabase.table("profiles").upsert({
+                "id": user_id,
+                **update_payload
+            }).execute()
+    except Exception:
+        return {"user_name": user_name, "score": score, "level": level, "updated": False}
+
+    return {"user_name": user_name, "score": score, "level": level, "updated": True}

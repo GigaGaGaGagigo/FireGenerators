@@ -61,11 +61,11 @@ ANALYSIS_WINDOW_DAYS = int(FEEDBACK.get("analysis_window_days", 7))
 # Supabase 초기화
 # =========================
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_ANON_KEY")  # 또는 SERVICE_ROLE_KEY
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")  # 또는 SERVICE_ROLE_KEY
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise RuntimeError(
-        "Supabase URL/KEY가 설정되지 않았습니다. .env에 SUPABASE_URL, SUPABASE_ANON_KEY를 설정하세요."
+        "Supabase URL/KEY가 설정되지 않았습니다. .env에 SUPABASE_URL, SUPABASE_KEY 설정하세요."
     )
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -725,7 +725,7 @@ st.caption("pykrx / yfinance / pandas-ta / Supabase / Gemini 기반 분석")
 with st.sidebar:
     st.header("환경 상태")
     ok_url = bool(os.environ.get("SUPABASE_URL"))
-    ok_key = bool(os.environ.get("SUPABASE_ANON_KEY"))
+    ok_key = bool(os.environ.get("SUPABASE_KEY"))
     ok_gem = bool(os.environ.get("GOOGLE_API_KEY"))
 
     st.write(f"Supabase URL: {'✅' if ok_url else '❌'}")

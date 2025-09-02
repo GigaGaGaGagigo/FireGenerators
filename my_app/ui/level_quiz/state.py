@@ -29,6 +29,8 @@ def init_quiz_state():
         "timing_eval_total": 0.0,
         "timing_eval_n": 0,
         "timing_summary": 0.0,
+        "rolling_summary": "",   # 🔹 요약(≤300자)을 누적 유지
+        "context_mode": "rolling+window",  # 모드 A/B 테스트 용
     }
     for k, v in defaults.items():
         if k not in st.session_state:

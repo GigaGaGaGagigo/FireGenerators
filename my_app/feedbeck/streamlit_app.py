@@ -1,127 +1,134 @@
 import streamlit as st
 from dotenv import load_dotenv
 import os
-import uuid
+import pandas as pd
 from supabase import create_client
 from auto_trade_feedback import auto_trade_feedback
 
+# .env 파일 로드
 load_dotenv()
 
+# Supabase 클라이언트 초기화
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_ANON_KEY")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-st.title("🔧 AutoTrade Feedback 테스트 대시보드 (with DEBUG)")
+# 고정된 사용자 ID
+FIXED_USER_ID = "04918ed9-4175-4b9d-adf8-1956f6dc8168"
 
-tabs = st.tabs(["1) 프로필 생성", "2) Trade 입력", "3) 분석 실행", "4) 테이블 조회"])
+def get_user_traded_stocks(user_id: str) -> list[str]:
+    """사용자가 거래한 모든 주식 종목의 리스트를 반환합니다."""
+    try:
+        res = supabase.table("trade_history").select("symbol").eq("user_id", user_id).execute()
+        if res.data:
+            # 중복을 제거하고 정렬된 리스트 반환
+            return sorted(list(set([item['symbol'] for item in res.data])))
+        return []
+    except Exception as e:
+        st.error(f"거래 종목을 불러오는 데 실패했습니다: {e}")
+        return []
 
+def get_user_profile(user_id: str) -> dict:
+    """사용자 프로필 정보를 가져옵니다."""
+    try:
+        profile_res = supabase.table("profiles").select("*").eq("id", user_id).single().execute()
+        return profile_res.data or {}
+    except Exception as e:
+        st.error(f"프로필 정보를 불러오는 데 실패했습니다: {e}")
+        return {}
 
-# --- 1) 프로필 생성 ---
-with tabs[0]:
-    st.subheader("신규 사용자(Profiles) 생성")
-    col1, col2 = st.columns(2)
-    with col1:
-        name = st.text_input("name")
-        email = st.text_input("email")
-        age = st.number_input("age", 1, 150, 29)
-    with col2:
-        investment_level = st.selectbox("투자등급", ['beginner', 'intermediate', 'advanced', 'expert'])
-        preferred_tone = st.selectbox("tone", ['friendly','expert','youth','serious'])
-        risk_profile = st.selectbox("risk_profile",['conservative','normal','aggressive'])
+# --- Streamlit UI ---
+st.title("📈 종목 피드백")
 
-    if st.button("Profiles 생성"):
-        new_id = str(uuid.uuid4())
-        supabase.table("profiles").insert({
-            "id": new_id,
-            "email": email,
-            "name": name,
-            "age": age,
-            "investment_level": investment_level,
-            "preferred_tone": preferred_tone,
-            "risk_profile": risk_profile
-        }).execute()
-        st.success(f"✅ 생성 완료! user_id = {new_id}")
+# 사용자 정보 가져오기
+user_profile = get_user_profile(FIXED_USER_ID)
+traded_stocks = get_user_traded_stocks(FIXED_USER_ID)
 
+if not user_profile:
+    st.error(f"ID={FIXED_USER_ID} 사용자를 찾을 수 없습니다. 앱을 계속할 수 없습니다.")
+    st.stop()
 
-# --- 2) Trade 입력 ---
-with tabs[1]:
-    st.subheader("거래 입력 (trade_history)")
-    user_id = st.text_input("user_id")
-    symbol  = st.text_input("symbol (예:005930)")
-    market  = st.selectbox("market", ['KR','US'])
-    action  = st.selectbox("action", ['buy','sell'])
-    price   = st.number_input("price", step=0.01)
-    qty     = st.number_input("qty", value=0.0)
-    commission = st.number_input("commission", value=0.0)
+if not traded_stocks:
+    st.warning("아직 거래 기록이 없습니다. 피드백을 받으려면 먼저 거래를 입력해주세요.")
+    st.stop()
 
-    if st.button("거래 INSERT"):
-        res = supabase.table("trade_history").insert({
-            "user_id": user_id,
-            "symbol": symbol,
-            "market": market,
-            "action": action,
-            "price": price,
-            "qty": qty,
-            "commission": commission
-        }).execute()
-        st.success(f"✅ 입력 성공 trade_id = {res.data[0]['id']}")
+st.markdown("피드백을 받고 싶은 종목과 피드백의 스타일을 선택하세요.")
 
+# UI 컨트롤
+selected_stock = st.selectbox(
+    "종목 선택",
+    options=traded_stocks,
+    help="피드백을 받고 싶은 거래 이력이 있는 종목을 선택하세요."
+)
 
-# --- 3) 분석 실행 ---
-with tabs[2]:
-    st.subheader("자동 Feedback 실행 (debug mode)")
-    trade_id = st.number_input("trade_id", step=1, value=1)
-    user_id2 = st.text_input("user_id(분석용)")
-    selected_tone = st.selectbox("tone", ['friendly','expert','youth','serious'], key="tone_select_1")
-    use_llm = st.checkbox("AI코칭 (Gemini)", value=False)
+# 사용자 프로필 기반으로 기본값 설정
+default_tone_index = ['friendly', 'expert', 'youth', 'serious'].index(user_profile.get("preferred_tone", "friendly"))
+default_risk_index = ['conservative', 'normal', 'aggressive'].index(user_profile.get("risk_profile", "normal"))
 
-    # ✅ 디버그: 현재 LLM 스위치/키 유무 보여주기
-    st.caption(f"use_llm={use_llm}, GOOGLE_API_KEY set={bool(os.getenv('GOOGLE_API_KEY'))}")
+selected_tone = st.selectbox(
+    "Tone (피드백 어조)",
+    options=['friendly', 'expert', 'youth', 'serious'],
+    index=default_tone_index,
+    help="피드백 메시지의 어조를 선택합니다."
+)
 
-    if st.button("분석 실행"):
-        # DEBUG: 입력값 먼저 출력
-        st.write("==== 입력값 확인 ====")
-        st.write("trade_id :", trade_id)
-        st.write("user_id  :", user_id2)
+selected_risk_profile = st.selectbox(
+    "Risk Profile (투자 성향)",
+    options=['conservative', 'normal', 'aggressive'],
+    index=default_risk_index,
+    help="설정된 투자 성향입니다. 피드백 생성 시 참고됩니다."
+)
 
-        # DB 조회 결과 출력
-        trade = supabase.table("trade_history").select("*").eq("id", trade_id).single().execute().data
-        user  = supabase.table("profiles").select("*").eq("id", user_id2).single().execute().data
-        st.write("trade record:", trade)
-        st.write("user record:", user)
+if st.button("피드백하기"):
+    if selected_stock:
+        with st.spinner("최신 거래를 기반으로 피드백을 생성하는 중입니다..."):
+            try:
+                # 선택된 종목의 가장 최근 거래 기록 가져오기
+                latest_trade_res = supabase.table("trade_history") \
+                    .select("id") \
+                    .eq("user_id", FIXED_USER_ID) \
+                    .eq("symbol", selected_stock) \
+                    .order("id", desc=True) \
+                    .limit(1) \
+                    .single() \
+                    .execute()
 
-        try:
-            fmsg, url, ai = auto_trade_feedback(trade_id, user_id2, selected_tone, use_llm)
-            st.success("=== auto_trade_feedback 실행 성공 ===")
-            st.write("Rule-Feedback =>", fmsg)
-
-            if url:
-                st.image(url, caption="Chart")
-            else:
-                st.warning("차트 URL이 없습니다. (Storage 업로드/퍼블릭 설정 확인)")
-
-            # ✅ LLM 결과 항상 영역을 만들어 보여주기 (빈 경우에도)
-            if use_llm:
-                if ai:
-                    st.info(ai)
+                if not latest_trade_res.data:
+                    st.error("해당 종목의 거래 기록을 찾을 수 없습니다.")
                 else:
-                    st.warning("AI 코칭 결과가 비어있습니다. (LLM 호출이 실패했거나 빈 응답)")
-        except Exception as e:
-            st.error(f"분석 도중 예외 발생 => {e}")
+                    trade_id = latest_trade_res.data['id']
 
-# --- 4) 테이블 조회 ---
-with tabs[3]:
-    st.subheader("📄 테이블 조회")
-    colA, colB = st.columns(2)
-    with colA:
-        st.write("profiles")
-        pf = supabase.table("profiles").select("*").limit(20).execute().data
-        st.table(pf)
-    with colB:
-        st.write("trade_history")
-        th = supabase.table("trade_history").select("*").order("id", desc=True).limit(20).execute().data
-        st.table(th)
+                    # 피드백 함수 호출 (LLM 사용 활성화)
+                    fmsg, url, ai_feedback, llm_prompt = auto_trade_feedback(trade_id, FIXED_USER_ID, selected_tone, use_llm=True)
 
-    st.write("trade_feedback")
-    tf = supabase.table("trade_feedback").select("*").order("id", desc=True).limit(20).execute().data
-    st.table(tf)
+                    st.divider()
+                    st.subheader("📝 입력된 정보")
+                    st.text(f"- 종목: {selected_stock}")
+                    st.text(f"- Tone: {selected_tone}")
+                    st.text(f"- Risk Profile: {selected_risk_profile}")
+                    st.text(f"- 분석 기준 Trade ID: {trade_id}")
+
+
+                    st.divider()
+                    st.subheader("💬 피드백 결과")
+
+                    # 결과 출력
+                    st.info(f"**[규칙 기반 피드백]**\n{fmsg}")
+
+                    if ai_feedback:
+                        st.success(f"**[AI 코칭]**\n{ai_feedback}")
+                        if llm_prompt:
+                            with st.expander("LLM 프롬프트 보기"):
+                                st.text_area("LLM Prompt", llm_prompt, height=300)
+                    else:
+                        st.warning("AI 코칭 결과가 없습니다. LLM 호출에 실패했거나 빈 응답일 수 있습니다.")
+
+                    # if url:
+                    #     st.image(url, caption="관련 차트")
+                    # else:
+                    #     st.warning("차트 이미지를 가져올 수 없습니다.")
+
+            except Exception as e:
+                st.error(f"피드백 생성 중 오류가 발생했습니다: {e}")
+    else:
+        st.warning("피드백을 생성하려면 먼저 종목을 선택해야 합니다.")
