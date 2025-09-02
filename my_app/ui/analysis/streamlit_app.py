@@ -14,10 +14,12 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # 세션 user_id
-FIXED_USER_ID = st.session_state.user.id
+#FIXED_USER_ID = st.session_state.user.id
+
+FIXED_USER_ID = ""
 
 if FIXED_USER_ID == "":
-    FIXED_USER_ID = "62f90625-6e2d-4125-8d22-2214eb0da631"
+    FIXED_USER_ID = "5eb9789f-bd00-4b3c-8149-bf4652af8540"
 
 def get_user_traded_stocks(user_id: str) -> list[str]:
     """사용자가 거래한 모든 주식 종목의 리스트를 반환합니다."""

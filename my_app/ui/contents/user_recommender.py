@@ -16,6 +16,14 @@ contents_rec_path = os.path.join(str(project_root), "contents", "recommendation"
 if contents_rec_path not in sys.path:
     sys.path.insert(0, contents_rec_path)
 
+from contents.recommendation.hybrid_recommender_v2 import (
+    get_hybrid_recommendations,
+    validate_user_input,
+    get_recommendation_summary,
+    adjust_level_by_emotion
+)
+from contents.recommendation.data_access import load_all_cards
+from contents.recommendation.explanation_generator import generate_explanation
 try:
     from contents.recommendation.hybrid_recommender_v2 import (
         get_hybrid_recommendations,
