@@ -33,21 +33,81 @@ def inject_styles():
     """, unsafe_allow_html=True)
 
 def render_result_card(score: int, total_weight: int, level: str, user_name: str | None = None):
+    import streamlit as st
+
+    lvl_key = (level or "").strip().lower()
+    pct = round((score / (total_weight or 1)) * 100)
+
+    # ----- 단계별 스타일 / 메시지 -----
+    lvl_map = {
+        "beginner": {
+            "label": "Beginner",
+            "title": "1단계",
+            "color": "#EF4444",
+            "bg": "linear-gradient(135deg, rgba(239,68,68,.9), rgba(239,68,68,.7))",
+            "guide": "기초 금융 지식이 더 필요합니다. 기본 개념부터 차근차근 학습해보세요."
+        },
+        "intermediate": {
+            "label": "Intermediate",
+            "title": "2단계",
+            "color": "#F59E0B",
+            "bg": "linear-gradient(135deg, rgba(245,158,11,.9), rgba(245,158,11,.7))",
+            "guide": "중급 수준의 금융 지식을 보유하고 있습니다. 분산 투자, 리스크 관리 개념을 강화해보세요."
+        },
+        "advanced": {
+            "label": "Advanced",
+            "title": "3단계",
+            "color": "#10B981",
+            "bg": "linear-gradient(135deg, rgba(16,185,129,.9), rgba(16,185,129,.7))",
+            "guide": "높은 수준의 금융 지식을 보유하고 있습니다. 심화된 자산배분 전략과 FIRE 개념을 실천해보세요."
+        }
+    }
+    theme = lvl_map.get(lvl_key, lvl_map["intermediate"])
+    name_html = f"<span style='opacity:.7'>({user_name})</span>" if user_name else ""
+
     st.balloons()
-    name = f" <span style='opacity:.7'>( {user_name} )</span>" if user_name else ""
     st.markdown(f"""
-    <div style="border:1px solid rgba(148,163,184,.28); border-radius:16px; padding:18px; margin-top:8px;
-                background:linear-gradient(135deg, rgba(99,102,241,.08), rgba(16,185,129,.08));">
-      <div style="font-weight:800;font-size:1.1rem;margin-bottom:6px;">🎉 금융 퀴즈 완료{name}</div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;margin:8px 0 2px 0;">
-        <span style="padding:6px 12px;border-radius:999px;border:1px solid rgba(148,163,184,.35);background:white;">
-          🏆 점수 <b>{score}</b> / {total_weight}</span>
-        <span style="padding:6px 12px;border-radius:999px;border:1px solid rgba(148,163,184,.35);background:white;">
-          🧠 레벨 <b>{level}</b></span>
+    <div style="border-radius:18px;overflow:hidden;
+                box-shadow:0 4px 14px rgba(0,0,0,.15);margin:16px 0;">
+      <!-- 상단 큰 단계 표시 -->
+      <div style="background:{theme['bg']};padding:28px;text-align:center;color:white;">
+        <div style="font-size:2.2rem;font-weight:900;">{theme['title']}</div>
+        <div style="font-size:1.3rem;margin-top:4px;">{theme['label']} 단계</div>
+        <div style="margin-top:8px;opacity:.9;">🎉 금융 퀴즈 완료 {name_html}</div>
       </div>
-      <div style="margin-top:12px;opacity:.85">이제 대시보드에서 다음 단계를 진행해보세요.</div>
+
+      <!-- 진행 현황 -->
+      <div style="padding:20px;background:#f9fafb;">
+        <div style="font-weight:700;margin-bottom:10px;">단계별 진행 현황</div>
+        <div style="display:flex;justify-content:space-between;gap:8px;margin:10px 0;">
+          <div style="flex:1;text-align:center;">
+            <div style="font-size:1.5rem;">1️⃣</div>
+            <div style="font-size:.9rem;">Beginner</div>
+          </div>
+          <div style="flex:1;text-align:center;">
+            <div style="font-size:1.5rem;">2️⃣</div>
+            <div style="font-size:.9rem;">Intermediate</div>
+          </div>
+          <div style="flex:1;text-align:center;">
+            <div style="font-size:1.5rem;">3️⃣</div>
+            <div style="font-size:.9rem;">Advanced</div>
+          </div>
+        </div>
+        <div style="margin-top:6px;background:rgba(148,163,184,.3);height:10px;border-radius:999px;overflow:hidden;">
+          <div style="width:{pct}%;height:100%;background:{theme['color']};"></div>
+        </div>
+        <div style="margin-top:6px;opacity:.85;">점수 {score}/{total_weight} · 정답률 {pct}%</div>
+      </div>
+
+      <!-- 상세 가이드 -->
+      <div style="padding:20px;background:white;">
+        <div style="font-weight:700;margin-bottom:8px;">📖 현재 단계 상세 가이드</div>
+        <div style="line-height:1.55;opacity:.9;">{theme['guide']}</div>
+      </div>
     </div>
     """, unsafe_allow_html=True)
+
+
 
 def render_sidebar_status(total_questions: int, score: int, total_weight: int, proficiency: int, user_keywords: list[str]):
     with st.sidebar:
