@@ -136,11 +136,11 @@ def save_trade(
         "symbol":     symbol.upper(),
         "market":     market,
         "price":      price,
-        "quantity":     quantity,
+        "qty":        quantity,
         "action":     action.lower(),
         "trade_time": trade_time.isoformat(),
         "commission": commission,
-        "memo":       memo
+        # "memo": memo (에러나서 주석처리함)
     }
     res = supabase.table("trade_history").insert(data).execute()
 
@@ -234,10 +234,10 @@ def get_holdings_data(user_id: str):
 
     # 1) 매수/매도 집계 → 순보유량
     buy_df = df[df.action=="buy"].groupby(["symbol","market"]) \
-               .agg(avg_price=("price","mean"), qty_buy=("quantity","sum")) \
+               .agg(avg_price=("price","mean"), qty_buy=("qty","sum")) \
                .reset_index()
     sell_df= df[df.action=="sell"].groupby(["symbol","market"]) \
-               .agg(qty_sell=("quantity","sum")) \
+               .agg(qty_sell=("qty","sum")) \
                .reset_index()
     merged = buy_df.merge(sell_df, how="left", on=["symbol","market"])
     merged.qty_sell = merged.qty_sell.fillna(0)
@@ -401,7 +401,7 @@ def render():
             sym, mk = t["symbol"], t["market"]
             action = t["action"].upper()
             dt = t["trade_time"][:10]
-            vol, pr = t["quantity"], t["price"]
+            vol, pr = t["qty"], t["price"]
             cur_price = fetch_current_price(sym, mk)
             prompt_lines.append(
                 f"- {dt} {action} {sym}/{mk} {vol}주 @ {pr:.2f}, 현재가 {cur_price:.2f}"

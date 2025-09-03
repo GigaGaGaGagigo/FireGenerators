@@ -267,7 +267,7 @@ with st.expander("▶ 1년치 주간 시뮬레이션 설정"):
     test_market = st.selectbox("시장", ["US", "KR"], index=0)
     # 1년 전부터 오늘까지
     end_date = date.today()
-    start_date = end_date - datetime.timedelta(days=365)
+    start_date = end_date - datetime.timedelta(days=180)
     st.write(f"테스트 기간: {start_date} ~ {end_date}")
     run_btn = st.button("시뮬레이션 실행")
 
@@ -295,7 +295,7 @@ if run_btn:
         df_price = df_price.rename(columns={"Close":"종가","High":"고가","Low":"저가","Volume":"거래량"})
         df_price.index = df_price.index.tz_localize(None)
         df_price = df_price.loc[:snapshot_date].dropna()
-        if len(df_price) < 120:  # 최소 데이터량 체크
+        if len(df_price) < 30:  # 최소 데이터량 체크
             continue
 
         # 3) 인덱스, 현재가
@@ -344,12 +344,12 @@ if run_btn:
 
         # 실제 API 호출 (테스트 양이 많으면 속도/비용을 고려하세요)
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5",
             messages=[
                 {"role":"system","content":full_system_message},
                 {"role":"user","content": full_prompt}
             ],
-            temperature=0.7
+            timeout=None
         )
         ai_json = response.choices[0].message.content
         # st.write("각결과 확인:", ai_json)
@@ -405,6 +405,28 @@ if run_btn:
     df_res = pd.DataFrame(records)
     st.subheader("▶ 백테스트 결과 (주간 시뮬레이션)")
     st.dataframe(df_res)
+
     # 요약 통계
-    st.write("평균 실제 매수 수익률:", df_res["real_buy_pct"].mean())
-    st.write("평균 실제 매도 수익률:", df_res["real_sell_pct"].mean())
+    mean_buy = df_res["real_buy_pct"].mean()
+    mean_sell = df_res["real_sell_pct"].mean()
+    st.write("평균 실제 매수 수익률: ", f"{mean_buy:.2f}%")
+    st.write("평균 실제 매도 수익률: ", f"{mean_sell:.2f}%")
+
+    # ─── Sharpe Ratio 계산 ───
+    # 1) 퍼센트->소수(예: 5% → 0.05)
+    buy_rets  = df_res["real_buy_pct"].dropna()  / 100
+    sell_rets = df_res["real_sell_pct"].dropna() / 100
+
+    # 2) 샤프 비율: (평균수익 / 수익표준편차) * sqrt(주간 빈도 연환산 √52)
+    import numpy as np
+    if len(buy_rets) > 1:
+        sharpe_buy = buy_rets.mean() / buy_rets.std() * np.sqrt(52)
+        st.write("Annualized Sharpe Ratio (매수 시뮬레이션):", f"{sharpe_buy:.2f}")
+    else:
+        st.write("매수 시뮬레이션 샤프 계산: 데이터 부족")
+
+    if len(sell_rets) > 1:
+        sharpe_sell = sell_rets.mean() / sell_rets.std() * np.sqrt(52)
+        st.write("Annualized Sharpe Ratio (매도 시뮬레이션):", f"{sharpe_sell:.2f}")
+    else:
+        st.write("매도 시뮬레이션 샤프 계산: 데이터 부족")

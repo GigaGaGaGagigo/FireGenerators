@@ -24,10 +24,14 @@ def generate_explanation(level: str, content_title: str, content_description: st
     """
     Gemini를 사용하여 레벨별 맞춤 설명 생성
     """
-    # Google API 키 불러오기
-    api_key = os.getenv("GOOGLE_API_KEY")
+    # GEMINI API 키 불러오기
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        raise ValueError("환경변수 GOOGLE_API_KEY가 설정되지 않았습니다.")
+        raise ValueError("환경변수 GEMINI_API_KEY가 설정되지 않았습니다.")
+
+    # Google Application Credentials 환경변수 제거 (충돌 방지)
+    if 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ:
+        del os.environ['GOOGLE_APPLICATION_CREDENTIALS']
 
     # LLM 초기화
     llm_client = ChatGoogleGenerativeAI(

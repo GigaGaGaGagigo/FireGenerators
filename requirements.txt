@@ -18,7 +18,7 @@ google-api-core==2.25.1
 google-api-python-client==2.179.0
 google-auth==2.40.3
 google-auth-httplib2==0.2.0
-google-genai==1.31.0
+google-genai # 최신 버전 설치
 google-generativeai==0.8.5
 googleapis-common-protos==1.70.0
 gotrue==2.12.3
@@ -31,7 +31,7 @@ jsonpatch==1.33
 jsonpointer==3.0.0
 kiwipiepy==0.21.0
 kiwipiepy_model==0.21.0
-langchain==0.3.27
+langchain==0.3.74 # 버전 수정 
 langchain-core==0.3.74
 langchain-google-genai==2.1.9
 langchain-openai==0.3.30
@@ -61,9 +61,7 @@ ormsgpack==1.10.0
 pandas==2.3.1
 pdf2image==1.17.0
 pillow==11.3.0
-pinecone-client==6.0.0
-pinecone-plugin-interface==0.0.7
-pinecone-text==0.10.0
+pinecone==5.0.1 # pinecone 추가(이전 pinecone 관련 라이브러리 다 삭제)
 postgrest==1.1.1
 proto-plus==1.26.1
 protobuf==5.29.5
@@ -104,3 +102,6 @@ zstandard==0.23.0
 finance-datareader
 pandas_ta
 faiss-cpu
+pydantic==2.11.7 # 추가 
+sentence-transformers==5.1.0 #추가
+transformers==4.44.2 # 추가
