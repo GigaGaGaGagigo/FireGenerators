@@ -15,7 +15,7 @@ gitdb==4.0.12
 GitPython==3.1.45
 google-auth==2.40.3
 google-auth-httplib2==0.2.0
-google-genai # 최신 버전 설치
+google-genai==1.31.0
 google-generativeai==0.8.5
 googleapis-common-protos==1.70.0
 gotrue==2.12.3
@@ -28,8 +28,8 @@ jsonpatch==1.33
 jsonpointer==3.0.0
 kiwipiepy==0.21.0
 kiwipiepy_model==0.21.0
-langchain==0.3.74 # 버전 수정 
-langchain-core==0.3.74
+langchain==0.3.27
+langchain-core==0.3.75
 langchain-google-genai==2.1.9
 langchain-openai==0.3.30
 langchain-teddynote==0.3.45
@@ -58,7 +58,7 @@ ormsgpack==1.10.0
 pandas==2.3.1
 pdf2image==1.17.0
 pillow==11.3.0
-pinecone==5.0.1 # pinecone 추가(이전 pinecone 관련 라이브러리 다 삭제)
+pinecone==5.0.1 
 postgrest==1.1.1
 proto-plus==1.26.1
 protobuf==5.29.5
@@ -96,9 +96,11 @@ watchdog==6.0.0
 websockets==15.0.1
 xxhash==3.5.0
 zstandard==0.23.0
-finance-datareader
-pandas_ta
-faiss-cpu
-pydantic==2.11.7 # 추가 
-sentence-transformers==5.1.0 #추가
-transformers==4.44.2 # 추가
+finance-datareader==0.9.55
+pandas_ta==0.3.14b
+faiss-cpu==1.12.0
+pydantic==2.11.7
+sentence-transformers==5.1.0
+transformers==4.56.0
+tokenizers==0.20.3
+langchain-upstage==0.7.3

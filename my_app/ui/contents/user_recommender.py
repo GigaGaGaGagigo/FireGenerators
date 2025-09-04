@@ -160,6 +160,92 @@ def safe_tags(tags):
     if isinstance(tags, str): return [t.strip() for t in tags.split(",") if t.strip()]
     return [str(tags)]
 
+def get_emotion_status(emotion_score):
+    """감정 점수를 사용자 친화적인 표현으로 변환"""
+    if emotion_score >= 30:
+        return {
+            "status": "매우 긍정적",
+            "emoji": "😊",
+            "description": "투자에 대한 기대감이 높은 상태",
+            "color": "#28a745",
+            "range": "30점 이상"
+        }
+    elif emotion_score >= 10:
+        return {
+            "status": "긍정적", 
+            "emoji": "🙂",
+            "description": "투자에 대해 낙관적인 마음가짐",
+            "color": "#20c997",
+            "range": "10~29점"
+        }
+    elif emotion_score >= -10:
+        return {
+            "status": "중립적",
+            "emoji": "😐", 
+            "description": "평온하고 균형잡힌 투자 심리",
+            "color": "#6c757d",
+            "range": "-10~9점"
+        }
+    elif emotion_score >= -30:
+        return {
+            "status": "다소 불안",
+            "emoji": "😟",
+            "description": "투자에 대한 약간의 우려가 있는 상태",
+            "color": "#fd7e14",
+            "range": "-30~-11점"
+        }
+    else:
+        return {
+            "status": "불안감 높음",
+            "emoji": "😔",
+            "description": "투자에 대한 걱정이 많은 상태",
+            "color": "#dc3545",
+            "range": "-30점 미만"
+        }
+
+def get_risk_tolerance_status(risk_score):
+    """위험 허용도를 사용자 친화적인 표현으로 변환"""
+    if risk_score >= 80:
+        return {
+            "status": "적극적 투자 성향",
+            "emoji": "🚀",
+            "description": "높은 수익을 위해 큰 위험도 감수할 수 있음",
+            "color": "#dc3545",
+            "range": "80점 이상"
+        }
+    elif risk_score >= 60:
+        return {
+            "status": "공격적 투자 성향",
+            "emoji": "📈",
+            "description": "적당한 위험을 감수하며 수익 추구",
+            "color": "#fd7e14",
+            "range": "60~79점"
+        }
+    elif risk_score >= 40:
+        return {
+            "status": "균형 잡힌 투자 성향",
+            "emoji": "⚖️",
+            "description": "안정성과 수익성의 적절한 균형 선호",
+            "color": "#20c997",
+            "range": "40~59점"
+        }
+    elif risk_score >= 20:
+        return {
+            "status": "보수적 투자 성향",
+            "emoji": "🛡️",
+            "description": "안정성을 중시하며 낮은 위험 선호",
+            "color": "#6f42c1",
+            "range": "20~39점"
+        }
+    else:
+        return {
+            "status": "매우 보수적 투자 성향",
+            "emoji": "🏦",
+            "description": "원금 보장을 최우선으로 하는 안전 투자",
+            "color": "#28a745",
+            "range": "20점 미만"
+        }
+
 # ==================
 # Gemini를 활용한 감정 점수 분석
 # ==================
@@ -185,7 +271,7 @@ def analyze_emotion_score_with_gemini(emotions_text):
         
         평가 기준:
         - 긍정적 감정 (기대감, 설렘, 자신감, 희망 등): +점수
-        - 부정적 감정 (불안감, 걱정, 후회, 두려움 등): -점수
+        - 부정적 감정 (불안감, 걱정, 두려움 등): -점수
         - 중립적 감정 (평범함, 보통 등): 0 근처
         
         결과는 숫자만 답해주세요. 예: 15 또는 -20
@@ -269,6 +355,7 @@ def render_user_view():
     risk_tolerance = profile_data['risk_tolerance']
     
     top_n = st.session_state.get('top_n', 3)
+    use_llm_rerank = st.session_state.get('use_llm_rerank', True)  # 세션에서 값 가져오기
 
     # 2x2 그리드 레이아웃: 왼쪽(프로필) | 오른쪽(분석 결과들)
     col_left, col_right = st.columns([1, 1])
@@ -277,15 +364,16 @@ def render_user_view():
     with col_left:
         st.markdown('### 📋 나의 금융 프로필')
         
-        # 감정 상태에 따른 이모지
-        emotion_emoji = "😊" if emotions > 10 else "😔" if emotions < -10 else "😐"
+        # 감정 상태와 위험 허용도 변환
+        emotion_info = get_emotion_status(emotions)
+        risk_info = get_risk_tolerance_status(risk_tolerance)
         
         main_profile_text = f"""
         <p>👋 안녕하세요, <strong>{user_name}</strong>님! 챗봇과 퀴즈로 분석한 당신의 금융 프로필을 알려드릴게요.</p>
         <br>
         <p>🏦 <strong>금융 지식 수준:</strong> {user_level} ({knowledge_level})</p>
-        <p>🔥 <strong>현재 감정 점수:</strong> {emotion_emoji} {emotions}점 (-50~+50)</p>
-        <p>📊 <strong>위험 허용도:</strong> {risk_tolerance}점</p>
+        <p>💭 <strong>현재 투자 심리:</strong> {emotion_info['emoji']} {emotion_info['status']}</p>
+        <p>📊 <strong>투자 성향:</strong> {risk_info['emoji']} {risk_info['status']}</p>
         <p>💡 <strong>관심 분야:</strong> {', '.join(interest_tags) if interest_tags else '아직 설정되지 않음'}</p>
         <br>
         <p>이제 금융 프로필을 바탕으로 <strong>{user_name}</strong>님의 지식 레벨을 높일 시간입니다. 맞춤 추천 받기 버튼을 누르면 당신을 위한 맞춤 정보가 추천됩니다.🙌</p>
@@ -378,15 +466,18 @@ def render_user_view():
             if not interest_tags:
                 st.warning("관심 분야를 최소 1개 선택해주세요!")
                 st.stop()
-            with st.spinner("🚥 AI가 맞춤 정보를 찾고 있어요..."):
+            spinner_text = "🐾 AI가 맞춤 정보를 찾고 있어요..." if use_llm_rerank else "🚥 맞춤 정보를 찾고 있어요..."
+            with st.spinner(spinner_text):
                 rec_result = get_hybrid_recommendations({
                     "user_id": f"user_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}",
                     "level": knowledge_level,
                     "emotions": emotions,
                     "interest_tags": interest_tags,
                     "recent_seen_card_ids": [],
-                    "liked_tags": []
-                }, top_n=top_n)
+                    "liked_tags": [],
+                    "user_summary": user_summary,      # LLM 리랭킹용 추가
+                    "knowledge_summary": knowledge_summary  # LLM 리랭킹용 추가
+                }, top_n=top_n, use_llm_rerank=use_llm_rerank)
             if rec_result["success"]:
                 st.session_state['last_recommendation'] = rec_result
                 st.rerun()
@@ -552,7 +643,16 @@ def render_user_view():
                             
                             with col_hist2:
                                 st.markdown("**📊 상세 정보**")
-                                viewed_at = datetime.datetime.fromisoformat(log_item['viewed_at'].replace('Z', '+00:00'))
+                                # Supabase 날짜 형식 파싱 (microseconds 자리수 문제 해결)
+                                try:
+                                    viewed_at_str = log_item['viewed_at'].replace('Z', '+00:00')
+                                    # microseconds가 5자리인 경우 6자리로 패딩
+                                    import re
+                                    viewed_at_str = re.sub(r'\.(\d{5})\+', r'.\g<1>0+', viewed_at_str)
+                                    viewed_at = datetime.datetime.fromisoformat(viewed_at_str)
+                                except ValueError:
+                                    # 파싱 실패시 현재 시간 사용
+                                    viewed_at = datetime.datetime.now()
                                 st.write(f"조회 시간: {viewed_at.strftime('%m/%d %H:%M')}")
                 else:
                     st.info("아직 조회한 콘텐츠가 없습니다. 맞춤 추천을 받아보세요!")
@@ -836,20 +936,184 @@ def render_admin_view():
     
     st.divider()
     
-    # 메인 콘텐츠 영역에 고급 파라미터 설정
-    st.markdown('### 🎛️ 하이브리드 추천 가중치 설정')
+    # 하이브리드 추천 시스템 아키텍처 설명
+    st.markdown('### 🏗️ 하이브리드 추천 시스템 아키텍처')
     
-    st.info("""
-    하이브리드 추천 시스템은 다음과 같은 가중치를 사용하여 콘텐츠를 추천합니다.
-    - **벡터 검색 가중치 (α):** 0.6
-    - **레벨 매칭 가중치 (β):** 0.3
-    - **태그 매칭 가중치 (γ):** 0.1
+    # 전체 프로세스 플로우 차트 (깔끔한 단색 톤)
+    st.markdown("""
+    <div style="background: #f8f9fa; padding: 25px; border-radius: 12px; margin: 15px 0; border: 1px solid #e9ecef;">
+        <h4 style="text-align: center; color: #495057; margin-bottom: 20px; font-weight: 600;">📊 추천 프로세스 플로우</h4>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+            <div style="background: white; padding: 15px; border-radius: 8px; margin: 5px; flex: 1; text-align: center; min-width: 160px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #6c757d;">
+                <strong style="color: #495057;">1️⃣ 후보군 수집</strong><br>
+                <small style="color: #6c757d;">감정룰 + 벡터서치 + 기본룰</small>
+            </div>
+            <div style="font-size: 20px; color: #6c757d; margin: 0 10px;">→</div>
+            <div style="background: white; padding: 15px; border-radius: 8px; margin: 5px; flex: 1; text-align: center; min-width: 160px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #6c757d;">
+                <strong style="color: #495057;">2️⃣ 수치 리랭킹</strong><br>
+                <small style="color: #6c757d;">α, β, γ 가중치 적용</small>
+            </div>
+            <div style="font-size: 20px; color: #6c757d; margin: 0 10px;">→</div>
+            <div style="background: white; padding: 15px; border-radius: 8px; margin: 5px; flex: 1; text-align: center; min-width: 160px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #6c757d;">
+                <strong style="color: #495057;">3️⃣ LLM 리랭킹</strong><br>
+                <small style="color: #6c757d;">GPT-4o-mini 컨텍스트</small>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    검색 파라미터는 다음과 같이 설정되어 있습니다.
-    - **벡터 검색 후보 수:** 10
-    - **룰 기반 후보 수:** 10
-    - **유사도 임계값:** 0.15
-    """)
+    # 상세 설명을 탭으로 구성
+    tab1, tab2, tab3 = st.tabs(["🎯 1단계: 후보군 수집", "⚖️ 2단계: 수치 리랭킹", "🐾 3단계: LLM 컨텍스트 리랭킹"])
+    
+    with tab1:
+        st.markdown("#### 📋 후보군 수집 전략 (3가지 방식)")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown("""
+            **😊 감정 기반 룰**
+            - **감정 분석**: 사용자 투자 심리 반영
+            - **레벨 조정**: 감정에 따른 난이도 변경
+            - **Supabase 쿼리**: 실시간 DB 검색
+            
+            **📊 매개변수:**
+            - 후보 수: 10개
+            - 감정 점수: -50 ~ +50
+            - 레벨 자동 조정
+            """)
+        
+        with col2:
+            st.markdown("""
+            **🧠 벡터 검색**
+            - **다중 모델**: BGE-M3, KO-SRoBERTa
+            - **컨텍스트 임베딩**: 사용자 프로필 기반
+            - **FAISS 인덱스**: 고속 유사도 검색
+            
+            **📊 매개변수:**
+            - 후보 수: 10개  
+            - 유사도 임계값: 0.15
+            - 레벨 필터링: 사전 적용
+            """)
+            
+        with col3:
+            st.markdown("""
+            **📋 기본 룰**
+            - **레벨 매칭**: 사용자 지식 수준 일치
+            - **태그 매칭**: 관심사 기반 필터링
+            - **중복 제거**: 기존 조회 콘텐츠 제외
+            
+            **📊 매개변수:**
+            - 후보 수: 10개
+            - 레벨 필터링: 엄격 모드
+            - 태그 점수 가중치: 40%
+            """)
+    
+    with tab2:
+        st.markdown("#### ⚖️ 수치 기반 리랭킹 공식")
+        
+        st.latex(r"""
+        Score_{final} = \alpha \times Score_{vector} + \beta \times Score_{level} + \gamma \times Score_{tag}
+        """)
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("벡터 가중치 (α)", "0.6", help="벡터 검색 유사도 점수의 중요도")
+        with col2:
+            st.metric("레벨 가중치 (β)", "0.3", help="사용자 지식 수준 일치도의 중요도")
+        with col3:
+            st.metric("태그 가중치 (γ)", "0.1", help="관심사 태그 매칭 점수의 중요도")
+        
+        st.markdown("""
+        **🔧 추가 조정 요소:**
+        - **이전 조회 패널티**: -0.2 (중복 방지)
+        - **선호 태그 보너스**: +0.1 (개인화 강화)
+        - **레벨 차이 패널티**: 1.0 - 0.3 × |차이| (적절한 난이도)
+        """)
+    
+    with tab3:
+        st.markdown("#### 🐾 GPT-4o-mini 컨텍스트 리랭킹")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.markdown("""
+            **🎯 LLM 분석 요소:**
+            1. **사용자 프로필**: 지식 수준, 감정 상태, 학습 성향
+            2. **콘텐츠 컨텍스트**: 제목, 레벨, 태그, 내용 미리보기
+            3. **개인화 매칭**: 투자 성향과 지식 특성 종합 분석
+            4. **학습 효과성**: 사용자에게 최적화된 학습 경로 고려
+            
+            **📊 최종 점수 조합:**
+            ```
+            최종점수 = 0.7 × LLM컨텍스트점수 + 0.3 × 수치점수
+            ```
+            
+            **💡 핵심 포인트:**
+            - **LLM 평가 대상**: 상위 7개만 (효율성)
+            - **가중치 비율**: LLM 70% > 수치 30% (컨텍스트 중시)  
+            - **폴백 처리**: LLM 실패시 기존 수치점수로 폴백
+            """)
+        
+        with col2:
+            st.markdown("""
+            **⚙️ LLM 설정:**
+            - **모델**: GPT-4o-mini
+            - **Temperature**: 0.3
+            - **Max Tokens**: 300
+            - **Top-p**: 0.9
+            - **평가 후보**: 상위 7개
+            
+            **🎯 출력 형식:**
+            ```
+            후보 1: context_score=0.85
+            후보 2: context_score=0.72
+            후보 3: context_score=0.68
+            ```
+            """)
+    
+    st.divider()
+    
+    # 현재 설정 요약
+    st.markdown('### 📊 현재 시스템 설정 요약')
+    
+    # 성능 지표를 깔끔한 카드 형태로 표시
+    metric_cols = st.columns(4)
+    
+    with metric_cols[0]:
+        st.markdown("""
+        <div style="background: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #e9ecef;">
+            <h4 style="color: #495057; margin: 0; font-size: 14px; font-weight: 600;">후보군 크기</h4>
+            <p style="font-size: 28px; font-weight: 700; margin: 8px 0; color: #212529;">~20개</p>
+            <small style="color: #6c757d;">룰베이스 + 벡터서치</small>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with metric_cols[1]:
+        st.markdown("""
+        <div style="background: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #e9ecef;">
+            <h4 style="color: #495057; margin: 0; font-size: 14px; font-weight: 600;">리랭킹 방식</h4>
+            <p style="font-size: 28px; font-weight: 700; margin: 8px 0; color: #212529;">2단계</p>
+            <small style="color: #6c757d;">수치 → LLM</small>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with metric_cols[2]:
+        st.markdown("""
+        <div style="background: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #e9ecef;">
+            <h4 style="color: #495057; margin: 0; font-size: 14px; font-weight: 600;">개인화 수준</h4>
+            <p style="font-size: 28px; font-weight: 700; margin: 8px 0; color: #212529;">HIGH</p>
+            <small style="color: #6c757d;">컨텍스트 분석</small>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with metric_cols[3]:
+        st.markdown("""
+        <div style="background: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 1px solid #e9ecef;">
+            <h4 style="color: #495057; margin: 0; font-size: 14px; font-weight: 600;">처리 속도</h4>
+            <p style="font-size: 28px; font-weight: 700; margin: 8px 0; color: #212529;">~3초</p>
+            <small style="color: #6c757d;">LLM 포함</small>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.divider()
 
@@ -870,10 +1134,40 @@ def render_admin_view():
     with col2:
         st.metric("조정된 레벨", adjusted_level)
     with col3:
-        emotion_status = "😔 부정적" if emotions <= -30 else "😊 긍정적" if emotions >= 30 else "😐 중립적"
-        st.metric("감정 상태", emotion_status)
+        emotion_info = get_emotion_status(emotions)
+        st.metric("현재 투자 심리", f"{emotion_info['emoji']} {emotion_info['status']}", delta=f"{emotions}점")
     
     st.info(f"**조정 사유**: {reason}")
+    
+    # 감정 점수 분류 기준 표시 (관리자용)
+    with st.expander("📊 감정 점수 분류 기준"):
+        st.markdown("""
+        | 점수 범위 | 상태 | 설명 | 추천 전략 |
+        |-----------|------|------|-----------|
+        | 30점 이상 | 😊 매우 긍정적 | 투자에 대한 기대감이 높음 | 도전적인 콘텐츠 추천 |
+        | 10~29점 | 🙂 긍정적 | 낙관적인 마음가짐 | 성장 지향 콘텐츠 |
+        | -10~9점 | 😐 중립적 | 균형잡힌 투자 심리 | 기본 수준 콘텐츠 |
+        | -30~-11점 | 😟 다소 불안 | 약간의 우려 있음 | 안정적인 콘텐츠 우선 |
+        | -30점 미만 | 😔 불안감 높음 | 투자 걱정이 많음 | 쉽고 안전한 콘텐츠로 하향 조정 |
+        """)
+        
+        profile_data = parse_user_profile_data()
+        risk_tolerance = profile_data.get('risk_tolerance', 50)
+        risk_info = get_risk_tolerance_status(risk_tolerance)
+        
+        st.markdown("### 📊 위험 허용도 분류 기준")
+        st.markdown(f"**현재 사용자**: {risk_info['emoji']} {risk_info['status']} ({risk_tolerance}점)")
+        
+        st.markdown("""
+        | 점수 범위 | 투자 성향 | 특성 |
+        |-----------|-----------|------|
+        | 80점 이상 | 🚀 적극적 | 높은 수익을 위해 큰 위험 감수 |
+        | 60~79점 | 📈 공격적 | 적당한 위험을 감수하며 수익 추구 |
+        | 40~59점 | ⚖️ 균형형 | 안정성과 수익성의 적절한 균형 |
+        | 20~39점 | 🛡️ 보수적 | 안정성 중시, 낮은 위험 선호 |
+        | 20점 미만 | 🏦 매우 보수적 | 원금 보장 최우선 |
+        """)
+    
 
     st.divider()
 
@@ -889,8 +1183,8 @@ def render_admin_view():
             results = rec_result["results"]
             metadata = rec_result["metadata"]
             
-            # 성능 지표
-            col1, col2, col3, col4 = st.columns(4)
+            # 성능 지표 (LLM 리랭킹 정보 포함)
+            col1, col2, col3, col4, col5 = st.columns(5)
             
             with col1:
                 st.metric("처리 시간", f"{metadata['processing_time']:.3f}초")
@@ -902,6 +1196,10 @@ def render_admin_view():
                 sources = metadata['recommendation_sources']
                 unique_sources = len(set(sources))
                 st.metric("다양성 점수", f"{unique_sources}/3")
+            with col5:
+                llm_info = metadata.get('llm_rerank_info', {})
+                llm_used = "✅" if llm_info.get('llm_used', False) else "❌"
+                st.metric("AI 리랭킹", llm_used)
 
             # 후보 분포 차트
             st.markdown('#### 📈 추천 분포 분석')
@@ -937,7 +1235,7 @@ def render_admin_view():
             
             for i, content in enumerate(results, 1):
                 with st.expander(f"{i}. {content.get('title', 'Unknown')} - {content.get('recommendation_source', 'unknown')}"):
-                    col_left, col_right = st.columns([2, 1])
+                    col_left, col_right = st.columns([1, 1])
 
                     with col_left:
                         # 원본 데이터와 AI 생성 설명
@@ -953,7 +1251,7 @@ def render_admin_view():
                         st.markdown("<br>", unsafe_allow_html=True)
 
                         # AI 생성 설명
-                        st.markdown("**🤖 AI 생성 맞춤 설명**")
+                        st.markdown("**🐾 AI 생성 맞춤 설명**")
                         card_identifier = content.get('card_id', content.get('id', i))
                         explanation_key = f"explanation_{card_identifier}"
                         
@@ -980,6 +1278,21 @@ def render_admin_view():
                             model = content.get('vector_model', 'Unknown')
                             st.metric("유사도 점수", f"{score:.3f}")
                             st.caption(f"사용한 모델: {model}")
+                        
+                        # LLM 리랭킹 정보 표시
+                        if content.get('llm_reranked', False):
+                            st.success("🐾 AI 컨텍스트 리랭킹 적용됨")
+                            llm_context_score = content.get('llm_context_score')
+                            llm_final_score = content.get('llm_final_score')
+                            if llm_context_score is not None:
+                                st.metric("AI 컨텍스트 점수", f"{llm_context_score:.3f}")
+                            if llm_final_score is not None:
+                                st.caption(f"최종 점수: {llm_final_score:.3f}")
+                        else:
+                            if metadata.get('llm_rerank_info', {}).get('llm_used', False):
+                                st.info("ℹ️ 수치 기반 리랭킹 사용")
+                            else:
+                                st.caption("리랭킹: 수치 기반")
 
                         st.warning(f"**추천 핵심 사유**: {reason}")
                         st.divider()
@@ -995,6 +1308,66 @@ def render_admin_view():
             
             # 메타데이터 상세 분석
             with st.expander("🔧 메타데이터 상세 분석"):
+                # LLM 리랭킹 정보 (있는 경우)
+                llm_info = metadata.get('llm_rerank_info', {})
+                if llm_info.get('llm_used', False):
+                    st.subheader("🐾 LLM 컨텍스트 리랭킹 상세")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"- **모델**: {llm_info.get('llm_model', 'Unknown')}")
+                        st.write(f"- **평가 후보 수**: {llm_info.get('llm_evaluated_candidates', 0)}")
+                        st.write(f"- **점수 조합**: {llm_info.get('score_combination', 'Unknown')}")
+                    with col2:
+                        st.write("**LLM 컨텍스트 점수**")
+                        context_scores = llm_info.get('context_scores', {})
+                        if context_scores:
+                            # 전체 콘텐츠에서 제목 매핑 (Supabase에서 로드)
+                            try:
+                                from contents.recommendation.hybrid_recommender_v2 import load_contents_from_supabase
+                                all_contents = load_contents_from_supabase()
+                                card_titles = {content.get("card_id"): content.get("title", "제목 없음") for content in all_contents}
+                            except:
+                                # 백업: 결과에서 가져오기
+                                results = rec_result.get("results", [])
+                                card_titles = {content.get("card_id"): content.get("title", "제목 없음") for content in results}
+                            
+                            for cid, score in list(context_scores.items())[:3]:  # 상위 3개만 표시
+                                title = card_titles.get(cid, "제목 로드 실패")
+                                # 제목이 너무 길면 잘라서 표시
+                                display_title = title[:25] + "..." if len(title) > 25 else title
+                                st.write(f"- **{display_title}**: {score:.3f}")
+                                st.caption(f"ID: {cid[:8]}")
+                    
+                    # LLM 원시 응답 (제목 포함)
+                    if llm_info.get('llm_raw_response'):
+                        with st.expander("LLM 원시 응답 보기"):
+                            raw_response = llm_info['llm_raw_response']
+                            
+                            # 원시 응답에 제목 정보 추가
+                            try:
+                                # 전체 콘텐츠에서 제목 매핑
+                                try:
+                                    from contents.recommendation.hybrid_recommender_v2 import load_contents_from_supabase
+                                    all_contents = load_contents_from_supabase()
+                                    card_titles = {content.get("card_id"): content.get("title", "제목 없음") for content in all_contents}
+                                except:
+                                    card_titles = {}
+                                
+                                # LLM이 평가한 후보들의 card_id 추출
+                                context_scores = llm_info.get('context_scores', {})
+                                if context_scores and card_titles:
+                                    st.markdown("**📋 평가된 콘텐츠 목록:**")
+                                    for i, (cid, score) in enumerate(context_scores.items(), 1):
+                                        title = card_titles.get(cid, "제목 로드 실패")
+                                        st.write(f"**후보 {i}**: {title} (점수: {score:.3f})")
+                                    st.divider()
+                                
+                                st.markdown("**🐾 GPT-4o-mini 원시 응답:**")
+                                st.code(raw_response, language="text")
+                            except Exception as e:
+                                st.code(raw_response, language="text")
+                    st.divider()
+                
                 st.subheader("감정 기반 룰 추천 상세")
                 emotion_details = metadata['emotion_rule_details']
                 st.json(emotion_details)
@@ -1025,8 +1398,17 @@ def render():
                                 value=st.session_state.get('top_n', 3), 
                                 key="top_n_common")
         
-        # 세션에 top_n만 저장
+        # LLM 컨텍스트 리랭킹 옵션 추가
+        use_llm_rerank = st.checkbox(
+            "🐾 AI 컨텍스트 리랭킹", 
+            value=st.session_state.get('use_llm_rerank', True),
+            help="GPT-4o-mini가 사용자 맥락을 고려해 추천 순위를 재조정합니다. 더 정확하지만 처리 시간이 약간 늘어날 수 있습니다.",
+            key="use_llm_rerank_common"
+        )
+        
+        # 세션에 설정 저장
         st.session_state['top_n'] = top_n
+        st.session_state['use_llm_rerank'] = use_llm_rerank
 
     tab1, tab2 = st.tabs(["맞춤 금융 지식", "추천 시스템 분석"])
 

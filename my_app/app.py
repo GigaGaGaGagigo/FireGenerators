@@ -2,12 +2,14 @@ import sys
 import uuid
 from pathlib import Path
 
+# Increase recursion limit to fix regex module issues
+sys.setrecursionlimit(3000)
+
 # Add project root to sys.path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
 import streamlit as st  # noqa: E402
-from streamlit.navigation.page import Page as Page  # noqa: E402
 from streamlit_option_menu import option_menu  # noqa: E402
 from supabase import Client, create_client  # noqa: E402
 from supabase._sync.client import SyncClient  # noqa: E402
@@ -167,7 +169,7 @@ def check_auth_params() -> None:
                 )
                 if "user_data" not in st.session_state:
                     user_data: dict = {
-                        "id": st.session_state.user.id,
+                        "id": st.session_state.user.id if st.session_state.user else "",
                         "user_email": response_user_data.data[0]["email"],
                         "name": response_user_data.data[0]["name"],
                         "age": response_user_data.data[0]["age"],
@@ -274,7 +276,7 @@ def login() -> None:
     )
 
     # 3열 레이아웃으로 버튼 중앙 배치
-    col1, col2, col3 = st.columns([1, 2, 1])
+    _, col2, _ = st.columns([1, 2, 1])
     with col2:
         # 로고 이미지 표시 (크기 조절 + 중앙 정렬)
         image_path = Path(__file__).parent / "assets" / "FIRE_LOGO_large.png"
@@ -347,9 +349,9 @@ def logout() -> None:
     # 인증 관련 세션 정보만 선택적으로 삭제
     AUTH_KEYS: list[str] = ["session", "user", "role", "current_page"]
 
-    RESSETABLE_KEYS: list[str] = USER_DATA_KEY + AUTH_KEYS
+    RESETTABLE_KEYS: list[str] = USER_DATA_KEY + AUTH_KEYS
 
-    for key in RESSETABLE_KEYS:
+    for key in RESETTABLE_KEYS:
         if key in st.session_state:
             del st.session_state[key]
 
@@ -587,7 +589,7 @@ def route_to_page():
                 render()
             except Exception as e:
                 st.error(f"{e} 모듈 임포트 중 오류가 발생했습니다.")
-                st.exception
+                st.exception(e)
             # except ImportError:
             #     st.title("📈 현재 보유주식 AI코칭")
             #     st.info("ui/trading/trading_ui.py 파일을 생성해주세요.")
@@ -597,7 +599,7 @@ def route_to_page():
                 render()
             except Exception as e:
                 st.error(f"{e} 모듈 임포트 중 오류가 발생했습니다.")
-                st.exception
+                st.exception(e)
             # except ImportError:
             #     st.title("📊 종목 피드백")
             #     st.info("ui/analysis/analysis.py 파일을 생성해주세요.")
