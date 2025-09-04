@@ -1,4 +1,4 @@
-import os, json, uuid, time, streamlit as st
+import os, re, json, uuid, time, streamlit as st
 from my_app.quiz_core.constants import TOTAL_QUESTIONS, COMMON_COUNT,MAX_CONTEXT_TURNS,ROLLING_SUMMARY_MAX_CHARS 
 from my_app.quiz_core.logic import (
     classify_level, _aggregate_session, _rank_topics, _build_summary_from_agg,
@@ -6,16 +6,41 @@ from my_app.quiz_core.logic import (
     save_generated_question, save_result
 )
 from ui.level_quiz.state import init_quiz_state, ensure_user_keywords, load_common_questions
-from ui.level_quiz.ui_utils import inject_styles, render_result_card, render_sidebar_status
+from ui.level_quiz.ui_utils import (
+    inject_styles, render_result_card, render_sidebar_status,
+)
 from my_app.quiz_core.services import update_rolling_summary
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # (있으면) 우측 챗봇 샘플
 try:
-    from ui.chatbot.chatbot_sample import generate_simple_response, stream_data
+    from ui.chatbot.chatbot import generate_simple_response, stream_data
 except Exception:
     def generate_simple_response(x): return "도움이 필요하신 내용을 말씀해 주세요!"
     def stream_data(x): yield x
+
+
+def _render_chat_content(content):
+    """문자열 안에 텍스트와 HTML이 섞여 있어도 각각 알맞게 렌더한다."""
+    if not isinstance(content, str):
+        st.write(content)
+        return
+
+    # HTML 블록(div, span 등)을 보존하면서 분리
+    parts = re.split(r'(\s*<[^>]+>.*?</[^>]+>\s*|\s*<div[^>]*>.*?</div>\s*)',
+                     content, flags=re.DOTALL | re.IGNORECASE)
+
+    for part in parts:
+        if not part or not part.strip():
+            continue
+        if part.strip().startswith("<"):
+            st.markdown(part, unsafe_allow_html=True)   # HTML 블록은 그대로 렌더
+        else:
+            # 일반 텍스트 라인은 st.write로
+            for line in part.splitlines():
+                if line.strip():
+                    st.write(line)
+
 
 def parallel_eval_and_qgen(
     quiz: dict,
@@ -636,17 +661,23 @@ def render():
             has_cta = False
             for i, message in enumerate(st.session_state.messages):
                 with st.chat_message(message["role"]):
+                    content = message["content"]
+
+                    # 스트리밍 분기
                     if (
                         i == len(st.session_state.messages) - 1
                         and message["role"] == "assistant"
-                        and "streaming" in st.session_state
-                        and st.session_state.streaming
+                        and st.session_state.get("streaming", False)
                     ):
-                        st.write_stream(stream_data(message["content"]))
-                        if "streaming" in st.session_state:
-                            del st.session_state.streaming
+                        # 컨텐츠에 HTML 태그가 있으면 스트리밍 대신 한 번에 렌더
+                        if isinstance(content, str) and ("<" in content and ">" in content):
+                            _render_chat_content(content)
+                            st.session_state.pop("streaming", None)
+                        else:
+                            st.write_stream(stream_data(content))
+                            st.session_state.pop("streaming", None)
                     else:
-                        st.write(message["content"])
+                        _render_chat_content(content)
 
                     if (
                         message.get("cta") == "start_quiz"
