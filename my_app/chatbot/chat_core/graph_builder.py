@@ -5,25 +5,29 @@ DESCRIPTION:
 This module provides a function to build a langgraph graph.
 """
 
+import time
 from pathlib import Path
 
+# pyrefly: ignore  # import-error
 from IPython.display import Image, display
-from langchain_core.messages import AnyMessage
+from langchain_core.messages import AIMessage, AnyMessage
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 
-from my_app.chatbot.langgraph_core.nodes import (
+from my_app.chatbot.chat_core.nodes import (
     analyze_user_answers,
     call_llm,
+    compact_user_answer,
     create_followup_qa,
     determine_next_node,
     generate_greeting_message,
     present_predefined_questions,
     process_human_input_tool,
     summarize_user_profile,
+    update_user_meta_data,
     update_user_profile,
 )
-from my_app.chatbot.langgraph_core.state import (
+from my_app.chatbot.chat_core.state import (
     InputState,
     OutputState,
     OverallState,
@@ -38,9 +42,22 @@ class GraphBuilder:
             raise ValueError("Profile status is not found in the user meta data.")
 
         if profile_status == "completed":
-            return END
+            return "finished_chat"
+        else:
+            return "ask_to_new_user"
 
-        return profile_status
+    def _finished_chat_with_user(self, state: OverallState):
+        ai_message = f"프로필이 완성되어 있어요! {state.user_meta_data['name']}님, 이제 다른 메뉴를 체험해볼까요?"
+        return {
+            "logs": [
+                {
+                    "level": "info",
+                    "message": "Finished chat with user",
+                    "timestamp": time.time(),
+                }
+            ],
+            "messages": [AIMessage(content=ai_message)],
+        }
 
     def _route_after_agent(self, state: OverallState):
         messages: list[AnyMessage] = state.messages
@@ -50,7 +67,7 @@ class GraphBuilder:
             tool_calls = getattr(last_message, "tool_calls", None)
 
             if not tool_calls:
-                return END
+                return START
 
             if tool_calls[0]["name"] == "RequestHumanInput":
                 return "request_input"
@@ -58,9 +75,10 @@ class GraphBuilder:
                 return "add_qa"
             elif tool_calls[0]["name"] == "AnalyzeProfile":
                 return "analyze_answers"
+            return START
 
         except AttributeError:
-            return END
+            return START
 
     def _route_after_update(self, state: OverallState):
         profile_status = state.user_meta_data.get("profile_status", None)
@@ -72,44 +90,31 @@ class GraphBuilder:
                 return "ask_to_new_user"
 
         except AttributeError:
-            return END
+            return START
 
     def build_workflow(self):
         workflow = StateGraph(
             OverallState, input_schema=InputState, output_schema=OutputState
         )
 
-        # "analyze_user_answers",
-        # "create_followup_qa",
-        # "evaluation_analysis_data",
-        # "generate_greeting_message",
-        # "present_predefined_questions",
-        # "process_human_input_tool",
-        # "summarize_user_profile",
-        # "update_profile_status",
-        # "RequestHumanInput",
-
         workflow.add_node("start_chat", generate_greeting_message)
         workflow.add_node("ask_to_new_user", present_predefined_questions)
         workflow.add_node("agent", call_llm)
         workflow.add_node("add_qa", create_followup_qa)
+        workflow.add_node("compact_user_answer", compact_user_answer)
         workflow.add_node("determine_next", determine_next_node)
         workflow.add_node("request_input", process_human_input_tool)
         workflow.add_node("analyze_answers", analyze_user_answers)
         workflow.add_node("update_user_profile", update_user_profile)
         workflow.add_node("summarize_user_profile", summarize_user_profile)
-
-        self.memory = InMemorySaver()
+        workflow.add_node("update_user_meta_data", update_user_meta_data)
+        workflow.add_node("finished_chat", self._finished_chat_with_user)
 
         workflow.add_edge(START, "start_chat")
         workflow.add_conditional_edges(
             "start_chat",
             self._determine_initial_node,
-            {
-                "onboarding": "ask_to_new_user",
-                "editing": "ask_to_new_user",
-                "completed": END,  # TODO: 기존 사용자 subgraph 추가 필요
-            },
+            path_map=["ask_to_new_user", "finished_chat"],
         )
         workflow.add_edge("ask_to_new_user", "agent")
 
@@ -119,7 +124,8 @@ class GraphBuilder:
             path_map=["request_input", "add_qa", "analyze_answers"],
         )
 
-        workflow.add_edge("request_input", "determine_next")
+        workflow.add_edge("request_input", "compact_user_answer")
+        workflow.add_edge("compact_user_answer", "determine_next")
         workflow.add_edge("determine_next", "agent")
         workflow.add_edge("add_qa", "agent")
         workflow.add_edge("analyze_answers", "update_user_profile")
@@ -129,6 +135,12 @@ class GraphBuilder:
             self._route_after_update,
             path_map=["summarize_user_profile", "ask_to_new_user"],
         )
+
+        workflow.add_edge("summarize_user_profile", "update_user_meta_data")
+        workflow.add_edge("update_user_meta_data", END)
+        workflow.add_edge("finished_chat", END)
+
+        self.memory = InMemorySaver()
 
         self.graph = workflow.compile(checkpointer=self.memory)
         return self.graph

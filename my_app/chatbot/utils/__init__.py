@@ -3,7 +3,6 @@
 from my_app.chatbot.utils.draw_graphs import visualize_graph
 from my_app.chatbot.utils.state_helpers import (
     CATEGORY_KEYS,
-    debug_state_info,
     determine_profile_status,
     find_missing_profile_categories,
     get_current_question_info,
@@ -12,7 +11,6 @@ from my_app.chatbot.utils.state_helpers import (
 
 __all__: list[str] = [
     "CATEGORY_KEYS",
-    "debug_state_info",
     "determine_profile_status",
     "find_missing_profile_categories",
     "get_current_question_info",

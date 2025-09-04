@@ -19,9 +19,9 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # 모델 이름 상수 정의
-MODEL_QGEN   = "gpt-4"         # 문제 생성 전용
+MODEL_QGEN   = "gpt-4.1"         # 문제 생성 전용
 MODEL_EVAL   = "gpt-4o-mini"   # 채점 전용
-MODEL_SUMMARY = "gpt-4o-mini"  # 요약 전용
+MODEL_SUMMARY = "gpt-4.1"  # 요약 전용
 
 if not OPENAI_API_KEY:
     st.error("OPENAI_API_KEY가 설정되지 않았습니다. .env에 OPENAI_API_KEY를 넣어주세요.")

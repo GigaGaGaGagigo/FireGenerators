@@ -20,11 +20,11 @@ from langgraph.types import interrupt
 from pydantic import BaseModel, Field
 from typing_extensions import Annotated, Any, Dict
 
-from my_app.chatbot.langgraph_core.llm_agents import (
+from my_app.chatbot.chat_core.model_loader import (
     OPENAI_MODEL_NAME,
-    get_gpt_agent_with_tool,
+    get_llm_models,
 )
-from my_app.chatbot.langgraph_core.state import OverallState
+from my_app.chatbot.chat_core.state import OverallState
 
 
 class RequestHumanInput(BaseModel):
@@ -34,7 +34,7 @@ class RequestHumanInput(BaseModel):
 
 
 def call_llm(state: OverallState):
-    llm = get_gpt_agent_with_tool(OPENAI_MODEL_NAME)
+    llm = get_llm_models(OPENAI_MODEL_NAME, tool=True)
     messages = state.messages
     response = llm.invoke(messages)
 
@@ -103,7 +103,6 @@ def process_human_input_tool(state: OverallState) -> Dict[str, Any]:
     )
 
     current_category = getattr(state, "target_profile_category", [])[0]
-
     existing_answers_by_category = getattr(state, "user_answers_by_category", {})
     current_category_answers = existing_answers_by_category.get(current_category, [])
 
@@ -131,12 +130,16 @@ def determine_next_node(state: OverallState):
         existing_answers_by_category.get(current_category, [])
     )
 
+    order_message: HumanMessage
+
     if gathered_answers_length < 5:
-        order_message: HumanMessage = HumanMessage(
+        # pyrefly: ignore  # annotation-mismatch
+        order_message = HumanMessage(
             content="Create follow-up questions to refine the user's profile. Use GenerateFollowUp Tool"
         )
     else:
-        order_message: HumanMessage = HumanMessage(
+        # pyrefly: ignore  # annotation-mismatch
+        order_message = HumanMessage(
             content="Your task now is to call the 'AnalyzeProfile' tool to perform the analysis."
         )
 
