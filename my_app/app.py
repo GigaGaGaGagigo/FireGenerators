@@ -54,6 +54,7 @@ ROLES: list[str | None] = [None, "User", "Admin"]
 
 # 페이지별 아이콘 매핑 - 팀원이 쉽게 수정 가능
 PAGE_ICONS = {
+    "home" : "house",
     "chatbot": "chat-dots",
     "dashboard": "bar-chart-line",
     "quiz": "question-circle",
@@ -71,6 +72,7 @@ PAGE_ICONS = {
 # 사용자 역할별 메뉴 구성 - 새로운 메뉴 추가시 여기서 수정
 USER_MENUS = {
     "User": [
+        ("홈 화면", "home"),
         ("Chatbot", "chatbot"),
         ("오늘의 퀴즈", "quiz"),
         ("맞춤형 금융 지식", "content"),
@@ -81,6 +83,7 @@ USER_MENUS = {
         ("Logout", "logout"),
     ],
     "Admin": [
+        ("홈 화면", "home"),
         ("Chatbot", "chatbot"),
         ("Dashboard", "dashboard"),
         ("맞춤형 금융 지식", "content"),
@@ -452,7 +455,7 @@ def render_sidebar():
         page_mapping = {label: page_key for label, page_key in menu_config}
 
         # 현재 선택된 메뉴 인덱스 찾기
-        current_page = st.session_state.get("current_page", "chatbot")
+        current_page = st.session_state.get("current_page", "home")
         current_index = 0
         for i, (_, page_key) in enumerate(menu_config):
             if page_key == current_page:
@@ -505,10 +508,19 @@ def route_to_page():
     Note:
         각 페이지의 실제 구현은 ui/ 폴더의 해당 파일에서 import하여 사용
     """
-    current_page = st.session_state.get("current_page", "chatbot")
+    current_page = st.session_state.get("current_page", "home")
 
     try:
-        if current_page == "chatbot":
+        if current_page == "home":
+            try:
+                from ui.home.home import render
+                render()
+            except Exception as e:
+                st.title("🏠 홈")
+                st.error("홈 모듈 임포트 중 오류가 발생했습니다.")
+                st.exception(e)
+                st.stop()
+        elif current_page == "chatbot":
             try:
                 from ui.chatbot.chatbot import render
 
@@ -647,7 +659,7 @@ def main():
         st.session_state.role = None
 
     if "current_page" not in st.session_state:
-        st.session_state.current_page = "chatbot"
+        st.session_state.current_page = "home"
 
     # OAuth 콜백 처리 (페이지 로드시마다 확인)
     check_auth_params()
