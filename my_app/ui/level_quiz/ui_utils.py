@@ -107,8 +107,6 @@ def render_result_card(score: int, total_weight: int, level: str, user_name: str
     </div>
     """, unsafe_allow_html=True)
 
-
-
 def render_sidebar_status(total_questions: int, score: int, total_weight: int, proficiency: int, user_keywords: list[str]):
     with st.sidebar:
         st.markdown("### 📊 진행 요약")

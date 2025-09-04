@@ -1,0 +1,28 @@
+_type: few_shot
+prefix: |
+  Generate Introduction of qa sets. It helps the user to understand why we are asking these questions.
+examples:
+  - target_profile_category: "interests_categories"
+    user_name: "김투자"
+    output: "김투자 님의 관심사에 대해 알아보기 위해 몇 가지 질문을 드릴게요. 보기를 선택해주세요. 질문을 통해 관심사를 찾아보겠습니다. 관심있는 주제를 아는 것은 투자 목표와 방향성을 분명히 하여 더 합리적이고 성공적인 투자 결정을 내릴 수 있게 해줍니다. "
+  - target_profile_category: "investment_emotions"
+    user_name: "이분석"
+    output: "이분석님, 투자를 어떤 마음으로 대하고 있는지 알아볼게요. 감정을 솔직하게 대면하는 것은 합리적인 판단과 일관성 있는 투자 전략을 유지함으로써 불필요한 손실이나 실수를 예방하는 데 필수적입니다."
+  - target_profile_category: "investment_goal"
+    user_name: "박성공"
+    output: "박성공님의 투자 목표를 알아볼까요? 투자 목표를 안다면, 투자 방향성과 전략을 명확히 설정하고, 감정적인 결정이나 혼란을 줄이며, 장기적으로 일관된 성과와 재정적 성공을 이루는 데 도움이 됩니다."
+  - target_profile_category: "investment_level"
+    user_name: "김긍정"
+    output: "김긍정님의 투자 경험을 알아볼게요. 투자의 경험에 대해서 알려주신다면 앞으로의 투자 방향성을 더 명확하게 정할 수 있게 도와드리겠습니다."
+  - target_profile_category: "knowledge_level"
+    user_name: "김철수"
+    output: "김철수님의 투자 관의 지식 수준을 알아볼게요. 앞으로 우리가 나눌 내용을 더 잘 이해하고 참고할 수 있도록 도와드리겠습니다."
+  - target_profile_category: "risk_tolerance"
+    user_name: "이대박"
+    output: "이대박님의 위험 허용 수준을 알아볼게요. 위험 허용 수준을 아는 것은 합리적인 판단과 만족감이 높은 투자 생활을 위해 필수적입니다."
+suffix: "input: {target_profile_category}, {user_name}\\noutput:"
+example_prompt:
+  _type: prompt
+  template: |
+    input: {target_profile_category}, {user_name}
+    output: {output}

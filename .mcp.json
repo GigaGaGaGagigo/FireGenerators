@@ -1,0 +1,16 @@
+{
+    "mcpServers": {
+    "supabase": {
+        "command": "npx",
+        "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--read-only",
+        "--project-ref=FIREgen"
+        ],
+        "env": {
+            "SUPABASE_ACCESS_TOKEN": "sbp_455f7624cbde49aee28d369c9cc984b0d5beb61a"
+        }
+    }
+    }
+}
