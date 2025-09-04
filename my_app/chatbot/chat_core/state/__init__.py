@@ -1,6 +1,6 @@
 """State management module for LangGraph chatbot."""
 
-from my_app.chatbot.langgraph_core.state.state import (
+from my_app.chatbot.chat_core.state.state import (
     InputState,
     OutputState,
     OverallState,

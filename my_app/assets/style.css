@@ -9,35 +9,45 @@
 */
 /* data-testid 는 streamlit을 실행하고 나서, 브라우저 개발자 도구에서 확인할 수 있습니다. */
 
-div[data-testid="stHorizontalBlock"] > div:nth-child(2) div[data-testid="stVerticalBlock"], 
 div[data-testid="stHorizontalBlock"] > div:nth-child(3) div[data-testid="stVerticalBlock"] {
-    border: 1px solid #e1e4e8; /* 테두리 복원 */
+    border: 1px solid #959595; /* 테두리 복원 */
     border-radius: 16px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
-    padding: 0.4rem;
+    box-shadow: 0 8px 24px rgba(45, 45, 45, 0.05);
+    padding: 0.5rem;
+}
+
+div[data-testid="stHorizontalBlock"] > div:nth-child(2) div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlock"]{
+    border: 1px solid #959595; /* 테두리 복원 */
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(45, 45, r45, 0.05);
+    padding: 0.5rem;
 }
 
 /* 왼쪽 컨테이너(퀴즈 영역) - 배경색만 지정 */
 div[data-testid="stHorizontalBlock"] > div:nth-child(2) div[data-testid="stVerticalBlock"] {
-    background-color: #f8f9fa;
+    background-color: #fff8f3;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(45, 45, 45, 0.05);
+    padding: 0.5rem;
 }
 
 /* 오른쪽 컨테이너(챗봇 영역) - 배경색만 지정 */
 div[data-testid="stHorizontalBlock"] > div:nth-child(3) div[data-testid="stVerticalBlock"] {
-    background-color: #f8f9fa;
+    background-color: #ffffff;
 }
 
 
 /* --- 챗봇 위젯 스타일 --- */
 /* 이 부분은 동일하게 유지 */
 [data-testid="stChatMessage"] {
-    background-color: #f0f2f6;
+    background-color: #ffe79d;
     padding: 1.25rem;
     border-radius: 16px;
     margin-bottom: 1rem;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 16px rgba(141, 101, 101, 0.04);
     border: 1px solid #e1e4e8;
     transition: all 0.2s ease-in-out;
+    padding: 0.5rem;
 }
 
 [data-testid="stChatMessage"]:hover {
@@ -49,4 +59,49 @@ div[data-testid="stHorizontalBlock"] > div:nth-child(3) div[data-testid="stVerti
     font-size: 16px;
     line-height: 1.6;
     color: #333333;
+}
+
+/* --- 프로그레스 바 색상 변경 --- */
+/* Streamlit의 실제 클래스명들을 사용하여 더 정확한 타겟팅 */
+
+/* 프로그레스 바 컨테이너 (배경) */
+.st-bb.st-bc.st-bd.st-be.st-bf.st-bg.st-bh.st-bi.st-ar.st-as.st-b5.st-b6 {
+    background-color: #ffbaba !important; /* 배경색 */
+}
+
+/* 프로그레스 바 내부 채움 부분 (진행 바) */
+.st-bb.st-bc.st-bd.st-be.st-bf.st-bg.st-bh.st-bi.st-ar.st-as.st-b5.st-b6 > div {
+    background: linear-gradient(90deg, #4CAF50, #45a049) !important; /* 녹색 그라데이션 */
+
+    border-radius: 4px !important;
+}
+
+/* 프로그레스 바 텍스트 (진행률 표시) */
+.st-bb.st-bc.st-bd.st-be.st-bf.st-bg.st-bh.st-bi.st-ar.st-as.st-b5.st-b6 + div {
+    color: #2E7D32 !important; /* 텍스트 색상 */
+}
+
+/* --- 메인 컨테이너 배경 이미지 설정 --- */
+/* Streamlit 메인 컨테이너에 배경 이미지를 반복적으로 적용 */
+div[data-testid="stMain"] {
+    position: relative; /* 상대 위치 설정으로 ::before 사용 가능하게 함 */
+    background-color: rgba(255, 255, 255, 0.98); /* 밝은 배경색으로 컨텐츠 가독성 확보 */
+}
+
+/* ::before 의사 요소를 사용하여 배경 이미지 적용 */
+div[data-testid="stMain"]::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url('./FIRE_LOGO_small.png'); /* 배경 이미지 경로 */
+    background-repeat: repeat; /* 이미지를 반복적으로 타일처럼 배치 */
+    background-size: 80px 80px; /* 각 이미지의 크기 설정 (조금 작게) */
+    background-position: center center; /* 배경 이미지 위치 */
+    background-attachment: fixed; /* 배경 고정 (스크롤해도 움직이지 않음) */
+    opacity: 0.08; /* 배경 이미지만 투명하게 (컨텐츠 영향 없음) */
+    z-index: -1; /* 배경으로 보내기 */
+    pointer-events: none; /* 마우스 이벤트 무시 */
 }
