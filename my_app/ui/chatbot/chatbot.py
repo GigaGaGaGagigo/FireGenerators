@@ -139,6 +139,8 @@ def initialize_chatbot():
         st.session_state["tool"]["tool_call_name"] = None
         st.session_state["quiz"] = {}
         st.session_state["user_answers"] = {}
+        st.session_state["events"] = []
+        st.session_state["interrupts"] = []
 
         for category in CATEGORY_KEYS:
             st.session_state["quiz"][category] = {"questions": [], "options": []}
@@ -149,9 +151,7 @@ def initialize_chatbot():
 
         st.session_state["chatbot"] = {}
         st.session_state["chatbot"]["logs"] = []
-        st.session_state["events"] = []
         st.session_state["updates"] = []
-        st.session_state["interrupts"] = []
         st.session_state["quiz_rendered_at_options"] = False
 
 
@@ -174,6 +174,10 @@ def check_and_submit_tool_response(current_category: str):
         st.session_state.get("quiz", {}).get(current_category, {}).get("questions", [])
     )
 
+    # user_answers나 quiz_questions가 None이거나 비어있는 경우 처리
+    if not user_answers or not quiz_questions:
+        return
+
     # check if all questions have been answered
     if len(user_answers) >= len(quiz_questions) and len(quiz_questions) > 0:
         try:
@@ -195,7 +199,7 @@ def check_and_submit_tool_response(current_category: str):
                 "level": "info",
                 "message": "The workflow has been automatically resumed.",
                 "timestamp": time.time(),
-                "location": "check_and_resume_workflow, after invoke",
+                "location": "checkAnd_resume_workflow, after invoke",
             }
             st.session_state["chatbot"]["logs"].append(session_log)
 
@@ -207,7 +211,7 @@ def check_and_submit_tool_response(current_category: str):
                 "level": "warning",
                 "message": f"failed to resume the workflow: {e}",
                 "timestamp": time.time(),
-                "location": "check_and_resume_workflow, after invoke",
+                "location": "checkAnd_resume_workflow, after invoke",
             }
             st.session_state["chatbot"]["logs"].append(session_log)
 
@@ -230,10 +234,10 @@ def create_answer_callback(question_info: dict, current_category: str):
             choice = st.session_state.get(idx_key)
 
             if choice:
-                if current_category in st.session_state.get("user_answers", {}):
-                    updated_answers = st.session_state["user_answers"][
-                        current_category
-                    ][:]
+                # user_answers가 None이거나 비어있는 경우 안전하게 처리
+                user_answers = st.session_state.get("user_answers", {})
+                if current_category in user_answers:
+                    updated_answers = user_answers[current_category][:]
                     updated_answers.append((question_info["question"], choice))
                     st.session_state["user_answers"][current_category] = updated_answers
 
@@ -278,6 +282,10 @@ def run_graph(
         for event in graph.stream(
             Command(resume=resume_data), config=config, stream_mode="updates"
         ):
+            # events가 None이거나 비어있는 경우 안전하게 처리
+            if "events" not in st.session_state:
+                st.session_state["events"] = []
+            
             st.session_state["events"] += event
             key = list(event.keys())[0]
             update = event[key]
@@ -294,6 +302,9 @@ def run_graph(
             else:
                 if isinstance(update[0], Interrupt):
                     interrupt_obj = update[0]
+                    # interrupts가 None이거나 비어있는 경우 안전하게 처리
+                    if "interrupts" not in st.session_state:
+                        st.session_state["interrupts"] = []
                     st.session_state["interrupts"].append(interrupt_obj)
 
     else:
@@ -302,6 +313,10 @@ def run_graph(
             config=config,
             stream_mode="updates",
         ):
+            # events가 None이거나 비어있는 경우 안전하게 처리
+            if "events" not in st.session_state:
+                st.session_state["events"] = []
+            
             st.session_state["events"] += event
             key = list(event.keys())[0]
             update = event[key]
@@ -318,12 +333,24 @@ def run_graph(
             else:
                 if isinstance(update[0], Interrupt):
                     interrupt_obj = update[0]
+                    # interrupts가 None이거나 비어있는 경우 안전하게 처리
+                    if "interrupts" not in st.session_state:
+                        st.session_state["interrupts"] = []
                     st.session_state["interrupts"].append(interrupt_obj)
 
 
 def render_quiz(container):
     with container:
-        if not st.session_state.get("interrupts"):
+        # debug logs
+        with st.expander("Debug Logs"):
+            graph_state: OverallState | None = st.session_state.graph.get_state(
+                st.session_state.config
+            )
+            st.write(graph_state)
+
+        # interrupts가 None이거나 비어있는 경우 안전하게 처리
+        interrupts = st.session_state.get("interrupts", [])
+        if not interrupts:
             return
 
         current_category = sync_questions()
