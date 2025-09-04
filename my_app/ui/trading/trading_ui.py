@@ -467,8 +467,8 @@ def render ():
         st.markdown(
             f"📌 최근 AI 코칭 결과 ({latest['created_at'][:10]})"
         )
-        st.text_area("시스템_프롬프트", latest["sys_prompt"], height=300)
-        st.text_area("프롬프트", latest["prompt"], height=300)
+        # st.text_area("시스템_프롬프트", latest["sys_prompt"], height=300)
+        # st.text_area("프롬프트", latest["prompt"], height=300)
         st.write(latest["result"])
         st.divider()
 
@@ -617,11 +617,11 @@ def render ():
             save_data = {
                 "user_id": USER_ID,
                 "save_type": "trading",
-                "sys_prompt": full_prompt,
+                "sys_prompt": full_system_message,
                 "prompt": full_prompt,
                 "result": ai_text
             }
-            save_res = supabase.table("ai_coaching").insert(save_data).execute()
+            save_res = supabase.table("ai_return").insert(save_data).execute()
 
             if getattr(save_res, "status_code", 0) < 300:
                 st.success("AI 코칭 결과 저장 완료 ✅")
