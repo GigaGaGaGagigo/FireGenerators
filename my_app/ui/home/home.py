@@ -137,7 +137,7 @@ def render():
     st.divider()
 
     # 서비스 이용 순서
-    st.subheader("🛠 이용 순서")
+    st.subheader("이용 순서")
     st.markdown("""
     <div class="step-card">
       <strong>1단계: Chatbot 💬</strong><br/>
