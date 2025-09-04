@@ -43,7 +43,7 @@ test.py
 
 
 # INFO: personal settings files when committing, turn on to ignore these files
-
+mcp server
 .mcp.json  
 *.md
 *.toml
@@ -56,3 +56,4 @@ test.py
 .poetry.lock
 # my_app/chatbot/notebooks/
 my_app/ui/level_quiz/data/generated/
+my_app/ui/recommendation/data/recommendation_logs.jsonl

@@ -62,14 +62,24 @@ def find_missing_profile_categories(user_data: dict) -> list[str] | None:
 
 
 def sync_questions() -> str | None:
-    interrupt_obj = st.session_state["interrupts"][-1]
-
-    if not interrupt_obj:
+    # interrupts가 None이거나 비어있는 경우 안전하게 처리
+    interrupts = st.session_state.get("interrupts", [])
+    if not interrupts:
+        return None
+    
+    interrupt_obj = interrupts[-1]
+    
+    # interrupt_obj가 None이거나 value가 없는 경우 처리
+    if not interrupt_obj or not hasattr(interrupt_obj, 'value') or not interrupt_obj.value:
         return None
 
-    category = interrupt_obj.value["category"]
-    questions = interrupt_obj.value["questions"]
-    options = interrupt_obj.value["options"]
+    category = interrupt_obj.value.get("category")
+    questions = interrupt_obj.value.get("questions")
+    options = interrupt_obj.value.get("options")
+    
+    # 필수 데이터가 없는 경우 처리
+    if not category or not questions or not options:
+        return None
 
     if st.session_state["quiz"].get(category, {}).get("synced", False):
         return category

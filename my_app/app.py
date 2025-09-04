@@ -510,7 +510,7 @@ def route_to_page():
     try:
         if current_page == "chatbot":
             try:
-                from ui.chatbot import render
+                from ui.chatbot.chatbot import render
 
                 render()
 
@@ -579,7 +579,6 @@ def route_to_page():
         elif current_page == "analysis":
             try:
                 from ui.analysis.streamlit_app import render  # type: ignore
-
                 render()
             except Exception as e:
                 st.error(f"{e} 모듈 임포트 중 오류가 발생했습니다.")

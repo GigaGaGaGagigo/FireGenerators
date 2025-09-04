@@ -1,6 +1,7 @@
 # ---- 프롬프트 ----
 SYSTEM_PROMPT_QGEN = (
     "너는 한국어 금융 교육 전문가다. OX 또는 4지선다 문제 중 1문항을 생성한다. "
+    "4지선다는 반드시 정답이 1개만 있어야 함"
     "JSON만 출력. 필요한 필드: "
     "question_type('ox'|'mcq'), question_text(str), options(4개 배열; mcq일 때만), "
     "answer(mcq '1'~'4' | ox 'O'|'X'), explanation(두 문장 이내), level('easy'|'medium'), "
