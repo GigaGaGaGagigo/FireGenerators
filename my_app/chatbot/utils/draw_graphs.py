@@ -1,5 +1,6 @@
 import random
 
+# pyrefly: ignore  # import-error
 from IPython.display import Image, display
 from langchain_core.runnables.graph import NodeStyles
 from langgraph.graph.state import CompiledStateGraph

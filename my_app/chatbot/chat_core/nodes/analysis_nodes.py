@@ -4,16 +4,12 @@ DATE: 2025-08-12
 DESCRIPTION: Final response node(s) for summarizing the user's goal from Q&A.
 """
 
-import os
 import time
-from pathlib import Path
 
-from dotenv import load_dotenv
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableConfig
 from langchain_openai import ChatOpenAI
-from openai import OpenAI
 from pydantic import BaseModel, Field, ValidationError
 from typing_extensions import Annotated, Literal
 
@@ -22,8 +18,7 @@ from my_app.chatbot.chat_core.model_loader import (
     get_llm_models,
 )
 from my_app.chatbot.chat_core.prompt_loader import load_prompt_from_yaml
-from my_app.chatbot.chat_core.state import OutputState, OverallState
-from my_app.chatbot.services.profile_service import ProfileService
+from my_app.chatbot.chat_core.state import OverallState
 
 
 class AnalyzeProfile(BaseModel):
@@ -77,7 +72,7 @@ def analyze_user_answers(state: OverallState) -> dict:
 
     llm = get_llm_models(OPENAI_MODEL_NAME)
 
-    chain = prompt_template | llm.with_structured_output(AnalysisData)
+    chain = prompt_template | llm.with_structured_output(AnalysisData)  # pyright: ignore[reportPossiblyUnboundVariable]
 
     result = chain.invoke(
         {"compacted_user_answer": state.user_answers_compacted[current_category]}
@@ -85,7 +80,7 @@ def analyze_user_answers(state: OverallState) -> dict:
     analysis_data = result.data
 
     message_prompt: str = ANALYSIS_USER_ANSWER_PROMPTS[current_category].format(
-        user_name=state.user_meta_data["user_name"], data=analysis_data
+        user_name=state.user_meta_data["name"], data=analysis_data
     )
 
     return {
@@ -130,9 +125,7 @@ Follow this process:
 
     chain = prompt_template | llm
 
-    compacted_user_answer = chain.invoke(
-        {"qa_pairs": qa_pairs, "target_category": current_category}
-    )
+    response = chain.invoke({"qa_pairs": qa_pairs, "target_category": current_category})
 
     return {
         "logs": [
@@ -143,8 +136,7 @@ Follow this process:
             }
         ],
         "user_answers_compacted": {
-            **state.user_answers_compacted,
-            current_category: compacted_user_answer,
+            current_category: [response.content],
         },
     }
 
@@ -241,124 +233,60 @@ def evaluate_analysis_result(state: OverallState) -> dict:
         ],
     }
 
-    # return {
 
-    #     "evaluation_results": {
-    #         **state.evaluation_results,
-    #         target_profile_category: schema.is_valid,
-    #     },
-    #     "evaluation_results_logs": {
-    #         **state.evaluation_results_logs,
-    #         target_profile_category: schema.explanation,
-    #     },
-    # }
+def summarize_user_profile(state: OverallState, config: RunnableConfig):
+    prompt = """
+You are a seasoned 20-year investment strategist. With experience from witnessing countless investor successes and failures, you can cut through the noise to see the underlying psychology and fatal risks hidden in data. 
+Your analysis is blunt, direct, and brutally honest, gentle. Use polite language.
+Using the provided `{data}`, write a sharp, analytical profile as **a single, continuous paragraph** following these instructions:
 
+**Writing Instructions:**
+1.  **Diagnose the Situation:** First, concisely diagnose the investor's current state. Weave together their goals, emotions, and knowledge level, but stick only to the critical facts.
+2.  **Pinpoint the Core Problem:** Next, transition with a direct, hard-hitting phrase like **"최종 의견은 다음과 같습니다."** or **"The fatal flaw in this profile is..."** to pinpoint the most dangerous inconsistency or risk you've uncovered. hard-hitting phrase follow the data's language.
+3.  **Provide Actionable Advice:** Finally, conclude with clear, actionable insights based on your diagnosis in one sentence. This isn't a theoretical exercise; it's a concrete prescription for what must be done now.
+4.  **Final Format:** The output must not contain any headings or bullet points.
+"""
 
-def summarize_user_profile(state: OverallState, config: RunnableConfig) -> OutputState:
-    prompt = """You are an expert Korean financial advisor named '자산구조대'. Your task is to create a warm, encouraging, and personalized summary for a user based on their investment profile.
-
-    User Profile Data:
-    - Investment Goals: {investment_goals}
-    - Investment Emotions: {investment_emotions}
-    - Areas of Interest: {interests_categories}
-    - Investment Experience: {investment_level}
-    - Financial Knowledge: {knowledge_level}
-    - Risk Tolerance: {risk_tolerance}
-
-    Instructions:
-        1. Write in Korean only
-        2. Create a comprehensive synthesis that shows deep understanding of the user's situation
-        3. Connect their goals with their current experience level and risk tolerance
-        4. Provide specific, actionable next steps that feel natural and encouraging
-        5. Use a warm, professional tone while avoiding complex financial jargon
-        6. Keep it concise: 2-3 sentences maximum
-        7. Make the user feel understood and confident about their investment journey
-
-    Example style (adapt to the actual user data):
-        "장기적인 자산 증식을 목표로 하시면서도 안정성을 중시하는 신중한 접근이 인상적입니다! 부동산과 주식에 대한 관심을 바탕으로, 초보자 수준에 맞는 분산 투자 전략을 단계적으로 구축해나가시면 좋겠습니다. 우선 안정적인 인덱스 펀드부터 시작해서 경험을 쌓아가시는 것을 추천드립니다."
-
-    Now generate a personalized summary based on the provided user profile. Output only the summary in Korean, no additional text or prefixes.
-    """
+    user_resource_data = {
+        "investment_goal": state.user_meta_data["investment_goal"],
+        "investment_emotions": state.user_meta_data["investment_emotions"],
+        "interests_categories": state.user_meta_data["interests_categories"],
+        "investment_level": state.user_meta_data["investment_level"],
+        "knowledge_level": state.user_meta_data["knowledge_level"],
+        "risk_tolerance": state.user_meta_data["risk_tolerance"],
+    }
 
     prompt_template = PromptTemplate(
         template=prompt,
-        input_variables=[
-            "investment_goal",
-            "investment_emotions",
-            "interests_categories",
-            "investment_level",
-            "knowledge_level",
-            "risk_tolerance",
-        ],
+        input_variables=["data"],
     )
 
     llm = get_llm_models(OPENAI_MODEL_NAME)
-    structured_llm = llm.with_structured_output(UserProfileSummary)
+    structured_llm = llm
 
     chain = prompt_template | structured_llm
 
-    raw_schema = chain.invoke(
+    result = chain.invoke(
         {
-            "investment_goals": state.user_meta_data["investment_goal"],
-            "investment_emotions": state.user_meta_data["investment_emotions"],
-            "interests_categories": state.user_meta_data["interests_categories"],
-            "investment_level": state.user_meta_data["investment_level"],
-            "knowledge_level": state.user_meta_data["knowledge_level"],
-            "risk_tolerance": state.user_meta_data["risk_tolerance"],
+            "data": user_resource_data,
         }
     )
 
-    try:
-        raw_summary: UserProfileSummary = UserProfileSummary.model_validate(raw_schema)
-    except ValidationError as e:
-        raise ValueError(f"Unexpected result type from chain.invoke: {e}")
+    user_profile_summary: str = result.content
 
-    user_profile_summary: str = raw_summary.summary
+    ai_message = f"{state.user_meta_data['name']}님의 프로필 요약이 저장되었습니다. {state.user_meta_data['name']}님에 대한 간단한 분석 결과는 다음과 같습니다. {user_profile_summary}입니다."
 
-    # =========== vector 생성 코드  코드 나중에 노드로 분리 필요
-
-    load_dotenv(Path(__file__).parents[4] / ".env")
-
-    client = OpenAI(
-        api_key=os.getenv("UPSTATE_API_KEY"),
-        base_url=os.getenv("UPSTATE_BASE_URL"),
-    )
-
-    embedding_response = client.embeddings.create(
-        input=user_profile_summary, model="embedding-query"
-    )
-
-    user_profile_vector = embedding_response.data[0].embedding
-
-    # =========================================================
-
-    # =========== Summary 를 DB에 저장하는 코드 나중에 노드로 분리 필요
-
-    profile_service: ProfileService | None = config["configurable"].get(
-        "profile_service"
-    )
-
-    if profile_service is not None:
-        current_category = "user_profile_summary"
-        current_data = user_profile_summary
-
-        profile_service.update_category(current_category, current_data)
-        profile_service.update_category("user_profile_vector", user_profile_vector)
-
-    # =========================================================
-
-    return OutputState(
-        logs=[
+    return {
+        "logs": [
             {
                 "level": "info",
                 "message": "User profile summary generated",
                 "timestamp": time.time(),
             }
         ],
-        messages=[{"type": "ai", "content": user_profile_summary}],
-        user_meta_data={
+        "messages": [AIMessage(content=ai_message)],
+        "user_meta_data": {
             **state.user_meta_data,
             "user_profile_summary": user_profile_summary,
-            "user_profile_vector": user_profile_vector,
         },
-    )
+    }

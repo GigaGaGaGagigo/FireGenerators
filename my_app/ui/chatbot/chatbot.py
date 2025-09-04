@@ -1,3 +1,4 @@
+import base64
 import sys
 import time
 from pathlib import Path
@@ -21,12 +22,13 @@ try:
         get_current_question_info,
         sync_questions,
     )
-except ImportError as e:
+except Exception as e:
     st.write(f"Error: {e}")
     raise e
 
 
 IMAGE_PATH: Path = Path(__file__).parents[2] / "assets" / "FIRE_LOGO_large.png"
+FINISHED_CHAT_IMAGE_PATH: Path = Path(__file__).parents[2] / "assets" / "2.png"
 
 
 USER_DATA_KEY: list[str] = [
@@ -47,6 +49,81 @@ def load_css(file_path: str) -> None:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 
+def get_image_base64(image_path: str) -> str:
+    """Convert image to base64 string for CSS background."""
+    try:
+        with open(image_path, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode()
+            return f"data:image/png;base64,{encoded_string}"
+    except Exception as e:
+        st.error(f"이미지 로드 실패: {e}")
+        return ""
+
+
+def apply_background_image(
+    image_name: str = "FIRE_LOGO_large.png", style: str = "cover", opacity: float = 0.85
+):
+    """Apply background image with different styles."""
+    background_image_path = str(Path(__file__).parents[2] / "assets" / image_name)
+    background_image_b64 = get_image_base64(background_image_path)
+
+    if not background_image_b64:
+        return False
+
+    styles = {
+        "cover": """
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        """,
+        "repeat": """
+        background-size: 30px 30px;
+        background-position: 0 0;
+        background-repeat: repeat;
+        """,
+        "center": """
+        background-size: auto;
+        background-position: center;
+        background-repeat: no-repeat;
+        """,
+        "stretch": """
+        background-size: 100% 100%;
+        background-position: center;
+        background-repeat: no-repeat;
+        """,
+    }
+
+    css_style = styles.get(style, styles["cover"])
+
+    st.markdown(
+        f"""
+    <style>
+    .stApp {{
+        background-image: url('{background_image_b64}');
+        background-attachment: fixed;
+        {css_style}
+        opacity: {opacity};
+    }}
+
+    /* 콘텐츠 영역에 반투명한 흰색 배경 추가 */
+    .stApp > div {{
+        background-color: rgba(255, 255, 255, 0.85) !important;
+        border-radius: 10px;
+        margin: 10px;
+        padding: 10px;
+    }}
+
+    /* 사이드바와 메인 영역 구분 */
+    .stApp > div[data-testid="stSidebar"] {{
+        background-color: rgba(255, 255, 255, 0.95) !important;
+    }}
+    </style>
+    """,
+        unsafe_allow_html=True,
+    )
+    return True
+
+
 def initialize_chatbot():
     if "graph" not in st.session_state:
         st.session_state.graph = create_chat_graph()
@@ -55,8 +132,7 @@ def initialize_chatbot():
         st.session_state["ai"] = {}
         st.session_state["ai"]["initialized"] = False
         st.session_state["ai"]["messages"] = []
-        st.session_state["ai"]["last_message"] = None
-        st.session_state["ai"]["message_count"] = 0
+        st.session_state["ai"]["msg_index"] = 0
         st.session_state["state_result"] = {}
         st.session_state["tool"] = {}
         st.session_state["tool"]["tool_call_id"] = None
@@ -101,6 +177,12 @@ def check_and_submit_tool_response(current_category: str):
     # check if all questions have been answered
     if len(user_answers) >= len(quiz_questions) and len(quiz_questions) > 0:
         try:
+            counts = len(quiz_questions)
+            st.progress(
+                100,
+                text=f"[{current_category}] Progress: {counts}/{counts}",
+            )
+
             st.session_state["user_answers"][current_category] = []
             st.session_state["quiz"][current_category]["questions"] = []
             st.session_state["quiz"][current_category]["options"] = []
@@ -109,7 +191,7 @@ def check_and_submit_tool_response(current_category: str):
             run_graph(resume=True, resume_data=user_answers)
 
             # logging
-            session_log: dict[str, float | str] = {
+            session_log = {
                 "level": "info",
                 "message": "The workflow has been automatically resumed.",
                 "timestamp": time.time(),
@@ -155,7 +237,7 @@ def create_answer_callback(question_info: dict, current_category: str):
                     updated_answers.append((question_info["question"], choice))
                     st.session_state["user_answers"][current_category] = updated_answers
 
-                    session_log: dict[str, float | str] = {
+                    session_log = {
                         "level": "info",
                         "message": f"The answer has been saved. category: {current_category}, question: {question_info['question']}, choice: {choice}",
                         "timestamp": time.time(),
@@ -164,7 +246,7 @@ def create_answer_callback(question_info: dict, current_category: str):
                     st.session_state["chatbot"]["logs"].append(session_log)
 
                 else:
-                    session_log: dict[str, float | str] = {
+                    session_log = {
                         "level": "error",
                         "message": f"The answer is not saved. category: {current_category}",
                         "timestamp": time.time(),
@@ -202,24 +284,18 @@ def run_graph(
 
             if key != "__interrupt__":
                 if "messages" in update and update["messages"]:
-                    if (
-                        isinstance(update["messages"][-1], AIMessage)
-                        and update["messages"][-1].content != ""
-                    ):
-                        if isinstance(update["messages"], list):
-                            for message in update["messages"]:
-                                st.session_state["ai"]["last_message"] = message.content
-                        else:
-                            st.session_state["ai"]["last_message"] = update["messages"][
-                                -1
-                            ].content
+                    for message in update["messages"]:
+                        st.session_state["ai"]["messages"].append(
+                            message
+                        ) if isinstance(
+                            message, AIMessage
+                        ) and message.content != "" else message
 
             else:
                 if isinstance(update[0], Interrupt):
                     interrupt_obj = update[0]
                     st.session_state["interrupts"].append(interrupt_obj)
 
-            #  render_quiz(st.session_state["quiz_placeholder"])
     else:
         for event in graph.stream(
             state,
@@ -232,43 +308,22 @@ def run_graph(
 
             if key != "__interrupt__":
                 if "messages" in update and update["messages"]:
-                    if (
-                        isinstance(update["messages"][-1], AIMessage)
-                        and update["messages"][-1].content != ""
-                    ):
-                        st.session_state["ai"]["last_message"] = update["messages"][
-                            -1
-                        ].content
+                    for message in update["messages"]:
+                        st.session_state["ai"]["messages"].append(
+                            message
+                        ) if isinstance(
+                            message, AIMessage
+                        ) and message.content != "" else message
 
             else:
                 if isinstance(update[0], Interrupt):
                     interrupt_obj = update[0]
                     st.session_state["interrupts"].append(interrupt_obj)
 
-            #   render_quiz(st.session_state["quiz_placeholder"])
-
 
 def render_quiz(container):
     with container:
-        # debug logs
-        with st.expander("Debug Logs"):
-            graph_state: OverallState | None = st.session_state.graph.get_state(
-                st.session_state.config
-            )
-            st.write(graph_state)
-
         if not st.session_state.get("interrupts"):
-            return
-
-        graph_state: OverallState | None = st.session_state.graph.get_state(
-            st.session_state.config
-        )
-
-        user_meta_data = getattr(graph_state, "user_meta_data", {})
-
-        if user_meta_data.get("profile_status", "") == "completed":
-            st.empty()
-            st.balloons()
             return
 
         current_category = sync_questions()
@@ -305,29 +360,81 @@ def render_quiz(container):
                 )
 
 
+def render_finished_chat(container):
+    with container:
+        st.image(FINISHED_CHAT_IMAGE_PATH, use_container_width=True)
+
+
+def reset_data():
+    supabase = st.session_state.supabase
+    user_id = st.session_state.user.id
+    supabase.table("profiles").update(
+        {
+            "investment_goal": [],
+            "investment_emotions": [],
+            "interests_categories": [],
+            "investment_level": [],
+            "knowledge_level": [],
+            "risk_tolerance": 0,
+        }
+    ).eq("id", user_id).execute()
+
+
 def render_chat(container):
     with container:
         messages = st.session_state.get("ai", {}).get("messages", [])
-        last_message = st.session_state.get("ai", {}).get("last_message", None)
+        idx = st.session_state["ai"]["msg_index"]
 
-        if len(messages) == 0 or last_message != messages[-1]:
-            if messages:
-                with st.chat_message("ai"):
-                    st.write(messages)
-
+        if idx == 0:
             with st.chat_message("ai"):
-                st.write_stream(stream_text(last_message))
-
-            st.session_state.get("ai", {}).get("messages").append(last_message)
-        else:
-            for message in messages:
+                for message in messages:
+                    st.write_stream(stream_text(message.content))
+                idx += len(messages)
+                st.session_state["ai"]["msg_index"] = idx
+        elif len(messages) > idx:
+            for msg_idx in range(idx, len(messages)):
                 with st.chat_message("ai"):
-                    st.write(message)
+                    st.write_stream(stream_text(messages[msg_idx].content))
+            idx += len(messages) - idx
+            st.session_state["ai"]["msg_index"] = idx
+        else:
+            for msg_idx in range(idx):
+                with st.chat_message("ai"):
+                    st.write(messages[msg_idx].content)
 
-        # st.write(st.session_state["events"])
+        graph_state = st.session_state.graph.get_state(st.session_state.config)
+
+        user_meta_data = getattr(graph_state, "values", {}).get("user_meta_data", {})
+
+        if user_meta_data.get("profile_status", "") == "completed":
+            st.session_state["interrupts"] = []
+            for category in CATEGORY_KEYS:
+                st.session_state["user_answers"][category] = []
+                st.session_state["quiz"][category]["questions"] = []
+                st.session_state["quiz"][category]["options"] = []
+                st.session_state["quiz"][category]["synced"] = False
+            render_finished_chat(st.session_state["quiz_placeholder"])
+            st.empty()
+            st.balloons()
+            if st.button("🔁 다시 시작", use_container_width=True):
+                reset_data()
+                st.rerun()
 
 
 def render():
+    # 배경 이미지 적용 예시들:
+    # apply_background_image(style="cover", opacity=0.8)      # 전체 화면 커버
+    # apply_background_image(style="repeat", opacity=0.9)     # 반복 패턴
+    # apply_background_image(style="center", opacity=0.7)     # 가운데 정렬
+    # apply_background_image(style="stretch", opacity=0.8)    # 화면에 맞춰 늘이기
+    # apply_background_image("FIRE_LOGO_small.png", "repeat", 0.95)  # 다른 이미지 사용
+
+    if apply_background_image("FIRE_LOGO_small.png", style="repeat", opacity=1):
+        st.markdown(
+            '<div style="text-align: center; color: red; font-size: 40px; font-weight: bold; font-family: Montserrat; background-color: white; padding: 10px; border-radius: 5px;opacity: 0.7;">Jasan Rescue 🚒</div>',
+            unsafe_allow_html=True,
+        )
+
     initialize_chatbot()
 
     # 커스텀 CSS 적용
@@ -337,10 +444,10 @@ def render():
     _, left_screen, right_screen, _ = st.columns([0.1, 0.4, 0.4, 0.1], border=False)
 
     with left_screen:
-        st.session_state["quiz_placeholder"] = st.container(border=True, height=850)
+        st.session_state["quiz_placeholder"] = st.container(border=True, height=500)
 
     with right_screen:
-        st.session_state["chat_placeholder"] = st.container(border=True, height=850)
+        st.session_state["chat_placeholder"] = st.container(border=True, height=500)
 
     if not st.session_state.get("ai", {}).get("initialized", False):
         user_data: dict = st.session_state.user_data
@@ -375,33 +482,11 @@ def render():
                 "risk_tolerance": user_data["risk_tolerance"],
             },
         )
-        #         "investment_emotions",
-        #         "interests_categories",
-        #         "investment_level",
-        #         "knowledge_level",
-        #         "risk_tolerance",
-        #     ],
-        #     user_meta_data={
-        #         "name": "강요셉",
-        #         "profile_status": "onboarding",
-        #         "investment_goal": [],
-        #         "investment_emotions": [],
-        #         "interests_categories": [],
-        #         "investment_level": [],
-        #         "knowledge_level": [],
-        #         "risk_tolerance": 0,
-        #     },
-        #
-        # )
 
         run_graph(input_state, resume=False)
 
-        # st.write(st.session_state["chatbot"]["logs"])
-
     render_chat(st.session_state["chat_placeholder"])
     render_quiz(st.session_state["quiz_placeholder"])
-
-    # st.write(st.session_state["interrupts"])
 
 
 if __name__ == "__main__":

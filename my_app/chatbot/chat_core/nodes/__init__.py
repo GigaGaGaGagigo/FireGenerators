@@ -19,7 +19,10 @@ from my_app.chatbot.chat_core.nodes.tool_nodes import (
     determine_next_node,
     process_human_input_tool,
 )
-from my_app.chatbot.chat_core.nodes.update_nodes import update_user_profile
+from my_app.chatbot.chat_core.nodes.update_nodes import (
+    update_user_meta_data,
+    update_user_profile,
+)
 
 __all__: list[str] = [
     "analyze_user_answers",
@@ -32,6 +35,7 @@ __all__: list[str] = [
     "present_predefined_questions",
     "process_human_input_tool",
     "summarize_user_profile",
+    "update_user_meta_data",
     "update_user_profile",
     "AnalyzeProfile",
     "GenerateFollowUp",

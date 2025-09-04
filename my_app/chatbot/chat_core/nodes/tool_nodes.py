@@ -130,12 +130,16 @@ def determine_next_node(state: OverallState):
         existing_answers_by_category.get(current_category, [])
     )
 
+    order_message: HumanMessage
+
     if gathered_answers_length < 5:
-        order_message: HumanMessage = HumanMessage(
+        # pyrefly: ignore  # annotation-mismatch
+        order_message = HumanMessage(
             content="Create follow-up questions to refine the user's profile. Use GenerateFollowUp Tool"
         )
     else:
-        order_message: HumanMessage = HumanMessage(
+        # pyrefly: ignore  # annotation-mismatch
+        order_message = HumanMessage(
             content="Your task now is to call the 'AnalyzeProfile' tool to perform the analysis."
         )
 

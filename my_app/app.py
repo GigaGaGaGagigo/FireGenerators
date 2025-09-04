@@ -6,11 +6,11 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-import streamlit as st
-from streamlit.navigation.page import Page as Page
-from streamlit_option_menu import option_menu
-from supabase import Client, create_client
-from supabase._sync.client import SyncClient
+import streamlit as st  # noqa: E402
+from streamlit.navigation.page import Page as Page  # noqa: E402
+from streamlit_option_menu import option_menu  # noqa: E402
+from supabase import Client, create_client  # noqa: E402
+from supabase._sync.client import SyncClient  # noqa: E402
 
 # ========================================
 # 🚀 팀원을 위한 개발 가이드
@@ -159,7 +159,7 @@ def check_auth_params() -> None:
                 response_user_data = (
                     supabase.table("profiles")
                     .select("*")
-                    .eq("id", st.session_state.user.id)
+                    .eq("id", st.session_state.user.id)  # pyright: ignore[reportOptionalMemberAccess]
                     .execute()
                 )
                 if "user_data" not in st.session_state:
@@ -196,8 +196,8 @@ def check_auth_params() -> None:
                     raise Exception("User role is not valid")
 
                 # ── profiles 기준으로 역할/프로필 동기화 ──
-                uid = st.session_state.user.id
-                email = st.session_state.user.email
+                uid = st.session_state.user.id  # pyright: ignore[reportOptionalMemberAccess]
+                email = st.session_state.user.email  # pyright: ignore[reportOptionalMemberAccess]
                 meta = getattr(st.session_state.user, "user_metadata", {}) or {}
                 name = meta.get("full_name") or meta.get("name") or email
 
@@ -514,37 +514,27 @@ def route_to_page():
 
                 render()
 
-            except ImportError:
-                st.title("💬 Chatbot")
-                st.info(
-                    "ui/chatbot/chatbot.py 파일을 생성하고 render() 함수를 구현해주세요."
-                )
-                st.code(
-                    """
-                    # ui/chatbot/chatbot.py
-                    import streamlit as st
-
-                    def render():
-                        st.title("💬 AI Chatbot")
-                        st.write("채팅봇 기능을 여기에 구현하세요.")
-                """,
-                    language="python",
-                )
+            except Exception as e:
+                st.error(f"페이지 로딩 중 오류가 발생했습니다: {e}")
 
         elif current_page == "quiz":
             try:
                 from ui.level_quiz.quiz import render
-                
+
                 # 환영 메시지 설정
-                if "messages" not in st.session_state or not isinstance(st.session_state.messages, list):
+                if "messages" not in st.session_state or not isinstance(
+                    st.session_state.messages, list
+                ):
                     st.session_state.messages = []
 
                 if not st.session_state.get("quiz_welcome_pushed", False):
-                    st.session_state.messages.append({
-                        "id": str(uuid.uuid4()),
-                        "role": "assistant",
-                        "content": "안녕하세요! 금융 지식 퀴즈를 시작해보세요. 아래 버튼으로 시작할 수 있어요."
-                    })
+                    st.session_state.messages.append(
+                        {
+                            "id": str(uuid.uuid4()),
+                            "role": "assistant",
+                            "content": "안녕하세요! 금융 지식 퀴즈를 시작해보세요. 아래 버튼으로 시작할 수 있어요.",
+                        }
+                    )
                     st.session_state.quiz_welcome_pushed = True
                     st.session_state.streaming = True
                     st.rerun()
@@ -559,15 +549,17 @@ def route_to_page():
         elif current_page == "content":
             try:
                 from ui.contents.user_recommender import render
+
                 render()
             except ImportError as e:
                 st.title("🔥 맞춤형 금융 지식")
                 st.error(f"페이지를 불러올 수 없습니다: {e}")
                 st.info("ui/contents/user_recommender.py 파일을 확인해주세요.")
-                
+
         elif current_page == "rag_recommendation":
             try:
                 from ui.recommendation.rag_recommendation import render
+
                 render()
             except ImportError:
                 st.title("🤖 RAG 맞춤 추천")
@@ -576,17 +568,25 @@ def route_to_page():
         elif current_page == "simulation":
             try:
                 from ui.trading.trading_ui import render
+
                 render()
-            except ImportError:
-                st.title("📈 현재 보유주식 AI코칭")
-                st.info("ui/trading/trading_ui.py 파일을 생성해주세요.")
+            except Exception as e:
+                st.error(f"{e} 모듈 임포트 중 오류가 발생했습니다.")
+                st.exception
+            # except ImportError:
+            #     st.title("📈 현재 보유주식 AI코칭")
+            #     st.info("ui/trading/trading_ui.py 파일을 생성해주세요.")
         elif current_page == "analysis":
             try:
                 from ui.analysis.streamlit_app import render  # type: ignore
+
                 render()
-            except ImportError:
-                st.title("📊 종목 피드백")
-                st.info("ui/analysis/analysis.py 파일을 생성해주세요.")
+            except Exception as e:
+                st.error(f"{e} 모듈 임포트 중 오류가 발생했습니다.")
+                st.exception
+            # except ImportError:
+            #     st.title("📊 종목 피드백")
+            #     st.info("ui/analysis/analysis.py 파일을 생성해주세요.")
 
         elif current_page == "settings":
             try:

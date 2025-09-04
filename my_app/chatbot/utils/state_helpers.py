@@ -6,9 +6,7 @@ LangGraph 상태 관리를 위한 헬퍼 함수들
 import time
 
 import streamlit as st
-from typing_extensions import Any, Dict
-
-from my_app.chatbot.chat_core.state import OverallState
+from typing_extensions import Any
 
 CATEGORY_KEYS: list[str] = [
     "interests_categories",
@@ -65,6 +63,9 @@ def find_missing_profile_categories(user_data: dict) -> list[str] | None:
 
 def sync_questions() -> str | None:
     interrupt_obj = st.session_state["interrupts"][-1]
+
+    if not interrupt_obj:
+        return None
 
     category = interrupt_obj.value["category"]
     questions = interrupt_obj.value["questions"]
@@ -135,24 +136,3 @@ def get_current_question_info(category: str) -> dict[str, Any] | None:
         }
         st.session_state["chatbot"]["logs"].append(session_log)
         return None
-
-
-def debug_state_info() -> Dict[str, Any]:
-    try:
-        state: OverallState | None = st.session_state.graph.get_state(
-            st.session_state.config
-        )
-        if not state:
-            return {"error": "failed to get the current state"}
-
-        user_meta_data = getattr(state, "user_meta_data", {})
-
-        return {
-            "db_data": getattr(st.session_state, "user_data", {}),
-            "user_meta_data": user_meta_data,
-            "target_profile_category": getattr(state, "target_profile_category", []),
-            "quiz_in_streamlit": st.session_state["quiz"],
-        }
-
-    except Exception as e:
-        return {"error": f"failed to collect debug information: {e}"}

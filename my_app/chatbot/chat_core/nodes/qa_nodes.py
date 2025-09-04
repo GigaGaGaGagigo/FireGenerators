@@ -13,14 +13,8 @@ from langchain_core.runnables import RunnableAssign, RunnablePassthrough
 from pydantic import BaseModel, Field, ValidationError
 from typing_extensions import Annotated
 
-from my_app.chatbot.chat_core.model_loader import (
-    GEMINI_MODEL_NAME,
-    OPENAI_MODEL_NAME,
-    get_llm_models,
-)
-from my_app.chatbot.chat_core.prompt_loader import (
-    load_prompt_from_yaml,
-)
+from my_app.chatbot.chat_core.model_loader import OPENAI_MODEL_NAME, get_llm_models
+from my_app.chatbot.chat_core.prompt_loader import load_prompt_from_yaml
 from my_app.chatbot.chat_core.state import OverallState
 
 
@@ -77,7 +71,7 @@ def present_predefined_questions(state: OverallState) -> dict:
         RunnablePassthrough.assign(chat_history=persona_prompt) | introduce_qa  # type: ignore
     )
 
-    llm = get_llm_models(GEMINI_MODEL_NAME)
+    llm = get_llm_models(OPENAI_MODEL_NAME)
     chain = prompt_template | llm
 
     result = chain.invoke(
@@ -128,6 +122,7 @@ Analyze the following user's investment profile to identify the primary contradi
 User Profile: "{compacted_user_answer}"
 Based on this contradiction, generate two multiple-choice questions designed to clarify the user's true {target_category}.
 Each question must have four distinct options that help the user prioritize their conflicting preferences.
+respond in the "{compacted_user_answer}" language.
 **Specific instructions for the '{target_category}' category:**
 {category_instruction}.
 """
