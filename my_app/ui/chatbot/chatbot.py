@@ -429,11 +429,12 @@ def render():
     # apply_background_image(style="stretch", opacity=0.8)    # 화면에 맞춰 늘이기
     # apply_background_image("FIRE_LOGO_small.png", "repeat", 0.95)  # 다른 이미지 사용
 
-    if apply_background_image("FIRE_LOGO_small.png", style="repeat", opacity=1):
-        st.markdown(
-            '<div style="text-align: center; color: red; font-size: 40px; font-weight: bold; font-family: Montserrat; background-color: white; padding: 10px; border-radius: 5px;opacity: 0.7;">Jasan Rescue 🚒</div>',
-            unsafe_allow_html=True,
-        )
+    # if apply_background_image("FIRE_LOGO_small.png", style="repeat", opacity=1):
+
+    st.markdown(
+        '<div style="text-align: center; color: red; font-size: 40px; font-weight: bold; font-family: Montserrat; background-color: white; padding: 10px; border-radius: 5px;opacity: 0.7;">Jasan Rescue 🚒</div>',
+        unsafe_allow_html=True,
+    )
 
     initialize_chatbot()
 
