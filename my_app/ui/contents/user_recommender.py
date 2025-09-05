@@ -7,9 +7,9 @@ import re
 import pandas as pd
 import plotly.express as px
 
-# ==============
+# ============== 
 # 환경 세팅
-# ==============
+# ============== 
 current_file = Path(__file__).resolve()
 project_root = current_file.parent.parent
 sys.path.insert(0, str(project_root))
@@ -35,13 +35,13 @@ except ImportError:
     st.error("시스템 오류가 발생했습니다.")
     st.stop()
 
-# ==============
+# ============== 
 # 스타일
-# ==============
+# ============== 
 def apply_styles():
     st.markdown("""
     <style>
-    .main .block-container {
+    .main .block-container { 
         padding-top: 2rem;
         max-width: 1200px;
     }
@@ -144,9 +144,9 @@ def apply_styles():
     </style>
     """, unsafe_allow_html=True)
 
-# ==================
+# ================== 
 # 태그 안전 처리
-# ==================
+# ================== 
 def safe_tags(tags):
     if tags is None: return []
     if isinstance(tags, list): return [str(t) for t in tags if t]
@@ -239,9 +239,9 @@ def get_risk_tolerance_status(risk_score):
             "range": "20점 미만"
         }
 
-# ==================
+# ================== 
 # Gemini를 활용한 감정 점수 분석
-# ==================
+# ================== 
 @st.cache_data(ttl=300)  # 5분 캐싱
 def analyze_emotion_score_with_gemini(emotions_text):
     """Gemini를 사용해서 감정 텍스트를 점수로 변환 (-50 ~ +50)"""
@@ -337,9 +337,9 @@ def parse_user_profile_data():
         'investment_level': user_data.get('investment_level', 'None')
     }
 
-# ==================
+# ================== 
 # UI 렌더링 헬퍼 함수들
-# ==================
+# ================== 
 def render_user_profile_card(profile_data):
     """사용자 프로필 카드 렌더링"""
     user_name = profile_data['user_name']
@@ -422,9 +422,9 @@ def render_user_analysis_cards(profile_data):
     <div class="quiz-card"><div class="quiz-content">{content}</div></div>
     """, unsafe_allow_html=True)
 
-# ==================
+# ================== 
 # 사용자 뷰
-# ==================
+# ================== 
 def render_user_view():
     """사용자 뷰 메인 렌더링 함수"""
     # 헤더
@@ -433,7 +433,6 @@ def render_user_view():
 
     # 사용자 데이터 파싱
     profile_data = parse_user_profile_data()
-    user_name = profile_data['user_name']
     knowledge_level = profile_data['knowledge_level']
     emotions = profile_data['emotions']
     interest_tags = profile_data['interest_tags']
@@ -453,8 +452,8 @@ def render_user_view():
     with col_right:
         render_user_analysis_cards(profile_data)
 
-    # 맞춤 콘텐츠 추천 버튼 
-    if 'last_recommendation' not in st.session_state:
+    # 맞춤 콘텐츠 추천 버튼
+    if 'recommendation_result' not in st.session_state:
         if st.button("💫 맞춤 추천 받기", use_container_width=True):
             if not interest_tags:
                 st.warning("관심 분야를 최소 1개 선택해주세요!")
@@ -468,135 +467,210 @@ def render_user_view():
                     "interest_tags": interest_tags,
                     "recent_seen_card_ids": [],
                     "liked_tags": [],
-                    "user_summary": user_summary,      # LLM 리랭킹용 추가
-                    "knowledge_summary": knowledge_summary  # LLM 리랭킹용 추가
+                    "user_summary": user_summary,
+                    "knowledge_summary": knowledge_summary
                 }, top_n=top_n, use_llm_rerank=use_llm_rerank)
             if rec_result["success"]:
-                st.session_state['last_recommendation'] = rec_result
+                st.session_state['recommendation_result'] = rec_result
+                st.session_state['shown_recommendations'] = rec_result['results']
                 st.rerun()
             else:
                 st.error("추천을 가져올 수 없어요. 잠시 후 다시 시도해주세요.")
-    else:
-        # 추천 완료 안내 메시지
-        st.success("✨ 맞춤 정보가 추천되었습니다!")
 
     st.divider()
-    
-    # 추천 콘텐츠 카드
-    if 'last_recommendation' in st.session_state:
-        rec_result = st.session_state['last_recommendation']
-        if rec_result.get("success"):
-            results = rec_result["results"]
-            st.markdown('### 🚀 나만의 맞춤 추천')
-            
-            for i, content in enumerate(results, 1):
-                st.markdown(
-                    f'<div class="content-card"><h4>{i}. {content.get("title","제목 없음")}</h4></div>',
-                    unsafe_allow_html=True
-                )
 
-                # 1:2 비율로 버튼 + 설명
-                col_btn, col_exp = st.columns([1, 2])
-                card_identifier = content.get('card_id', content.get('id', i))
-                explanation_key = f"explanation_{card_identifier}"
-                log_id_key = f"log_id_{card_identifier}"
+    # 추천 콘텐츠 카드 및 재추천 로직
+    if 'shown_recommendations' in st.session_state:
+        st.success("✨ 맞춤 정보가 추천되었습니다!")
+        st.markdown('### 🚀 나만의 맞춤 추천')
 
-                with col_btn:
-                    if st.button("💡 AI 맞춤 설명", key=f"user_explain_btn_{card_identifier}"):
-                        with st.spinner("당신을 위한 맞춤 설명을 만들고 있어요..."):
+        results = st.session_state['shown_recommendations']
+        
+        for i, content in enumerate(results, 1):
+            st.markdown(
+                f'<div class="content-card"><h4>{i}. {content.get("title","제목 없음")}</h4></div>',
+                unsafe_allow_html=True
+            )
+
+            # 1:2 비율로 버튼 + 설명
+            col_btn, col_exp = st.columns([1, 2])
+            card_identifier = content.get('card_id', content.get('id', i))
+            explanation_key = f"explanation_{card_identifier}"
+            log_id_key = f"log_id_{card_identifier}"
+
+            with col_btn:
+                if st.button("💡 AI 맞춤 설명", key=f"user_explain_btn_{card_identifier}"):
+                    with st.spinner("당신을 위한 맞춤 설명을 만들고 있어요..."):
+                        try:
+                            explanation = generate_explanation(
+                                level=knowledge_level,
+                                content_title=content.get('title',''),
+                                content_description=content.get('content','')[:300],
+                                contents_id=content.get('id')
+                            )
+                            st.session_state[explanation_key] = explanation
+                            
+                            # 실시간 로그 저장
                             try:
-                                explanation = generate_explanation(
-                                    level=knowledge_level,
-                                    content_title=content.get('title',''),
-                                    content_description=content.get('content','')[:300]
-                                )
-                                st.session_state[explanation_key] = explanation
-                                
-                                # 실시간 로그 저장
-                                try:
-                                    supabase_client = st.session_state.get("supabase")
-                                    logger = get_logger(supabase_client)
-                                    if logger:
-                                        user_data = st.session_state.get('user_data', {})
-                                        user_id = user_data.get('id', 'anonymous')
-                                        contents_id_for_log = content.get('id')
+                                supabase_client = st.session_state.get("supabase")
+                                logger = get_logger(supabase_client)
+                                if logger:
+                                    user_data = st.session_state.get('user_data', {})
+                                    user_id = user_data.get('id', 'anonymous')
+                                    contents_id_for_log = content.get('id')
 
-                                        if contents_id_for_log:
-                                            user_context = {
-                                                'emotions': emotions,
-                                                'interest_tags': interest_tags,
-                                                'risk_tolerance': profile_data.get('risk_tolerance', 50),
-                                                'investment_goal': profile_data.get('investment_goal', ''),
-                                                'user_summary': profile_data.get('user_summary', ''),
-                                                'knowledge_summary': profile_data.get('knowledge_summary', '')
-                                            }
-                                            
-                                            log_id = logger.log_content_view(
-                                                user_id=str(user_id),
-                                                contents_id=contents_id_for_log,
-                                                content_title=content.get('title', ''),
-                                                original_content=content.get('content', ''),
-                                                ai_explanation=explanation,
-                                                user_level=knowledge_level,
-                                                user_context=user_context,
-                                                recommendation_source=content.get('recommendation_source', 'unknown'),
-                                                recommendation_rank=content.get('recommendation_rank', i)
-                                            )
-                                            if log_id:
-                                                st.session_state[log_id_key] = log_id
-                                        else:
-                                            st.warning(f"콘텐츠의 UUID가 없어 로그 저장이 불가능합니다: card_id={content.get('card_id')}")
+                                    if contents_id_for_log:
+                                        user_context = {
+                                            'emotions': emotions,
+                                            'interest_tags': interest_tags,
+                                            'risk_tolerance': profile_data.get('risk_tolerance', 50),
+                                            'investment_goal': profile_data.get('investment_goal', ''),
+                                            'user_summary': profile_data.get('user_summary', ''),
+                                            'knowledge_summary': profile_data.get('knowledge_summary', '')
+                                        }
+                                        
+                                        log_id = logger.log_content_view(
+                                            user_id=str(user_id),
+                                            contents_id=contents_id_for_log,
+                                            content_title=content.get('title', ''),
+                                            original_content=content.get('content', ''),
+                                            ai_explanation=explanation,
+                                            user_level=knowledge_level,
+                                            user_context=user_context,
+                                            recommendation_source=content.get('recommendation_source', 'unknown'),
+                                            recommendation_rank=content.get('recommendation_rank', i)
+                                        )
+                                        if log_id:
+                                            st.session_state[log_id_key] = log_id
+                                    else:
+                                        st.warning(f"콘텐츠의 UUID가 없어 로그 저장이 불가능합니다: card_id={content.get('card_id')}")
 
-                                except Exception as log_error:
-                                    st.error(f"로그 저장 중 오류 발생: {log_error}")
-                                
-                                st.success("✅ 설명이 준비됐어요!")
-                            except Exception as e:
-                                st.error(f"설명을 만들 수 없어요 😅: {e}")
-                
-                with col_exp:
-                    if explanation_key in st.session_state:
-                        st.markdown(
-                            f'<div class="ai-explanation">{st.session_state[explanation_key]}</div>',
-                            unsafe_allow_html=True
-                        )
+                            except Exception as log_error:
+                                st.error(f"로그 저장 중 오류 발생: {log_error}")
+                            
+                            st.success("✅ 설명이 준비됐어요!")
+                        except Exception as e:
+                            st.error(f"설명을 만들 수 없어요 😅: {e}")
+            
+            with col_exp:
+                if explanation_key in st.session_state:
+                    st.markdown(
+                        f'<div class="ai-explanation">{st.session_state[explanation_key]}</div>',
+                        unsafe_allow_html=True
+                    )
+                    
+                    # 피드백 버튼
+                    feedback_recorded_key = f"feedback_recorded_{card_identifier}"
+                    if log_id_key in st.session_state and feedback_recorded_key not in st.session_state:
+                        st.write("이 설명이 도움이 되었나요?")
+                        fb_cols = st.columns([1, 1, 8])
+                        with fb_cols[0]:
+                            if st.button("👍", key=f"fb_pos_{card_identifier}"):
+                                supabase_client = st.session_state.get("supabase")
+                                logger = get_logger(supabase_client)
+                                if logger:
+                                    logger.log_feedback(st.session_state[log_id_key], 'positive')
+                                    st.toast("피드백 감사합니다! 👍")
+                                    st.session_state[feedback_recorded_key] = 'positive'
+                                    st.rerun()
+                        with fb_cols[1]:
+                            if st.button("👎", key=f"fb_neg_{card_identifier}"):
+                                supabase_client = st.session_state.get("supabase")
+                                logger = get_logger(supabase_client)
+                                if logger:
+                                    logger.log_feedback(st.session_state[log_id_key], 'negative')
+                                    st.toast("피드백 감사합니다! 개선에 참고할게요.")
+                                    st.session_state[feedback_recorded_key] = 'negative'
+                                    st.rerun()
+                    elif feedback_recorded_key in st.session_state:
+                        if st.session_state[feedback_recorded_key] == 'positive':
+                            st.success("👍 피드백이 반영되었습니다.")
+                        else:
+                            st.warning("👎 아쉬운 점을 알려주셔서 감사합니다.")
+
+            # 태그
+            tags = safe_tags(content.get('tags', []))
+            if tags:
+                tag_html = ''.join([f'<span class="tag">#{t}</span>' for t in tags[:4]])
+                st.markdown(tag_html, unsafe_allow_html=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+
+        # 재추천 버튼
+        st.divider()
+        rec_result = st.session_state['recommendation_result']
+        all_candidates = rec_result['metadata']['all_candidates']
+        shown_ids = {c['card_id'] for c in st.session_state['shown_recommendations']}
+        more_available = len(all_candidates) > len(shown_ids)
+
+        if more_available:
+            if st.button("🔄 새로운 맞춤 정보 더 보기", use_container_width=True):
+                with st.spinner("피드백을 반영하여 새로운 정보를 찾고 있어요..."):
+                    base_scores = rec_result['metadata']['base_scores']
+                    
+                    previous_results = st.session_state['shown_recommendations']
+                    
+                    # Gather feedback
+                    feedback = {'liked': [], 'disliked': []}
+                    for content in previous_results:
+                        card_identifier = content.get('card_id', content.get('id'))
+                        feedback_key = f"feedback_recorded_{card_identifier}"
+                        if feedback_key in st.session_state:
+                            if st.session_state[feedback_key] == 'positive':
+                                feedback['liked'].append(content)
+                            elif st.session_state[feedback_key] == 'negative':
+                                feedback['disliked'].append(content)
+                    
+                    analysis = load_and_analyze_contents()
+                    if not analysis:
+                        st.error("콘텐츠 데이터를 불러올 수 없어 재추천할 수 없습니다.")
+                        st.stop()
+                    
+                    all_contents = analysis['raw_contents']
+                    card_map = {str(c.get("card_id")): c for c in all_contents}
+
+                    scores_to_sort = base_scores.copy()
+                    if feedback['liked'] or feedback['disliked']:
+                        boost_tags = set()
+                        for item in feedback['liked']:
+                            boost_tags.update(safe_tags(item.get('tags', [])))
+
+                        penalize_tags = set()
+                        for item in feedback['disliked']:
+                            penalize_tags.update(safe_tags(item.get('tags', [])))
+
+                        for cid in all_candidates:
+                            if cid not in card_map: continue
+                            content_tags = set(safe_tags(card_map[cid].get('tags', [])))
+                            
+                            if boost_tags.intersection(content_tags):
+                                scores_to_sort[cid] = scores_to_sort.get(cid, 0.0) + 0.2
+                            if penalize_tags.intersection(content_tags):
+                                scores_to_sort[cid] = scores_to_sort.get(cid, 0.0) - 0.3
+                    
+                    sorted_candidates = sorted(scores_to_sort.keys(), key=lambda cid: scores_to_sort.get(cid, 0.0), reverse=True)
+
+                    top_n = st.session_state.get('top_n', 3)
+                    new_rec_ids = []
+                    for cid in sorted_candidates:
+                        if cid not in shown_ids:
+                            new_rec_ids.append(cid)
+                        if len(new_rec_ids) >= top_n:
+                            break
+                    
+                    if new_rec_ids:
+                        new_results = [card_map[cid] for cid in new_rec_ids if cid in card_map]
+                        for i, content in enumerate(new_results):
+                            content['recommendation_reason'] = f"새로운 추천: 이전 학습 내용과 피드백을 반영하여 추천되었습니다."
+                            content['recommendation_source'] = 'reranked'
+                            content['recommendation_rank'] = len(results) + i + 1
                         
-                        # 피드백 버튼
-                        feedback_recorded_key = f"feedback_recorded_{card_identifier}"
-                        if log_id_key in st.session_state and feedback_recorded_key not in st.session_state:
-                            st.write("이 설명이 도움이 되었나요?")
-                            fb_cols = st.columns([1, 1, 8])
-                            with fb_cols[0]:
-                                if st.button("👍", key=f"fb_pos_{card_identifier}"):
-                                    supabase_client = st.session_state.get("supabase")
-                                    logger = get_logger(supabase_client)
-                                    if logger:
-                                        logger.log_feedback(st.session_state[log_id_key], 'positive')
-                                        st.toast("피드백 감사합니다! 👍")
-                                        st.session_state[feedback_recorded_key] = 'positive'
-                                        st.rerun()
-                            with fb_cols[1]:
-                                if st.button("👎", key=f"fb_neg_{card_identifier}"):
-                                    supabase_client = st.session_state.get("supabase")
-                                    logger = get_logger(supabase_client)
-                                    if logger:
-                                        logger.log_feedback(st.session_state[log_id_key], 'negative')
-                                        st.toast("피드백 감사합니다! 개선에 참고할게요.")
-                                        st.session_state[feedback_recorded_key] = 'negative'
-                                        st.rerun()
-                        elif feedback_recorded_key in st.session_state:
-                            if st.session_state[feedback_recorded_key] == 'positive':
-                                st.success("👍 피드백이 반영되었습니다.")
-                            else:
-                                st.warning("👎 아쉬운 점을 알려주셔서 감사합니다.")
-
-                # 태그
-                tags = safe_tags(content.get('tags', []))
-                if tags:
-                    tag_html = ''.join([f'<span class="tag">#{t}</span>' for t in tags[:4]])
-                    st.markdown(tag_html, unsafe_allow_html=True)
-                
-                st.markdown("<br>", unsafe_allow_html=True)
+                        st.session_state['shown_recommendations'].extend(new_results)
+                        st.rerun()
+                    else:
+                        st.info("더 이상 추천해드릴 새로운 콘텐츠가 없습니다. 😃")
+        else:
+            st.info("모든 추천 후보를 확인했습니다. 😃")
 
     # 이전 조회 콘텐츠 히스토리
     st.divider()
@@ -655,11 +729,11 @@ def render_user_view():
         print(f"히스토리 로드 실패: {e}")
 
     # 학습 현황
-    if 'last_recommendation' in st.session_state:
+    if 'recommendation_result' in st.session_state:
         st.divider() 
         st.markdown('### 📊 현재 세션 학습 현황')
         
-        rec_result = st.session_state['last_recommendation']
+        rec_result = st.session_state['recommendation_result']
         if rec_result.get("success"):
             results = rec_result["results"]
             total_contents = len(results)
@@ -699,9 +773,9 @@ def render_user_view():
                     </div>
                     """, unsafe_allow_html=True)
 
-# ==================
+# ================== 
 # 콘텐츠 데이터 시각화 함수들
-# ==================
+# ================== 
 
 @st.cache_data(ttl=600)  # 10분 캐싱
 def load_and_analyze_contents():
@@ -843,9 +917,9 @@ def render_content_overview_charts():
             filtered_df = analysis['contents_df'][available_columns] if available_columns else analysis['contents_df']
             st.dataframe(filtered_df, use_container_width=True)
 
-# ==================
+# ================== 
 # 관리자 상세 뷰 
-# ==================
+# ================== 
 def render_admin_view():
     """개발자/관리자용 상세 분석 뷰"""
     
@@ -972,7 +1046,8 @@ def render_admin_view():
             - 후보 수: 10개
             - 감정 점수: -50 ~ +50
             - 레벨 자동 조정
-            """)
+            """
+            )
         
         with col2:
             st.markdown("""
@@ -985,7 +1060,8 @@ def render_admin_view():
             - 후보 수: 10개  
             - 유사도 임계값: 0.15
             - 레벨 필터링: 사전 적용
-            """)
+            """
+            )
             
         with col3:
             st.markdown("""
@@ -998,14 +1074,15 @@ def render_admin_view():
             - 후보 수: 10개
             - 레벨 필터링: 엄격 모드
             - 태그 점수 가중치: 40%
-            """)
+            """
+            )
     
     with tab2:
         st.markdown("#### 수치 기반 리랭킹 공식")
         
         st.latex(r"""
         Score_{final} = \alpha \times Score_{vector} + \beta \times Score_{level} + \gamma \times Score_{tag}
-        """)
+        """,)
         
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -1020,7 +1097,8 @@ def render_admin_view():
         - **이전 조회 패널티**: -0.2 (중복 방지)
         - **선호 태그 보너스**: +0.1 (개인화 강화)
         - **레벨 차이 패널티**: 1.0 - 0.3 × |차이| (적절한 난이도)
-        """)
+        """
+        )
     
     with tab3:
         st.markdown("#### GPT-4o-mini 컨텍스트 리랭킹")
@@ -1044,7 +1122,8 @@ def render_admin_view():
             - **LLM 평가 대상**: 상위 7개만 (효율성)
             - **가중치 비율**: LLM 70% > 수치 30% (컨텍스트 중시)  
             - **폴백 처리**: LLM 실패시 기존 수치점수로 폴백
-            """)
+            """
+            )
         
         with col2:
             st.markdown("""
@@ -1061,7 +1140,8 @@ def render_admin_view():
             후보 2: context_score=0.72
             후보 3: context_score=0.68
             ```
-            """)
+            """
+            )
     
     st.divider()
     
@@ -1141,7 +1221,8 @@ def render_admin_view():
         | -10~9점 | 😐 중립적 | 균형잡힌 투자 심리 | 기본 수준 콘텐츠 |
         | -30~-11점 | 😟 다소 불안 | 약간의 우려 있음 | 안정적인 콘텐츠 우선 |
         | -30점 미만 | 😔 불안감 높음 | 투자 걱정이 많음 | 쉽고 안전한 콘텐츠로 하향 조정 |
-        """)
+        """
+        )
         
         profile_data = parse_user_profile_data()
         risk_tolerance = profile_data.get('risk_tolerance', 50)
@@ -1158,14 +1239,15 @@ def render_admin_view():
         | 40~59점 | ⚖️ 균형형 | 안정성과 수익성의 적절한 균형 |
         | 20~39점 | 🛡️ 보수적 | 안정성 중시, 낮은 위험 선호 |
         | 20점 미만 | 🏦 매우 보수적 | 원금 보장 최우선 |
-        """)
+        """
+        )
     
 
     st.divider()
 
     # 추천 결과 상세 분석
-    if 'last_recommendation' in st.session_state:
-        rec_result = st.session_state['last_recommendation']
+    if 'recommendation_result' in st.session_state:
+        rec_result = st.session_state['recommendation_result']
         if rec_result.get("success"):
             st.markdown('### 📊 추천 결과 상세 분석')
             
@@ -1377,9 +1459,9 @@ def render_admin_view():
                 st.code(metadata['context_text'], language="text")
 
 
-# ==================
+# ================== 
 # 메인 렌더링
-# ==================
+# ================== 
 def render():
     apply_styles()
 

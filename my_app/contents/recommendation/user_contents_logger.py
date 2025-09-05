@@ -306,6 +306,38 @@ class UserContentsLogger:
             print(f"[ERROR] 사용자 행동 분석 실패: {e}")
             return {}
 
+    def get_cached_explanation(self, 
+                               contents_id: str,
+                               user_level: str) -> Optional[str]:
+        """
+        특정 콘텐츠와 사용자 레벨에 대해 캐시된 AI 설명을 조회합니다.
+
+        Args:
+            contents_id: 콘텐츠 ID (contents 테이블의 id - uuid)
+            user_level: 사용자 레벨 (Beginner/Intermediate/Advanced)
+
+        Returns:
+            Optional[str]: 캐시된 AI 설명 또는 찾지 못한 경우 None
+        """
+        try:
+            response = (self.supabase.table("user_contents_log")
+                        .select("ai_explanation")
+                        .eq("contents_id", contents_id)
+                        .eq("user_level", user_level)
+                        .not_.is_("ai_explanation", "null") # 설명이 비어있지 않은 것
+                        .order("viewed_at", desc=True) # 가장 최근 것을 가져옴
+                        .limit(1)
+                        .execute())
+            
+            if response.data and response.data[0].get("ai_explanation"):
+                print(f"[INFO] Found cached explanation for contents_id={contents_id}, level={user_level}")
+                return response.data[0].get("ai_explanation")
+            return None
+            
+        except Exception as e:
+            print(f"[INFO] 캐시된 설명 조회 중 오류 발생 (무시하고 계속): {e}")
+            return None
+
 
 # 전역 인스턴스 생성
 def get_logger(supabase_client: Optional[Client] = None) -> Optional[UserContentsLogger]:

@@ -838,6 +838,8 @@ def get_hybrid_recommendations(user: Dict, **kwargs) -> Dict:
             },
             "recommendation_sources": [candidate_sources.get(cid, "unknown") for cid in final_ids],
             "llm_rerank_info": rerank_metadata,  # LLM 리랭킹 메타데이터 포함
+            "all_candidates": all_candidates,
+            "base_scores": base_scores,
             "optimization_info": {
                 "level_filtering_first": True,
                 "vector_search_on_filtered": True,
