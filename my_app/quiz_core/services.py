@@ -1,6 +1,9 @@
-import os, json, re, time, random
+import os, json, re, time, random, logging
+from typing import cast, List
+from openai.types.chat import ChatCompletionMessageParam
 import streamlit as st
 from openai import OpenAI, APIError, APIConnectionError, RateLimitError, BadRequestError
+from openai.types.chat import ChatCompletion
 from supabase import create_client
 from pathlib import Path
 from dotenv import load_dotenv
@@ -71,23 +74,35 @@ def chat_json(system_prompt: str, user_prompt: str, json_schema: dict | None = N
         return client.chat.completions.create(**kwargs)
 
     try:
-        resp = _with_retry(_call_with_schema)
+        resp = cast(ChatCompletion, _with_retry(_call_with_schema))
+        if not getattr(resp, "choices", None):
+            return None
         raw = (resp.choices[0].message.content or "").strip()
-        return _safe_json_loads(_extract_json(raw), None)
+        js = _safe_json_loads(_extract_json(raw), None)
+        if js is not None:
+            return js
     except Exception:
         pass
 
     def _call_plain():
-        msgs = [
-            {"role": "system", "content": system_prompt + "\n반드시 JSON만 출력하세요."},
-            {"role": "user", "content": user_prompt + "\nJSON 외 텍스트/마크다운/설명 금지."},
-        ]
+        msgs: List[ChatCompletionMessageParam] = cast(
+            List[ChatCompletionMessageParam],
+            [
+                {"role": "system", "content": system_prompt + "\n반드시 JSON만 출력하세요."},
+                {"role": "user", "content": user_prompt + "\nJSON 외 텍스트/마크다운/설명 금지."},
+            ]
+        )
+
         return client.chat.completions.create(model=model, messages=msgs)
 
-    resp = _with_retry(_call_plain)
+    resp = cast(ChatCompletion, _with_retry(_call_plain))
+    if not getattr(resp, "choices", None):
+        return None
     raw = (resp.choices[0].message.content or "").strip()
-    return _safe_json_loads(_extract_json(raw), None)
-
+    js = _safe_json_loads(_extract_json(raw), None)
+    if js is None and raw and raw.startswith("{") and raw.endswith("}"):
+        js = _safe_json_loads(raw, None)
+    return js
 
 # 현재 상태를 모두 반영하는 롤링 요약 갱신
 def update_rolling_summary(
