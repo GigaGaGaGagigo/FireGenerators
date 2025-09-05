@@ -11,7 +11,7 @@ import os
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
-from supabase import create_client, Client
+from supabase import create_client
 
 # 경로 설정 - 현재 파일의 위치를 기준으로 프로젝트 루트까지
 current_file = Path(__file__).resolve()
@@ -89,6 +89,23 @@ def normalize_card(raw: Dict) -> Dict:
 # 환경변수 로드
 load_dotenv()
 
+# 상수 정의
+SELECTED_MODELS = ["ko-sroberta", "bge-m3"]
+LEVEL_ORDER = ["Beginner", "Intermediate", "Advanced"]
+
+# 기본 파라미터
+DEFAULT_PARAMS = {
+    "top_n": 3,
+    "k_vec": 10,
+    "k_rule": 10,
+    "alpha": 0.6,
+    "beta": 0.3,
+    "gamma": 0.1,
+    "sim_threshold": 0.15,
+    "level_strict": True,
+    "use_llm_rerank": True
+}
+
 # Supabase 클라이언트 (전역)
 _supabase_client = None
 
@@ -102,22 +119,6 @@ def get_supabase_client():
             raise ValueError("SUPABASE_URL과 SUPABASE_KEY를 환경변수에 설정해주세요")
         _supabase_client = create_client(supabase_url, supabase_key)
     return _supabase_client
-
-# 선택된 임베딩 모델들
-SELECTED_MODELS = ["ko-sroberta", "bge-m3"]
-
-# 기본 파라미터
-DEFAULT_PARAMS = {
-    "top_n": 3,
-    "k_vec": 10,
-    "k_rule": 10,
-    "alpha": 0.6,
-    "beta": 0.3,
-    "gamma": 0.1,
-    "sim_threshold": 0.15,
-    "level_strict": True,
-    "use_llm_rerank": True  # LLM 컨텍스트 리랭킹 사용 여부
-}
 
 # ========================================
 # 2. Supabase DB 콘텐츠 접근 함수들
@@ -204,27 +205,30 @@ def query_contents_by_level_and_tags(user_level: str, interest_tags: List[str],
         print(f"[ERROR] Supabase 쿼리 실패: {e}")
         # 백업 로직
         all_contents = load_contents_from_supabase()
-        return emotion_based_rule_recommend(all_contents, user_level, interest_tags, emotions, limit)
+        # 백업 로직: emotion_based_rule_recommend는 List[str]을 반환하므로 콘텐츠를 찾아 변환
+        result_ids, details = emotion_based_rule_recommend(all_contents, user_level, interest_tags, emotions, limit)
+        card_map = {c["card_id"]: c for c in all_contents}
+        backup_contents = [card_map[cid] for cid in result_ids if cid in card_map]
+        return backup_contents, details
 
 # ========================================
 # 3. 감정 기반 레벨 조정 (UI 추천 시스템 로직)
 # ========================================
 
 def adjust_level_by_emotion(knowledge_level: str, emotions: int) -> Tuple[str, str]:
-    level_order = ["Beginner", "Intermediate", "Advanced"]
     try:
-        idx = level_order.index(normalize_level(knowledge_level))
+        idx = LEVEL_ORDER.index(normalize_level(knowledge_level))
     except ValueError:
         idx = 0
 
-    original_level = level_order[idx]
+    original_level = LEVEL_ORDER[idx]
     if emotions <= -30:
         new_idx = max(0, idx - 1)
-        adjusted_level = level_order[new_idx]
+        adjusted_level = LEVEL_ORDER[new_idx]
         reason = f"부정적 감정({emotions})으로 인해 {original_level} → {adjusted_level}로 하향 조정" if new_idx != idx else f"부정적 감정({emotions})이지만 이미 최하위 레벨"
     elif emotions >= 30:
-        new_idx = min(len(level_order) - 1, idx + 1)
-        adjusted_level = level_order[new_idx]
+        new_idx = min(len(LEVEL_ORDER) - 1, idx + 1)
+        adjusted_level = LEVEL_ORDER[new_idx]
         reason = f"긍정적 감정({emotions})으로 인해 {original_level} → {adjusted_level}로 상향 조정" if new_idx != idx else f"긍정적 감정({emotions})이지만 이미 최상위 레벨"
     else:
         adjusted_level = original_level
@@ -292,7 +296,6 @@ def emotion_based_rule_recommend(contents: List[Dict], knowledge_level: str,
 # ========================================
 
 def get_level_compatible_contents(cards: List[Dict], user_level: str, strict: bool = True) -> List[Dict]:
-    level_order = ["Beginner", "Intermediate", "Advanced"]
     user_level = normalize_level(user_level)
 
     # 입력 카드 정규화
@@ -300,8 +303,8 @@ def get_level_compatible_contents(cards: List[Dict], user_level: str, strict: bo
 
     if not strict:
         try:
-            user_idx = level_order.index(user_level)
-            allowed_levels = level_order[:user_idx + 1]
+            user_idx = LEVEL_ORDER.index(user_level)
+            allowed_levels = LEVEL_ORDER[:user_idx + 1]
         except ValueError:
             allowed_levels = [user_level]
     else:
@@ -315,8 +318,9 @@ def get_level_compatible_contents(cards: List[Dict], user_level: str, strict: bo
     return filtered
 
 def rule_candidates_v2(cards: List[Dict], user_level: str, interest_tags: List[str],
-                       k: int = 10, exclude_ids: Set[str] = None, level_strict: bool = True) -> List[str]:
-    exclude_ids = exclude_ids or set()
+                       k: int = 10, exclude_ids: Optional[Set[str]] = None, level_strict: bool = True) -> List[str]:
+    if exclude_ids is None:
+        exclude_ids = set()
     user_level = normalize_level(user_level)
     itags = set([str(t).strip() for t in (interest_tags or []) if str(t).strip()])
 
@@ -342,12 +346,14 @@ def rule_candidates_v2(cards: List[Dict], user_level: str, interest_tags: List[s
     scored.sort(reverse=True)
     return [cid for _, cid in scored[:k]]
 
-def multi_model_vector_search(ctx_text: str, level_filtered_cards: List[Dict] = None,
-                              models: List[str] = None, k: int = 10,
+def multi_model_vector_search(ctx_text: str, level_filtered_cards: Optional[List[Dict]] = None,
+                              models: Optional[List[str]] = None, k: int = 10,
                               sim_threshold: float = 0.15) -> Tuple[List[str], Dict[str, float], Dict[str, str]]:
     if models is None:
         models = SELECTED_MODELS
-    level_filtered_cards = [normalize_card(c) for c in (level_filtered_cards or [])]
+    if level_filtered_cards is None:
+        level_filtered_cards = []
+    level_filtered_cards = [normalize_card(c) for c in level_filtered_cards]
 
     level_filtered_ids = set(card["card_id"] for card in level_filtered_cards)
 
@@ -399,10 +405,9 @@ def rerank_v2(candidates: List[str], user: Dict, cards: List[Dict],
         if content_level == user_level:
             level_score = 1.0
         else:
-            level_order = ["Beginner", "Intermediate", "Advanced"]
             try:
-                user_idx = level_order.index(user_level)
-                content_idx = level_order.index(content_level)
+                user_idx = LEVEL_ORDER.index(user_level)
+                content_idx = LEVEL_ORDER.index(content_level)
                 level_diff = abs(user_idx - content_idx)
                 level_score = max(0.0, 1.0 - 0.3 * level_diff)
             except ValueError:
@@ -517,7 +522,8 @@ def llm_context_rerank(candidates: List[str], user: Dict, cards: List[Dict],
             max_tokens=300,   # 리랭킹이므로 짧은 응답 충분
             top_p=0.9
         )
-        llm_result = response.choices[0].message.content.strip()
+        llm_content = response.choices[0].message.content
+        llm_result = llm_content.strip() if llm_content else ""
         
         # LLM 결과 파싱
         context_scores = {}
@@ -593,8 +599,64 @@ def llm_context_rerank(candidates: List[str], user: Dict, cards: List[Dict],
         }
 
 # ========================================
-# 5. 메인 추천 함수 (Streamlit용)
+# 5. 메인 추천 함수 (Streamlit용) - 헬퍼 함수들
 # ========================================
+
+def _extract_user_data(user: Dict) -> Tuple[str, str, List[str], int]:
+    """사용자 데이터를 추천에 필요한 형태로 추출"""
+    emotions = int(user.get("emotions", 0)) if isinstance(user.get("emotions", 0), (int, float, str)) else 0
+    user_level = normalize_level(user.get("level", "Beginner"))
+    interest_tags = [str(t) for t in (user.get("interest_tags", []))]
+    ctx_text = build_user_context_text(user, logs=None)
+    return ctx_text, user_level, interest_tags, emotions
+
+def _collect_all_candidates(emotion_rule_ids: List[str], vec_ids: List[str], 
+                           basic_rule_ids: List[str], emotion_rule_details: Dict,
+                           vec_scores: Dict[str, float], model_sources: Dict[str, str]) -> Tuple[List[str], Dict[str, str], Dict[str, Dict]]:
+    """모든 후보들을 통합하고 메타데이터 관리"""
+    all_candidates: List[str] = []
+    seen_ids: Set[str] = set()
+    candidate_sources: Dict[str, str] = {}
+    candidate_details: Dict[str, Dict] = {}
+
+    # 감정 기반 룰
+    for cid in emotion_rule_ids:
+        if cid not in seen_ids:
+            all_candidates.append(cid)
+            seen_ids.add(cid)
+            candidate_sources[cid] = "emotion_rule"
+            candidate_details[cid] = {
+                "method": "감정 기반 룰",
+                "level_adjustment": emotion_rule_details.get("level_adjustment", ""),
+                "tag_score": emotion_rule_details.get("max_tag_score", 0),
+            }
+
+    # 벡터 검색
+    for cid in vec_ids:
+        if cid not in seen_ids:
+            all_candidates.append(cid)
+            seen_ids.add(cid)
+            candidate_sources[cid] = "vector_search"
+            candidate_details[cid] = {
+                "method": "벡터 검색",
+                "model": model_sources.get(cid, "unknown"),
+                "score": float(vec_scores.get(cid, 0.0)),
+                "level_filtered": True,
+            }
+
+    # 기본 룰
+    for cid in basic_rule_ids:
+        if cid not in seen_ids:
+            all_candidates.append(cid)
+            seen_ids.add(cid)
+            candidate_sources[cid] = "basic_rule"
+            candidate_details[cid] = {
+                "method": "기본 룰",
+                "level_matched": True,
+                "tag_matched": True,
+            }
+    
+    return all_candidates, candidate_sources, candidate_details
 
 def get_hybrid_recommendations(user: Dict, **kwargs) -> Dict:
     params = {**DEFAULT_PARAMS, **kwargs}
@@ -603,18 +665,13 @@ def get_hybrid_recommendations(user: Dict, **kwargs) -> Dict:
     result = {"success": False, "results": [], "metadata": {}, "error": None}
 
     try:
-        # 1) 사용자 컨텍스트
-        ctx_text = build_user_context_text(user, logs=None)
+        # 1) 사용자 데이터 추출
+        ctx_text, user_level, interest_tags, emotions = _extract_user_data(user)
 
         # 2) 감정 기반 룰 (Supabase 쿼리)
-        emotions = int(user.get("emotions", 0)) if isinstance(user.get("emotions", 0), (int, float, str)) else 0
-        user_level = normalize_level(user.get("level", "Beginner"))
-        interest_tags = [str(t) for t in (user.get("interest_tags", []))]
-
         emotion_rule_contents, emotion_rule_details = query_contents_by_level_and_tags(
             user_level, interest_tags, emotions, limit=params["k_rule"]
         )
-        # 정규화 보장
         emotion_rule_contents = [normalize_card(c) for c in emotion_rule_contents]
         emotion_rule_ids = [c["card_id"] for c in emotion_rule_contents]
 
@@ -647,47 +704,9 @@ def get_hybrid_recommendations(user: Dict, **kwargs) -> Dict:
         )
 
         # 7) 후보 통합
-        all_candidates: List[str] = []
-        seen_ids: Set[str] = set()
-        candidate_sources: Dict[str, str] = {}
-        candidate_details: Dict[str, Dict] = {}
-
-        # 감정 기반 룰
-        for cid in emotion_rule_ids:
-            if cid not in seen_ids:
-                all_candidates.append(cid)
-                seen_ids.add(cid)
-                candidate_sources[cid] = "emotion_rule"
-                candidate_details[cid] = {
-                    "method": "감정 기반 룰",
-                    "level_adjustment": emotion_rule_details.get("level_adjustment", ""),
-                    "tag_score": emotion_rule_details.get("max_tag_score", 0),
-                }
-
-        # 벡터 검색
-        for cid in vec_ids:
-            if cid not in seen_ids:
-                all_candidates.append(cid)
-                seen_ids.add(cid)
-                candidate_sources[cid] = "vector_search"
-                candidate_details[cid] = {
-                    "method": "벡터 검색",
-                    "model": model_sources.get(cid, "unknown"),
-                    "score": float(vec_scores.get(cid, 0.0)),
-                    "level_filtered": True,
-                }
-
-        # 기본 룰
-        for cid in basic_rule_ids:
-            if cid not in seen_ids:
-                all_candidates.append(cid)
-                seen_ids.add(cid)
-                candidate_sources[cid] = "basic_rule"
-                candidate_details[cid] = {
-                    "method": "기본 룰",
-                    "level_matched": True,
-                    "tag_matched": True,
-                }
+        all_candidates, candidate_sources, candidate_details = _collect_all_candidates(
+            emotion_rule_ids, vec_ids, basic_rule_ids, emotion_rule_details, vec_scores, model_sources
+        )
 
         # 8) 기존 수치 기반 점수 계산 (LLM 리랭킹의 base_score로 사용)
         base_scores = {}
@@ -711,10 +730,9 @@ def get_hybrid_recommendations(user: Dict, **kwargs) -> Dict:
             if content_level == user_level:
                 level_score = 1.0
             else:
-                level_order = ["Beginner", "Intermediate", "Advanced"]
                 try:
-                    user_idx = level_order.index(user_level)
-                    content_idx = level_order.index(content_level)
+                    user_idx = LEVEL_ORDER.index(user_level)
+                    content_idx = LEVEL_ORDER.index(content_level)
                     level_diff = abs(user_idx - content_idx)
                     level_score = max(0.0, 1.0 - 0.3 * level_diff)
                 except ValueError:

@@ -63,7 +63,7 @@ print(f"[INFO] 임베딩 차원: {emb.shape[1]}")
 # ===== 4) FAISS 인덱스 생성 =====
 print("[INFO] FAISS 인덱스 생성 중...")
 index = faiss.IndexFlatIP(emb.shape[1])  # normalize=True면 코사인 내적
-index.add(emb)
+getattr(index, 'add')(emb)  # type: ignore
 faiss.write_index(index, CONTENT_INDEX_PATH)
 print(f"[INFO] FAISS 인덱스 저장 완료: {CONTENT_INDEX_PATH}")
 

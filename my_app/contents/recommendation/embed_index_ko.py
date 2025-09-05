@@ -63,7 +63,7 @@ emb = np.array(emb, dtype='float32')
 
 # ===== 4) FAISS 인덱스 생성 =====
 index = faiss.IndexFlatIP(emb.shape[1])  # normalize=True면 코사인 내적
-index.add(emb)
+getattr(index, 'add')(emb)  # type: ignore
 faiss.write_index(index, CONTENT_INDEX_PATH)
 print(f"[INFO] FAISS 인덱스 저장 완료: {CONTENT_INDEX_PATH}")
 

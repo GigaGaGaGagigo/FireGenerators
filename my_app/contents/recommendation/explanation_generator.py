@@ -60,4 +60,10 @@ def generate_explanation(level: str, content_title: str, content_description: st
     # Gemini 호출
     response = llm_client.invoke(user_prompt)
 
-    return response.content.strip()
+    # response.content가 문자열인지 확인 후 안전하게 처리
+    content = response.content
+    if isinstance(content, str):
+        return content.strip()
+    else:
+        # content가 리스트나 다른 타입인 경우 문자열로 변환
+        return str(content).strip()

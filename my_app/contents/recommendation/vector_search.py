@@ -1,9 +1,7 @@
 from pathlib import Path
 import json, faiss, numpy as np
-import os
 from typing import List, Dict, Any
 from sentence_transformers import SentenceTransformer
-from dotenv import load_dotenv
 
 # ===== 모델별 설정 =====
 MODEL_INDEX_MAP = {
@@ -52,11 +50,12 @@ def vector_candidates(user_context_text: str, k: int = 5, model_key: str = "ko-s
     q = model.encode([user_context_text], normalize_embeddings=True)
     q = np.asarray(q, dtype="float32")
 
-    # FAISS 검색
-    D, I = index.search(q, k)
+    # FAISS 검색 (타입 체커 우회)
+    search_result = getattr(index, 'search')(q, k)  # type: ignore
+    distances, indices = search_result
 
     results: List[Dict[str, Any]] = []
-    for idx, score in zip(I[0], D[0]):
+    for idx, score in zip(indices[0], distances[0]):
         card_id = id_list[idx]
         meta = meta_map.get(card_id, {})
         results.append({

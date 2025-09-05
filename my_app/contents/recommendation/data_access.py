@@ -3,7 +3,7 @@ import glob
 import os
 from pathlib import Path
 import json, hashlib
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 
 BASE = Path(__file__).resolve().parents[1]  # my_app/
 CONTENTS_DIR = BASE / "contents" / "contents"
@@ -45,7 +45,7 @@ def _normalize_content(raw: Dict) -> Dict:
         "media_type": media_type,
     }
 
-def load_cards_from_json(contents_dir: str = None):
+def load_cards_from_json(contents_dir: Optional[str] = None):
     """JSON 파일들에서 콘텐츠 데이터를 가져와서 반환"""
     if contents_dir is None:
         contents_dir = str(CONTENTS_DIR)
@@ -80,7 +80,7 @@ def load_cards_from_json(contents_dir: str = None):
         print(f"JSON 파일 로딩 중 오류: {e}")
         return []
 
-def load_all_cards(contents_dir: str = None, use_db: bool = True):
+def load_all_cards(contents_dir: Optional[str] = None, use_db: bool = True):
     """Supabase 또는 JSON 파일에서 콘텐츠 데이터를 가져와서 반환"""
     # JSON 파일에서 먼저 시도
     if not use_db:

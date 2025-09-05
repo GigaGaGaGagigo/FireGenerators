@@ -1,10 +1,11 @@
 import streamlit as st
 from pathlib import Path
 import datetime
-import sys, os
+import sys
+import os
+import re
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 
 # ==============
 # 환경 세팅
@@ -17,27 +18,19 @@ contents_rec_path = os.path.join(str(project_root), "contents", "recommendation"
 if contents_rec_path not in sys.path:
     sys.path.insert(0, contents_rec_path)
 
-from contents.recommendation.hybrid_recommender_v2 import (
-    get_hybrid_recommendations,
-    validate_user_input,
-    get_recommendation_summary,
-    adjust_level_by_emotion
-)
-from contents.recommendation.data_access import load_all_cards
-from contents.recommendation.explanation_generator import generate_explanation
 try:
     from contents.recommendation.hybrid_recommender_v2 import (
         get_hybrid_recommendations,
-        validate_user_input,
         get_recommendation_summary,
         adjust_level_by_emotion,
         load_contents_from_supabase
     )
     from contents.recommendation.explanation_generator import generate_explanation
     from contents.recommendation.user_contents_logger import get_logger
-    import google.generativeai as genai
-    from supabase import create_client, Client
-    import os
+    try:
+        import google.generativeai as genai
+    except ImportError:
+        genai = None
 except ImportError:
     st.error("시스템 오류가 발생했습니다.")
     st.stop()
@@ -257,12 +250,23 @@ def analyze_emotion_score_with_gemini(emotions_text):
     
     try:
         # Gemini API 초기화
+        if not genai:
+            return 0
+            
         api_key = os.getenv('GOOGLE_API_KEY')
         if not api_key:
             return 0
             
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        try:
+            if genai and hasattr(genai, 'configure') and hasattr(genai, 'GenerativeModel'):
+                configure_func = getattr(genai, 'configure')
+                model_class = getattr(genai, 'GenerativeModel')
+                configure_func(api_key=api_key)
+                model = model_class('gemini-1.5-flash')
+            else:
+                return 0
+        except (AttributeError, Exception):
+            return 0
         
         prompt = f"""
         다음은 사용자의 투자 관련 감정 상태입니다: {emotions_text}
@@ -281,7 +285,6 @@ def analyze_emotion_score_with_gemini(emotions_text):
         score_text = response.text.strip()
         
         # 숫자 추출
-        import re
         numbers = re.findall(r'-?\d+', score_text)
         if numbers:
             score = int(numbers[0])
@@ -335,130 +338,120 @@ def parse_user_profile_data():
     }
 
 # ==================
-# 사용자 뷰
+# UI 렌더링 헬퍼 함수들
 # ==================
-def render_user_view():
-    
-    # 헤더
-    st.title("🕹️ 맞춤 금융 지식")
-    st.caption("당신의 수준과 관심사에 따라 추천된 맞춤형 금융 정보를 확인해보세요!")
-
-    # Supabase profiles 테이블에서 실제 사용자 데이터 파싱 (읽기 전용)
-    profile_data = parse_user_profile_data()
+def render_user_profile_card(profile_data):
+    """사용자 프로필 카드 렌더링"""
     user_name = profile_data['user_name']
     user_level = profile_data['user_level']
     knowledge_level = profile_data['knowledge_level']
     emotions = profile_data['emotions']
     interest_tags = profile_data['interest_tags']
-    user_summary = profile_data['user_summary']
-    knowledge_summary = profile_data['knowledge_summary']
     risk_tolerance = profile_data['risk_tolerance']
     
-    top_n = st.session_state.get('top_n', 3)
-    use_llm_rerank = st.session_state.get('use_llm_rerank', True)  # 세션에서 값 가져오기
+    emotion_info = get_emotion_status(emotions)
+    risk_info = get_risk_tolerance_status(risk_tolerance)
+    
+    main_profile_text = f"""
+    <p>👋 안녕하세요, <strong>{user_name}</strong>님! 챗봇과 퀴즈로 분석한 당신의 금융 프로필을 알려드릴게요.</p>
+    <br>
+    <p>🏦 <strong>금융 지식 수준:</strong> {user_level} ({knowledge_level})</p>
+    <p>💭 <strong>현재 투자 심리:</strong> {emotion_info['emoji']} {emotion_info['status']}</p>
+    <p>📊 <strong>투자 성향:</strong> {risk_info['emoji']} {risk_info['status']}</p>
+    <p>💡 <strong>관심 분야:</strong> {', '.join(interest_tags) if interest_tags else '아직 설정되지 않음'}</p>
+    <br>
+    <p>이제 금융 프로필을 바탕으로 <strong>{user_name}</strong>님의 지식 레벨을 높일 시간입니다. 맞춤 추천 받기 버튼을 누르면 당신을 위한 맞춤 정보가 추천됩니다.🙌</p>
+    """
+    
+    st.markdown(f'<div class="profile-card" style="height: 385px;">{main_profile_text}</div>', unsafe_allow_html=True)
 
-    # 2x2 그리드 레이아웃: 왼쪽(프로필) | 오른쪽(분석 결과들)
+def render_user_analysis_cards(profile_data):
+    """사용자 분석 결과 카드들 렌더링"""
+    user_name = profile_data['user_name']
+    user_summary = profile_data['user_summary']
+    knowledge_summary = profile_data['knowledge_summary']
+    
+    # 퀴즈 스타일 CSS
+    st.markdown("""
+    <style>
+    .quiz-card {
+        border: 1px solid rgba(148,163,184,.28);
+        border-radius: 16px;
+        padding: 18px;
+        margin: 10px 0 14px 0;
+        background: rgba(2,6,23,.02);
+        height: 150px;
+        overflow-y: auto;
+    }
+    .quiz-header {
+        background: linear-gradient(135deg, rgba(99,102,241,.10), rgba(16,185,129,.10));
+        border: 1px solid rgba(148,163,184,.22);
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 8px;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+    .quiz-content {
+        line-height: 1.6;
+        font-size: 0.9rem;
+        color: #374151;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # 투자 성향 분석
+    if user_summary and user_summary.strip() and user_summary not in ['NULL', 'null', 'None']:
+        content = user_summary
+    else:
+        content = f"💬 {user_name}님, 챗봇과 대화를 나누시면 투자 성향을 분석해드릴게요!"
+    
+    st.markdown(f"""
+    <div class="quiz-header">📑 {user_name}님의 투자 성향</div>
+    <div class="quiz-card"><div class="quiz-content">{content}</div></div>
+    """, unsafe_allow_html=True)
+    
+    # 금융 지식 수준 분석
+    if knowledge_summary and knowledge_summary.strip() and knowledge_summary not in ['NULL', 'null', 'None']:
+        content = knowledge_summary
+    else:
+        content = f"📝 {user_name}님, 퀴즈를 완료하시면 금융 지식 수준을 분석해드릴게요!"
+    
+    st.markdown(f"""
+    <div class="quiz-header">🎓 {user_name}님의 금융 레벨</div>
+    <div class="quiz-card"><div class="quiz-content">{content}</div></div>
+    """, unsafe_allow_html=True)
+
+# ==================
+# 사용자 뷰
+# ==================
+def render_user_view():
+    """사용자 뷰 메인 렌더링 함수"""
+    # 헤더
+    st.title("🕹️ 맞춤 금융 지식")
+    st.caption("당신의 관심사와 금융 레벨 따라 추천된 맞춤 금융 지식를 확인해보세요!")
+
+    # 사용자 데이터 파싱
+    profile_data = parse_user_profile_data()
+    user_name = profile_data['user_name']
+    knowledge_level = profile_data['knowledge_level']
+    emotions = profile_data['emotions']
+    interest_tags = profile_data['interest_tags']
+    user_summary = profile_data['user_summary']
+    knowledge_summary = profile_data['knowledge_summary']
+    
+    top_n = st.session_state.get('top_n', 3)
+    use_llm_rerank = st.session_state.get('use_llm_rerank', True)
+
+    # 2x2 그리드 레이아웃
     col_left, col_right = st.columns([1, 1])
     
-    # 왼쪽: 메인 금융 프로필 카드
     with col_left:
         st.markdown('### 📋 나의 금융 프로필')
-        
-        # 감정 상태와 위험 허용도 변환
-        emotion_info = get_emotion_status(emotions)
-        risk_info = get_risk_tolerance_status(risk_tolerance)
-        
-        main_profile_text = f"""
-        <p>👋 안녕하세요, <strong>{user_name}</strong>님! 챗봇과 퀴즈로 분석한 당신의 금융 프로필을 알려드릴게요.</p>
-        <br>
-        <p>🏦 <strong>금융 지식 수준:</strong> {user_level} ({knowledge_level})</p>
-        <p>💭 <strong>현재 투자 심리:</strong> {emotion_info['emoji']} {emotion_info['status']}</p>
-        <p>📊 <strong>투자 성향:</strong> {risk_info['emoji']} {risk_info['status']}</p>
-        <p>💡 <strong>관심 분야:</strong> {', '.join(interest_tags) if interest_tags else '아직 설정되지 않음'}</p>
-        <br>
-        <p>이제 금융 프로필을 바탕으로 <strong>{user_name}</strong>님의 지식 레벨을 높일 시간입니다. 맞춤 추천 받기 버튼을 누르면 당신을 위한 맞춤 정보가 추천됩니다.🙌</p>
-        """
-        
-        st.markdown(f'<div class="profile-card" style="height: 385px;">{main_profile_text}</div>', unsafe_allow_html=True)
+        render_user_profile_card(profile_data)
     
-    # 오른쪽: 분석 결과들 (퀴즈 UI 스타일)
     with col_right:
-        # 퀴즈 스타일 CSS 추가
-        st.markdown("""
-        <style>
-        .quiz-card {
-            border: 1px solid rgba(148,163,184,.28);
-            border-radius: 16px;
-            padding: 18px;
-            margin: 10px 0 14px 0;
-            background: rgba(2,6,23,.02);
-            height: 150px;
-            overflow-y: auto;
-        }
-        .quiz-header {
-            background: linear-gradient(135deg, rgba(99,102,241,.10), rgba(16,185,129,.10));
-            border: 1px solid rgba(148,163,184,.22);
-            border-radius: 12px;
-            padding: 12px 14px;
-            margin-bottom: 8px;
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
-        .quiz-content {
-            line-height: 1.6;
-            font-size: 0.9rem;
-            color: #374151;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-        
-        # 상단: AI 투자 성향 분석
-        if user_summary and user_summary.strip() and user_summary not in ['NULL', 'null', 'None']:
-            st.markdown(f"""
-            <div class="quiz-header">
-                📑 {user_name}님의 투자 성향
-            </div>
-            <div class="quiz-card">
-                <div class="quiz-content">
-                    {user_summary}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div class="quiz-header">
-                📑 {user_name}님의 투자 성향
-            </div>
-            <div class="quiz-card">
-                <div class="quiz-content">
-                    💬 {user_name}님, 챗봇과 대화를 나누시면 투자 성향을 분석해드릴게요!
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # 하단: 금융 지식 수준 분석
-        if knowledge_summary and knowledge_summary.strip() and knowledge_summary not in ['NULL', 'null', 'None']:
-            st.markdown(f"""
-            <div class="quiz-header">
-                🎓 {user_name}님의 금융 레벨 
-            </div>
-            <div class="quiz-card">
-                <div class="quiz-content">
-                    {knowledge_summary}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div class="quiz-header">
-                🎓 {user_name}님의 금융 레벨 
-            </div>
-            <div class="quiz-card">
-                <div class="quiz-content">
-                    📝 {user_name}님, 퀴즈를 완료하시면 금융 지식 수준을 분석해드릴게요!
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+        render_user_analysis_cards(profile_data)
 
     # 맞춤 콘텐츠 추천 버튼 
     if 'last_recommendation' not in st.session_state:
@@ -647,7 +640,6 @@ def render_user_view():
                                 try:
                                     viewed_at_str = log_item['viewed_at'].replace('Z', '+00:00')
                                     # microseconds가 5자리인 경우 6자리로 패딩
-                                    import re
                                     viewed_at_str = re.sub(r'\.(\d{5})\+', r'.\g<1>0+', viewed_at_str)
                                     viewed_at = datetime.datetime.fromisoformat(viewed_at_str)
                                 except ValueError:
@@ -858,7 +850,7 @@ def render_admin_view():
     """개발자/관리자용 상세 분석 뷰"""
     
     st.title("🔍 하이브리드 추천 시스템 분석 ")
-    st.caption("개발자를 위한 분석 페이지 입니다. 룰베이스 + 벡터 서치 기반으로 하이브리드 방식으로 추천되고 있는 상세 결과를 확인하세요.")
+    st.caption("개발자를 위한 분석 페이지 입니다. 룰베이스 + 벡터 서치 기반으로 하이브리드 방식으로 리랭킹 되어 추천되고 있는 상세 결과를 확인하세요.")
     
     # 콘텐츠 데이터 전체 규모 시각화
     render_content_overview_charts()
@@ -963,10 +955,10 @@ def render_admin_view():
     """, unsafe_allow_html=True)
     
     # 상세 설명을 탭으로 구성
-    tab1, tab2, tab3 = st.tabs(["🎯 1단계: 후보군 수집", "⚖️ 2단계: 수치 리랭킹", "🐾 3단계: LLM 컨텍스트 리랭킹"])
+    tab1, tab2, tab3 = st.tabs(["🎯 1단계: 후보군 수집", "⚖️ 2단계: 수치 리랭킹", "🎖️ 3단계: LLM 컨텍스트 리랭킹"])
     
     with tab1:
-        st.markdown("#### 📋 후보군 수집 전략 (3가지 방식)")
+        st.markdown("#### 후보군 수집 전략 (3가지 방식)")
         col1, col2, col3 = st.columns(3)
         
         with col1:
@@ -1009,7 +1001,7 @@ def render_admin_view():
             """)
     
     with tab2:
-        st.markdown("#### ⚖️ 수치 기반 리랭킹 공식")
+        st.markdown("#### 수치 기반 리랭킹 공식")
         
         st.latex(r"""
         Score_{final} = \alpha \times Score_{vector} + \beta \times Score_{level} + \gamma \times Score_{tag}
@@ -1031,7 +1023,7 @@ def render_admin_view():
         """)
     
     with tab3:
-        st.markdown("#### 🐾 GPT-4o-mini 컨텍스트 리랭킹")
+        st.markdown("#### GPT-4o-mini 컨텍스트 리랭킹")
         
         col1, col2 = st.columns([2, 1])
         
@@ -1251,7 +1243,7 @@ def render_admin_view():
                         st.markdown("<br>", unsafe_allow_html=True)
 
                         # AI 생성 설명
-                        st.markdown("**🐾 AI 생성 맞춤 설명**")
+                        st.markdown("**AI 생성 맞춤 설명**")
                         card_identifier = content.get('card_id', content.get('id', i))
                         explanation_key = f"explanation_{card_identifier}"
                         
@@ -1281,7 +1273,7 @@ def render_admin_view():
                         
                         # LLM 리랭킹 정보 표시
                         if content.get('llm_reranked', False):
-                            st.success("🐾 AI 컨텍스트 리랭킹 적용됨")
+                            st.success("AI 컨텍스트 리랭킹 적용됨")
                             llm_context_score = content.get('llm_context_score')
                             llm_final_score = content.get('llm_final_score')
                             if llm_context_score is not None:
@@ -1311,7 +1303,7 @@ def render_admin_view():
                 # LLM 리랭킹 정보 (있는 경우)
                 llm_info = metadata.get('llm_rerank_info', {})
                 if llm_info.get('llm_used', False):
-                    st.subheader("🐾 LLM 컨텍스트 리랭킹 상세")
+                    st.subheader("LLM 컨텍스트 리랭킹 상세")
                     col1, col2 = st.columns(2)
                     with col1:
                         st.write(f"- **모델**: {llm_info.get('llm_model', 'Unknown')}")
@@ -1362,7 +1354,7 @@ def render_admin_view():
                                         st.write(f"**후보 {i}**: {title} (점수: {score:.3f})")
                                     st.divider()
                                 
-                                st.markdown("**🐾 GPT-4o-mini 원시 응답:**")
+                                st.markdown("**GPT-4o-mini 원시 응답:**")
                                 st.code(raw_response, language="text")
                             except Exception as e:
                                 st.code(raw_response, language="text")
@@ -1400,7 +1392,7 @@ def render():
         
         # LLM 컨텍스트 리랭킹 옵션 추가
         use_llm_rerank = st.checkbox(
-            "🐾 AI 컨텍스트 리랭킹", 
+            "AI 컨텍스트 리랭킹", 
             value=st.session_state.get('use_llm_rerank', True),
             help="GPT-4o-mini가 사용자 맥락을 고려해 추천 순위를 재조정합니다. 더 정확하지만 처리 시간이 약간 늘어날 수 있습니다.",
             key="use_llm_rerank_common"
