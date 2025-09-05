@@ -11,6 +11,7 @@ from my_app.chatbot.services import ProfileService
 def update_user_profile(state: OverallState, config: RunnableConfig):
     profile_service: ProfileService | None = None
     configurable = config.get("configurable")
+
     if configurable and hasattr(configurable, "get"):
         profile_service = configurable.get("profile_service")
 

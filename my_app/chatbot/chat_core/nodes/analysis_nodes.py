@@ -72,18 +72,25 @@ def analyze_user_answers(state: OverallState) -> dict:
 
     llm = get_llm_models(OPENAI_MODEL_NAME)
 
-    chain = prompt_template | llm.with_structured_output(AnalysisData)  # pyright: ignore[reportPossiblyUnboundVariable]
+    chain = prompt_template | llm  # pyright: ignore[reportPossiblyUnboundVariable]
 
     result = chain.invoke(
-        {"compacted_user_answer": state.user_answers_compacted[current_category]}
+        {"compacted_user_answer": state.user_answers_compacted[current_category]},
     )
-    analysis_data = result.data
+    analysis_data = result.content
 
     message_prompt: str = ANALYSIS_USER_ANSWER_PROMPTS[current_category].format(
         user_name=state.user_meta_data["name"], data=analysis_data
     )
 
     return {
+        "logs": [
+            {
+                "level": "info",
+                "message": f"User answer analyzed for {current_category}",
+                "timestamp": time.time(),
+            }
+        ],
         "messages": [AIMessage(content=message_prompt)],
         "user_meta_data": {
             **state.user_meta_data,
@@ -262,6 +269,7 @@ Using the provided `{data}`, write a sharp, analytical profile as **a single, co
     )
 
     llm = get_llm_models(OPENAI_MODEL_NAME)
+
     structured_llm = llm
 
     chain = prompt_template | structured_llm

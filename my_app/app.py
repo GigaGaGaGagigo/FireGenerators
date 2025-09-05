@@ -71,7 +71,7 @@ PAGE_ICONS = {
 # 사용자 역할별 메뉴 구성 - 새로운 메뉴 추가시 여기서 수정
 USER_MENUS = {
     "User": [
-        ("Chatbot", "chatbot"),
+        ("사용자 메타 분석", "chatbot"),
         ("오늘의 퀴즈", "quiz"),
         ("맞춤형 금융 지식", "content"),
         ("맞춤형 상품 추천", "rag_recommendation"),
@@ -579,6 +579,7 @@ def route_to_page():
         elif current_page == "analysis":
             try:
                 from ui.analysis.streamlit_app import render  # type: ignore
+
                 render()
             except Exception as e:
                 st.error(f"{e} 모듈 임포트 중 오류가 발생했습니다.")
@@ -596,9 +597,9 @@ def route_to_page():
                 st.title("⚙️ Settings")
                 st.info("ui/settings/settings.py 파일을 생성해주세요.")
 
-        else:
-            st.title("🏠 홈")
-            st.write("환영합니다! 사이드바에서 원하는 메뉴를 선택해주세요.")
+        # else:
+        #     st.title("🏠 홈")
+        #     st.write("환영합니다! 사이드바에서 원하는 메뉴를 선택해주세요.")
 
     except Exception as e:
         st.error(f"페이지 로딩 중 오류가 발생했습니다: {e}")

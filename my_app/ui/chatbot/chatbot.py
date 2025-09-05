@@ -9,6 +9,8 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command, Interrupt
 from typing_extensions import Iterator
 
+from my_app.chatbot.chat_core.model_loader import flush_langfuse, get_langfuse_handler
+
 sys.path.append(str(Path(__file__).parents[3]))
 
 try:
@@ -58,70 +60,6 @@ def get_image_base64(image_path: str) -> str:
     except Exception as e:
         st.error(f"이미지 로드 실패: {e}")
         return ""
-
-
-def apply_background_image(
-    image_name: str = "FIRE_LOGO_large.png", style: str = "cover", opacity: float = 0.85
-):
-    """Apply background image with different styles."""
-    background_image_path = str(Path(__file__).parents[2] / "assets" / image_name)
-    background_image_b64 = get_image_base64(background_image_path)
-
-    if not background_image_b64:
-        return False
-
-    styles = {
-        "cover": """
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        """,
-        "repeat": """
-        background-size: 30px 30px;
-        background-position: 0 0;
-        background-repeat: repeat;
-        """,
-        "center": """
-        background-size: auto;
-        background-position: center;
-        background-repeat: no-repeat;
-        """,
-        "stretch": """
-        background-size: 100% 100%;
-        background-position: center;
-        background-repeat: no-repeat;
-        """,
-    }
-
-    css_style = styles.get(style, styles["cover"])
-
-    st.markdown(
-        f"""
-    <style>
-    .stApp {{
-        background-image: url('{background_image_b64}');
-        background-attachment: fixed;
-        {css_style}
-        opacity: {opacity};
-    }}
-
-    /* 콘텐츠 영역에 반투명한 흰색 배경 추가 */
-    .stApp > div {{
-        background-color: rgba(255, 255, 255, 0.85) !important;
-        border-radius: 10px;
-        margin: 10px;
-        padding: 10px;
-    }}
-
-    /* 사이드바와 메인 영역 구분 */
-    .stApp > div[data-testid="stSidebar"] {{
-        background-color: rgba(255, 255, 255, 0.95) !important;
-    }}
-    </style>
-    """,
-        unsafe_allow_html=True,
-    )
-    return True
 
 
 def initialize_chatbot():
@@ -174,11 +112,9 @@ def check_and_submit_tool_response(current_category: str):
         st.session_state.get("quiz", {}).get(current_category, {}).get("questions", [])
     )
 
-    # user_answers나 quiz_questions가 None이거나 비어있는 경우 처리
     if not user_answers or not quiz_questions:
         return
 
-    # check if all questions have been answered
     if len(user_answers) >= len(quiz_questions) and len(quiz_questions) > 0:
         try:
             counts = len(quiz_questions)
@@ -285,7 +221,7 @@ def run_graph(
             # events가 None이거나 비어있는 경우 안전하게 처리
             if "events" not in st.session_state:
                 st.session_state["events"] = []
-            
+
             st.session_state["events"] += event
             key = list(event.keys())[0]
             update = event[key]
@@ -316,7 +252,7 @@ def run_graph(
             # events가 None이거나 비어있는 경우 안전하게 처리
             if "events" not in st.session_state:
                 st.session_state["events"] = []
-            
+
             st.session_state["events"] += event
             key = list(event.keys())[0]
             update = event[key]
@@ -341,14 +277,6 @@ def run_graph(
 
 def render_quiz(container):
     with container:
-        # debug logs
-        with st.expander("Debug Logs"):
-            graph_state: OverallState | None = st.session_state.graph.get_state(
-                st.session_state.config
-            )
-            st.write(graph_state)
-
-        # interrupts가 None이거나 비어있는 경우 안전하게 처리
         interrupts = st.session_state.get("interrupts", [])
         if not interrupts:
             return
@@ -389,7 +317,7 @@ def render_quiz(container):
 
 def render_finished_chat(container):
     with container:
-        st.image(FINISHED_CHAT_IMAGE_PATH, use_container_width=True)
+        st.image(FINISHED_CHAT_IMAGE_PATH, width="stretch")
 
 
 def reset_data():
@@ -441,6 +369,7 @@ def render_chat(container):
                 st.session_state["quiz"][category]["options"] = []
                 st.session_state["quiz"][category]["synced"] = False
             render_finished_chat(st.session_state["quiz_placeholder"])
+            flush_langfuse()
             st.empty()
             st.balloons()
             if st.button("🔁 다시 시작", use_container_width=True):
@@ -449,20 +378,6 @@ def render_chat(container):
 
 
 def render():
-    # 배경 이미지 적용 예시들:
-    # apply_background_image(style="cover", opacity=0.8)      # 전체 화면 커버
-    # apply_background_image(style="repeat", opacity=0.9)     # 반복 패턴
-    # apply_background_image(style="center", opacity=0.7)     # 가운데 정렬
-    # apply_background_image(style="stretch", opacity=0.8)    # 화면에 맞춰 늘이기
-    # apply_background_image("FIRE_LOGO_small.png", "repeat", 0.95)  # 다른 이미지 사용
-
-    # if apply_background_image("FIRE_LOGO_small.png", style="repeat", opacity=1):
-
-    st.markdown(
-        '<div style="text-align: center; color: red; font-size: 40px; font-weight: bold; font-family: Montserrat; background-color: white; padding: 10px; border-radius: 5px;opacity: 0.7;">Jasan Rescue 🚒</div>',
-        unsafe_allow_html=True,
-    )
-
     initialize_chatbot()
 
     # 커스텀 CSS 적용
@@ -471,11 +386,18 @@ def render():
 
     _, left_screen, right_screen, _ = st.columns([0.1, 0.4, 0.4, 0.1], border=False)
 
+    # 왼쪽에서 두 번째 열에 Jasan Rescue 텍스트 배치
     with left_screen:
-        st.session_state["quiz_placeholder"] = st.container(border=True, height=500)
+        st.markdown(
+            '<div style="text-align: center; color: red; font-size: 40px; font-weight: bold; font-family: Montserrat; background-color: white; padding: 10px; border-radius: 5px;opacity: 0.7;">Jasan Rescue 🚒</div>',
+            unsafe_allow_html=True,
+        )
+
+    with left_screen:
+        st.session_state["quiz_placeholder"] = st.container(border=True, height=400)
 
     with right_screen:
-        st.session_state["chat_placeholder"] = st.container(border=True, height=500)
+        st.session_state["chat_placeholder"] = st.container(border=True, height=480)
 
     if not st.session_state.get("ai", {}).get("initialized", False):
         user_data: dict = st.session_state.user_data
@@ -493,6 +415,7 @@ def render():
                     st.session_state.supabase, st.session_state.user.id
                 ),
             },
+            callbacks=[get_langfuse_handler()],
         )
         st.session_state.config = config
         st.session_state["ai"]["initialized"] = True
