@@ -13,9 +13,18 @@ api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
     raise ValueError("❌ GEMINI_API_KEY가 .env 파일에 설정되어 있지 않습니다.")
 
-# Gemini API 설정
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel("gemini-1.5-flash")  # 필요 시 모델 교체 가능
+# Gemini API 안전한 설정
+try:
+    if hasattr(genai, 'configure') and hasattr(genai, 'GenerativeModel'):
+        configure_func = getattr(genai, 'configure')
+        model_class = getattr(genai, 'GenerativeModel')
+        configure_func(api_key=api_key)
+        model = model_class("gemini-1.5-flash")
+    else:
+        raise AttributeError("genai 모듈의 필요한 속성을 찾을 수 없습니다")
+except (AttributeError, Exception) as e:
+    print(f"⚠️ Gemini API 초기화 실패: {e}")
+    model = None
 
 # 프롬프트 생성
 def build_prompt(term):
@@ -117,6 +126,8 @@ def get_level_from_gemini(term, retries=5):
     for attempt in range(retries):
         try:
             prompt = build_prompt(term)
+            if model is None:
+                raise ValueError("Gemini 모델이 초기화되지 않았습니다")
             response = model.generate_content(prompt)
             level = response.text.strip()
             if level in ["Beginner", "Intermediate", "Advanced"]:

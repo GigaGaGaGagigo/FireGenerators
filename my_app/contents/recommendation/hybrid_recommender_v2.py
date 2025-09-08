@@ -1,6 +1,6 @@
 """
 개선된 하이브리드 추천 시스템 - Streamlit 최적화 버전
-- ko-sroberta + upstage + bge-m3 모델 지원
+- ko-sroberta + bge-m3 모델 지원 (upstage 제외)
 - 레벨/태그/card_id 정규화로 안전성 강화
 """
 
@@ -11,7 +11,7 @@ import os
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
-from supabase import create_client, Client
+from supabase import create_client
 
 # 경로 설정 - 현재 파일의 위치를 기준으로 프로젝트 루트까지
 current_file = Path(__file__).resolve()
@@ -66,6 +66,7 @@ def normalize_card(raw: Dict) -> Dict:
     tags = normalize_tags(raw.get("tags", []))
 
     normalized = {
+        "id": raw.get("id"),
         "card_id": card_id,
         "title": raw.get("title"),
         "content": raw.get("content"),
@@ -88,6 +89,23 @@ def normalize_card(raw: Dict) -> Dict:
 # 환경변수 로드
 load_dotenv()
 
+# 상수 정의
+SELECTED_MODELS = ["ko-sroberta", "bge-m3"]
+LEVEL_ORDER = ["Beginner", "Intermediate", "Advanced"]
+
+# 기본 파라미터
+DEFAULT_PARAMS = {
+    "top_n": 3,
+    "k_vec": 10,
+    "k_rule": 10,
+    "alpha": 0.6,
+    "beta": 0.3,
+    "gamma": 0.1,
+    "sim_threshold": 0.15,
+    "level_strict": True,
+    "use_llm_rerank": True
+}
+
 # Supabase 클라이언트 (전역)
 _supabase_client = None
 
@@ -101,21 +119,6 @@ def get_supabase_client():
             raise ValueError("SUPABASE_URL과 SUPABASE_KEY를 환경변수에 설정해주세요")
         _supabase_client = create_client(supabase_url, supabase_key)
     return _supabase_client
-
-# 선택된 임베딩 모델들
-SELECTED_MODELS = ["ko-sroberta", "upstage", "bge-m3"]
-
-# 기본 파라미터
-DEFAULT_PARAMS = {
-    "top_n": 3,
-    "k_vec": 10,
-    "k_rule": 10,
-    "alpha": 0.6,
-    "beta": 0.3,
-    "gamma": 0.1,
-    "sim_threshold": 0.15,
-    "level_strict": True
-}
 
 # ========================================
 # 2. Supabase DB 콘텐츠 접근 함수들
@@ -145,8 +148,13 @@ def query_contents_by_level_and_tags(user_level: str, interest_tags: List[str],
         adjusted_level, level_reason = adjust_level_by_emotion(user_level, emotions)
         supabase = get_supabase_client()
 
-        # level은 DB에 소문자로 저장되었을 수 있음
-        query = supabase.table("contents").select("*").eq("level", adjusted_level.lower())
+        # Advanced 레벨의 경우 Intermediate와 Advanced 모두 조회
+        if adjusted_level == "Advanced":
+            query = supabase.table("contents").select("*").or_("level.eq.intermediate,level.eq.advanced")
+            query_levels = ["intermediate", "advanced"]
+        else:
+            query = supabase.table("contents").select("*").eq("level", adjusted_level.lower())
+            query_levels = [adjusted_level.lower()]
 
         # 태그 필터 (가능하면 or-contains)
         if interest_tags:
@@ -159,7 +167,10 @@ def query_contents_by_level_and_tags(user_level: str, interest_tags: List[str],
 
         # 없으면 태그 완화
         if not response.data:
-            response = supabase.table("contents").select("*").eq("level", adjusted_level.lower()).limit(limit).execute()
+            if adjusted_level == "Advanced":
+                response = supabase.table("contents").select("*").or_("level.eq.intermediate,level.eq.advanced").limit(limit).execute()
+            else:
+                response = supabase.table("contents").select("*").eq("level", adjusted_level.lower()).limit(limit).execute()
 
         # 정규화
         contents = [normalize_card(item) for item in response.data]
@@ -181,11 +192,12 @@ def query_contents_by_level_and_tags(user_level: str, interest_tags: List[str],
             "original_level": user_level,
             "adjusted_level": adjusted_level,
             "level_adjustment": level_reason,
+            "queried_levels": query_levels,
             "interest_tags": list(safe_interest_set),
             "total_found": len(contents),
             "max_tag_score": max_tag_score,
             "final_selected": len(final_contents),
-            "reason": f"Supabase DB에서 레벨 '{adjusted_level}' 필터링 후 태그 매칭 점수 기준 정렬"
+            "reason": f"Supabase DB에서 레벨 {query_levels} 필터링 후 태그 매칭 점수 기준 정렬"
         }
         return final_contents, query_details
 
@@ -193,27 +205,30 @@ def query_contents_by_level_and_tags(user_level: str, interest_tags: List[str],
         print(f"[ERROR] Supabase 쿼리 실패: {e}")
         # 백업 로직
         all_contents = load_contents_from_supabase()
-        return emotion_based_rule_recommend(all_contents, user_level, interest_tags, emotions, limit)
+        # 백업 로직: emotion_based_rule_recommend는 List[str]을 반환하므로 콘텐츠를 찾아 변환
+        result_ids, details = emotion_based_rule_recommend(all_contents, user_level, interest_tags, emotions, limit)
+        card_map = {c["card_id"]: c for c in all_contents}
+        backup_contents = [card_map[cid] for cid in result_ids if cid in card_map]
+        return backup_contents, details
 
 # ========================================
 # 3. 감정 기반 레벨 조정 (UI 추천 시스템 로직)
 # ========================================
 
 def adjust_level_by_emotion(knowledge_level: str, emotions: int) -> Tuple[str, str]:
-    level_order = ["Beginner", "Intermediate", "Advanced"]
     try:
-        idx = level_order.index(normalize_level(knowledge_level))
+        idx = LEVEL_ORDER.index(normalize_level(knowledge_level))
     except ValueError:
         idx = 0
 
-    original_level = level_order[idx]
+    original_level = LEVEL_ORDER[idx]
     if emotions <= -30:
         new_idx = max(0, idx - 1)
-        adjusted_level = level_order[new_idx]
+        adjusted_level = LEVEL_ORDER[new_idx]
         reason = f"부정적 감정({emotions})으로 인해 {original_level} → {adjusted_level}로 하향 조정" if new_idx != idx else f"부정적 감정({emotions})이지만 이미 최하위 레벨"
     elif emotions >= 30:
-        new_idx = min(len(level_order) - 1, idx + 1)
-        adjusted_level = level_order[new_idx]
+        new_idx = min(len(LEVEL_ORDER) - 1, idx + 1)
+        adjusted_level = LEVEL_ORDER[new_idx]
         reason = f"긍정적 감정({emotions})으로 인해 {original_level} → {adjusted_level}로 상향 조정" if new_idx != idx else f"긍정적 감정({emotions})이지만 이미 최상위 레벨"
     else:
         adjusted_level = original_level
@@ -228,7 +243,13 @@ def emotion_based_rule_recommend(contents: List[Dict], knowledge_level: str,
     # 정규화 보장
     contents = [normalize_card(c) for c in contents]
 
-    candidates = [c for c in contents if c.get("level") == adjusted_level]
+    # Advanced 레벨의 경우 Intermediate와 Advanced 모두 포함
+    if adjusted_level == "Advanced":
+        candidates = [c for c in contents if c.get("level") in ["Intermediate", "Advanced"]]
+        allowed_levels = ["Intermediate", "Advanced"]
+    else:
+        candidates = [c for c in contents if c.get("level") == adjusted_level]
+        allowed_levels = [adjusted_level]
 
     safe_interest = set([str(t).strip() for t in (interests_categories or []) if str(t).strip()])
 
@@ -243,7 +264,8 @@ def emotion_based_rule_recommend(contents: List[Dict], knowledge_level: str,
             "level_adjustment": level_reason,
             "candidates_found": 0,
             "max_tag_score": 0,
-            "reason": "조정된 레벨에 해당하는 콘텐츠가 없음"
+            "allowed_levels": allowed_levels,
+            "reason": f"조정된 레벨 {allowed_levels}에 해당하는 콘텐츠가 없음"
         }
 
     max_score = max(score for _, score in scored)
@@ -261,19 +283,19 @@ def emotion_based_rule_recommend(contents: List[Dict], knowledge_level: str,
         "level_adjustment": level_reason,
         "original_level": normalize_level(knowledge_level),
         "adjusted_level": adjusted_level,
+        "allowed_levels": allowed_levels,
         "candidates_found": len(candidates),
         "max_tag_score": max_score,
         "selected_count": len(selected),
-        "reason": f"감정 기반 레벨 조정 후 태그 매칭 점수 {max_score}점 기준 선별"
+        "reason": f"감정 기반 레벨 조정 후 레벨 {allowed_levels}에서 태그 매칭 점수 {max_score}점 기준 선별"
     }
     return result_ids, details
 
 # ========================================
-# 4. 후보·리랭킹
+# 4. 후보·리랭킹 (기존 + LLM 컨텍스트 리랭킹)
 # ========================================
 
 def get_level_compatible_contents(cards: List[Dict], user_level: str, strict: bool = True) -> List[Dict]:
-    level_order = ["Beginner", "Intermediate", "Advanced"]
     user_level = normalize_level(user_level)
 
     # 입력 카드 정규화
@@ -281,19 +303,24 @@ def get_level_compatible_contents(cards: List[Dict], user_level: str, strict: bo
 
     if not strict:
         try:
-            user_idx = level_order.index(user_level)
-            allowed_levels = level_order[:user_idx + 1]
+            user_idx = LEVEL_ORDER.index(user_level)
+            allowed_levels = LEVEL_ORDER[:user_idx + 1]
         except ValueError:
             allowed_levels = [user_level]
     else:
-        allowed_levels = [user_level]
+        # Advanced 레벨의 경우 Intermediate 콘텐츠도 포함
+        if user_level == "Advanced":
+            allowed_levels = ["Intermediate", "Advanced"]
+        else:
+            allowed_levels = [user_level]
 
     filtered = [c for c in cards if c.get("level") in allowed_levels]
     return filtered
 
 def rule_candidates_v2(cards: List[Dict], user_level: str, interest_tags: List[str],
-                       k: int = 10, exclude_ids: Set[str] = None, level_strict: bool = True) -> List[str]:
-    exclude_ids = exclude_ids or set()
+                       k: int = 10, exclude_ids: Optional[Set[str]] = None, level_strict: bool = True) -> List[str]:
+    if exclude_ids is None:
+        exclude_ids = set()
     user_level = normalize_level(user_level)
     itags = set([str(t).strip() for t in (interest_tags or []) if str(t).strip()])
 
@@ -319,12 +346,14 @@ def rule_candidates_v2(cards: List[Dict], user_level: str, interest_tags: List[s
     scored.sort(reverse=True)
     return [cid for _, cid in scored[:k]]
 
-def multi_model_vector_search(ctx_text: str, level_filtered_cards: List[Dict] = None,
-                              models: List[str] = None, k: int = 10,
+def multi_model_vector_search(ctx_text: str, level_filtered_cards: Optional[List[Dict]] = None,
+                              models: Optional[List[str]] = None, k: int = 10,
                               sim_threshold: float = 0.15) -> Tuple[List[str], Dict[str, float], Dict[str, str]]:
     if models is None:
         models = SELECTED_MODELS
-    level_filtered_cards = [normalize_card(c) for c in (level_filtered_cards or [])]
+    if level_filtered_cards is None:
+        level_filtered_cards = []
+    level_filtered_cards = [normalize_card(c) for c in level_filtered_cards]
 
     level_filtered_ids = set(card["card_id"] for card in level_filtered_cards)
 
@@ -376,10 +405,9 @@ def rerank_v2(candidates: List[str], user: Dict, cards: List[Dict],
         if content_level == user_level:
             level_score = 1.0
         else:
-            level_order = ["Beginner", "Intermediate", "Advanced"]
             try:
-                user_idx = level_order.index(user_level)
-                content_idx = level_order.index(content_level)
+                user_idx = LEVEL_ORDER.index(user_level)
+                content_idx = LEVEL_ORDER.index(content_level)
                 level_diff = abs(user_idx - content_idx)
                 level_score = max(0.0, 1.0 - 0.3 * level_diff)
             except ValueError:
@@ -401,9 +429,234 @@ def rerank_v2(candidates: List[str], user: Dict, cards: List[Dict],
     scored.sort(reverse=True)
     return [cid for _, cid in scored[:top_n]]
 
+def llm_context_rerank(candidates: List[str], user: Dict, cards: List[Dict],
+                      base_scores: Dict[str, float], top_n: int = 3,
+                      use_llm_rerank: bool = True) -> Tuple[List[str], Dict]:
+    """
+    LLM을 활용한 컨텍스트 기반 리랭킹
+    기존 수치 기반 점수를 사용자 맥락을 고려해 LLM이 재조정
+    """
+    if not use_llm_rerank or not candidates:
+        # LLM 리랭킹을 사용하지 않으면 기존 점수 기준으로 정렬
+        scored = [(base_scores.get(cid, 0.0), cid) for cid in candidates]
+        scored.sort(reverse=True)
+        return [cid for _, cid in scored[:top_n]], {"method": "numeric_only", "llm_used": False}
+
+    try:
+        from openai import OpenAI
+        
+        # OpenAI API 초기화
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY not found")
+        
+        client = OpenAI(api_key=api_key)
+        
+        # 카드 매핑
+        cards = [normalize_card(c) for c in cards]
+        card_map = {c["card_id"]: c for c in cards}
+        
+        # 사용자 컨텍스트 추출 
+        user_summary = user.get("user_summary", "")
+        knowledge_summary = user.get("knowledge_summary", "")
+        user_level = normalize_level(user.get("level", "Beginner"))
+        emotions = int(user.get("emotions", 0)) if isinstance(user.get("emotions", 0), (int, float, str)) else 0
+        interest_tags = user.get("interest_tags", [])
+        
+        # 후보 정보 구성 (상위 5-7개만 LLM으로 처리)
+        llm_candidates = candidates[:min(7, len(candidates))]
+        candidate_info = []
+        
+        for i, cid in enumerate(llm_candidates, 1):
+            card = card_map.get(cid)
+            if not card:
+                continue
+                
+            base_score = base_scores.get(cid, 0.0)
+            title = card.get('title', 'Unknown')
+            card_level = card.get('level', 'Beginner')
+            tags = ', '.join(normalize_tags(card.get('tags', [])))
+            content_preview = str(card.get('content', ''))[:100] + "..." if card.get('content') else ""
+            
+            candidate_info.append(
+                f"후보 {i}: 제목='{title}', 레벨={card_level}, 태그=[{tags}], "
+                f"내용미리보기='{content_preview}', 기존점수={base_score:.3f}"
+            )
+        
+        # LLM 프롬프트 구성 (GPT-4o-mini 최적화)
+        prompt = f"""다음 정보를 기반으로 사용자에게 가장 적합한 금융 콘텐츠 순위를 매겨주세요.
+
+👤 사용자 정보:
+- 지식 수준: {user_level}
+- 감정 점수: {emotions}점 (-50~+50, 부정적일수록 쉬운 내용 선호)
+- 관심 분야: {', '.join(interest_tags) if interest_tags else '미설정'}
+- 투자 성향: {user_summary if user_summary and user_summary.strip() else '미분석'}
+- 지식 특성: {knowledge_summary if knowledge_summary and knowledge_summary.strip() else '미분석'}
+
+📝 평가 후보:
+{chr(10).join(candidate_info)}
+
+🎯 평가 기준:
+- 지식 수준 일치도 (가장 중요)
+- 감정 상태 적합도 (부정적이면 쉬운 내용 우선)
+- 관심사 연관성
+- 학습 효과성
+
+⚠️ 중요: 기존점수가 높아도 사용자에게 맞지 않으면 낮은 점수를 줘야 합니다.
+
+출력 형식 (반드시 이 형식):
+후보 1: context_score=0.XX
+후보 2: context_score=0.YY
+후보 3: context_score=0.ZZ
+
+점수 범위: 0.0~1.0 (1.0이 완벽 적합)"""
+
+        # LLM 호출 (GPT-4o-mini)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "당신은 금융 맞춤 추천 전문가입니다. 사용자 프로필과 콘텐츠를 분석하여 정확한 컨텍스트 점수를 제공해주세요."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,  # 일관성을 위해 낮은 temperature
+            max_tokens=300,   # 리랭킹이므로 짧은 응답 충분
+            top_p=0.9
+        )
+        llm_content = response.choices[0].message.content
+        llm_result = llm_content.strip() if llm_content else ""
+        
+        # LLM 결과 파싱
+        context_scores = {}
+        lines = llm_result.split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            if '후보' in line and 'context_score=' in line:
+                try:
+                    # "후보 1: context_score=0.85" 형태에서 번호와 점수 추출
+                    parts = line.split(':')
+                    if len(parts) >= 2:
+                        candidate_num = int(''.join(filter(str.isdigit, parts[0])))
+                        score_part = parts[1].strip()
+                        if 'context_score=' in score_part:
+                            score = float(score_part.split('context_score=')[1].strip())
+                            score = max(0.0, min(1.0, score))  # 0~1 범위로 제한
+                            
+                            # 후보 번호를 실제 card_id로 매핑
+                            if 1 <= candidate_num <= len(llm_candidates):
+                                card_id = llm_candidates[candidate_num - 1]
+                                context_scores[card_id] = score
+                except (ValueError, IndexError) as e:
+                    continue
+        
+        # LLM 점수와 기존 점수를 결합 (7:3 비율)
+        final_scores = {}
+        for cid in candidates:
+            base_score = base_scores.get(cid, 0.0)
+            llm_score = context_scores.get(cid, 0.5)  # LLM이 평가하지 않은 항목은 중간값
+            
+            # LLM 컨텍스트 점수가 있으면 70% 반영, 없으면 기존 점수 100%
+            if cid in context_scores:
+                final_score = 0.7 * llm_score + 0.3 * base_score
+            else:
+                final_score = base_score
+                
+            final_scores[cid] = final_score
+        
+        # 최종 점수로 정렬
+        scored_final = [(final_scores[cid], cid) for cid in candidates]
+        scored_final.sort(reverse=True)
+        final_ranking = [cid for _, cid in scored_final[:top_n]]
+        
+        # 메타데이터 구성
+        metadata = {
+            "method": "llm_context_rerank",
+            "llm_used": True,
+            "llm_model": "gpt-4o-mini",
+            "total_candidates": len(candidates),
+            "llm_evaluated_candidates": len(llm_candidates),
+            "context_scores": context_scores,
+            "final_scores": {cid: final_scores[cid] for cid in final_ranking},
+            "llm_raw_response": llm_result,
+            "score_combination": "70% LLM context + 30% base score",
+            "llm_settings": {
+                "temperature": 0.3,
+                "max_tokens": 300,
+                "top_p": 0.9
+            }
+        }
+        
+        return final_ranking, metadata
+        
+    except Exception as e:
+        # 실패 시 기존 점수 기준으로 폴백
+        scored = [(base_scores.get(cid, 0.0), cid) for cid in candidates]
+        scored.sort(reverse=True)
+        return [cid for _, cid in scored[:top_n]], {
+            "method": "numeric_fallback", 
+            "llm_used": False, 
+            "error": str(e)
+        }
+
 # ========================================
-# 5. 메인 추천 함수 (Streamlit용)
+# 5. 메인 추천 함수 (Streamlit용) - 헬퍼 함수들
 # ========================================
+
+def _extract_user_data(user: Dict) -> Tuple[str, str, List[str], int]:
+    """사용자 데이터를 추천에 필요한 형태로 추출"""
+    emotions = int(user.get("emotions", 0)) if isinstance(user.get("emotions", 0), (int, float, str)) else 0
+    user_level = normalize_level(user.get("level", "Beginner"))
+    interest_tags = [str(t) for t in (user.get("interest_tags", []))]
+    ctx_text = build_user_context_text(user, logs=None)
+    return ctx_text, user_level, interest_tags, emotions
+
+def _collect_all_candidates(emotion_rule_ids: List[str], vec_ids: List[str], 
+                           basic_rule_ids: List[str], emotion_rule_details: Dict,
+                           vec_scores: Dict[str, float], model_sources: Dict[str, str]) -> Tuple[List[str], Dict[str, str], Dict[str, Dict]]:
+    """모든 후보들을 통합하고 메타데이터 관리"""
+    all_candidates: List[str] = []
+    seen_ids: Set[str] = set()
+    candidate_sources: Dict[str, str] = {}
+    candidate_details: Dict[str, Dict] = {}
+
+    # 감정 기반 룰
+    for cid in emotion_rule_ids:
+        if cid not in seen_ids:
+            all_candidates.append(cid)
+            seen_ids.add(cid)
+            candidate_sources[cid] = "emotion_rule"
+            candidate_details[cid] = {
+                "method": "감정 기반 룰",
+                "level_adjustment": emotion_rule_details.get("level_adjustment", ""),
+                "tag_score": emotion_rule_details.get("max_tag_score", 0),
+            }
+
+    # 벡터 검색
+    for cid in vec_ids:
+        if cid not in seen_ids:
+            all_candidates.append(cid)
+            seen_ids.add(cid)
+            candidate_sources[cid] = "vector_search"
+            candidate_details[cid] = {
+                "method": "벡터 검색",
+                "model": model_sources.get(cid, "unknown"),
+                "score": float(vec_scores.get(cid, 0.0)),
+                "level_filtered": True,
+            }
+
+    # 기본 룰
+    for cid in basic_rule_ids:
+        if cid not in seen_ids:
+            all_candidates.append(cid)
+            seen_ids.add(cid)
+            candidate_sources[cid] = "basic_rule"
+            candidate_details[cid] = {
+                "method": "기본 룰",
+                "level_matched": True,
+                "tag_matched": True,
+            }
+    
+    return all_candidates, candidate_sources, candidate_details
 
 def get_hybrid_recommendations(user: Dict, **kwargs) -> Dict:
     params = {**DEFAULT_PARAMS, **kwargs}
@@ -412,18 +665,13 @@ def get_hybrid_recommendations(user: Dict, **kwargs) -> Dict:
     result = {"success": False, "results": [], "metadata": {}, "error": None}
 
     try:
-        # 1) 사용자 컨텍스트
-        ctx_text = build_user_context_text(user, logs=None)
+        # 1) 사용자 데이터 추출
+        ctx_text, user_level, interest_tags, emotions = _extract_user_data(user)
 
         # 2) 감정 기반 룰 (Supabase 쿼리)
-        emotions = int(user.get("emotions", 0)) if isinstance(user.get("emotions", 0), (int, float, str)) else 0
-        user_level = normalize_level(user.get("level", "Beginner"))
-        interest_tags = [str(t) for t in (user.get("interest_tags", []))]
-
         emotion_rule_contents, emotion_rule_details = query_contents_by_level_and_tags(
             user_level, interest_tags, emotions, limit=params["k_rule"]
         )
-        # 정규화 보장
         emotion_rule_contents = [normalize_card(c) for c in emotion_rule_contents]
         emotion_rule_ids = [c["card_id"] for c in emotion_rule_contents]
 
@@ -456,82 +704,107 @@ def get_hybrid_recommendations(user: Dict, **kwargs) -> Dict:
         )
 
         # 7) 후보 통합
-        all_candidates: List[str] = []
-        seen_ids: Set[str] = set()
-        candidate_sources: Dict[str, str] = {}
-        candidate_details: Dict[str, Dict] = {}
-
-        # 감정 기반 룰
-        for cid in emotion_rule_ids:
-            if cid not in seen_ids:
-                all_candidates.append(cid)
-                seen_ids.add(cid)
-                candidate_sources[cid] = "emotion_rule"
-                candidate_details[cid] = {
-                    "method": "감정 기반 룰",
-                    "level_adjustment": emotion_rule_details.get("level_adjustment", ""),
-                    "tag_score": emotion_rule_details.get("max_tag_score", 0),
-                }
-
-        # 벡터 검색
-        for cid in vec_ids:
-            if cid not in seen_ids:
-                all_candidates.append(cid)
-                seen_ids.add(cid)
-                candidate_sources[cid] = "vector_search"
-                candidate_details[cid] = {
-                    "method": "벡터 검색",
-                    "model": model_sources.get(cid, "unknown"),
-                    "score": float(vec_scores.get(cid, 0.0)),
-                    "level_filtered": True,
-                }
-
-        # 기본 룰
-        for cid in basic_rule_ids:
-            if cid not in seen_ids:
-                all_candidates.append(cid)
-                seen_ids.add(cid)
-                candidate_sources[cid] = "basic_rule"
-                candidate_details[cid] = {
-                    "method": "기본 룰",
-                    "level_matched": True,
-                    "tag_matched": True,
-                }
-
-        # 8) 리랭킹
-        final_ids = rerank_v2(
-            all_candidates, user, all_contents, vec_scores,
-            top_n=params["top_n"], alpha=params["alpha"], beta=params["beta"], gamma=params["gamma"]
+        all_candidates, candidate_sources, candidate_details = _collect_all_candidates(
+            emotion_rule_ids, vec_ids, basic_rule_ids, emotion_rule_details, vec_scores, model_sources
         )
 
-        # 9) 결과 구성
+        # 8) 기존 수치 기반 점수 계산 (LLM 리랭킹의 base_score로 사용)
+        base_scores = {}
         card_map = {c["card_id"]: c for c in all_contents}
+        
+        itags = set([str(t).strip() for t in (user.get("interest_tags") or []) if str(t).strip()])
+        seen = set([str(s) for s in (user.get("recent_seen_card_ids") or [])])
+        liked_tags = set([str(t).strip() for t in (user.get("liked_tags") or []) if str(t).strip()])
+        user_level = normalize_level(user.get("level", "Beginner"))
+        
+        # 모든 후보에 대해 기존 방식의 점수 계산
+        for cid in all_candidates:
+            cid = str(cid)
+            c = card_map.get(cid)
+            if not c:
+                continue
+
+            vec_score = float(vec_scores.get(cid, 0.0))
+            
+            content_level = normalize_level(c.get("level", "Beginner"))
+            if content_level == user_level:
+                level_score = 1.0
+            else:
+                try:
+                    user_idx = LEVEL_ORDER.index(user_level)
+                    content_idx = LEVEL_ORDER.index(content_level)
+                    level_diff = abs(user_idx - content_idx)
+                    level_score = max(0.0, 1.0 - 0.3 * level_diff)
+                except ValueError:
+                    level_score = 0.5
+
+            content_tags = set(normalize_tags(c.get("tags")))
+            overlap = len(itags.intersection(content_tags))
+            tag_score = (overlap / max(1, len(itags))) if itags else 0.0
+
+            final_score = params["alpha"] * vec_score + params["beta"] * level_score + params["gamma"] * tag_score
+
+            if cid in seen:
+                final_score -= 0.2
+            if liked_tags.intersection(content_tags):
+                final_score += 0.1
+
+            base_scores[cid] = final_score
+        
+        # 9) LLM 컨텍스트 리랭킹 (옵션)
+        final_ids, rerank_metadata = llm_context_rerank(
+            all_candidates, user, all_contents, base_scores,
+            top_n=params["top_n"], use_llm_rerank=params["use_llm_rerank"]
+        )
+
+        # 10) 결과 구성
         recommended_contents = [card_map[cid] for cid in final_ids if cid in card_map]
 
-        # 10) 상세 사유 추가
+        # 11) 상세 사유 추가 (LLM 리랭킹 정보 포함)
         for i, content in enumerate(recommended_contents):
             cid = content["card_id"]
             source = candidate_sources.get(cid, "unknown")
             details = candidate_details.get(cid, {})
+            
+            # 기본 추천 사유
             if source == "emotion_rule":
-                reason = f"[감정 기반 룰] 순위 {i+1}: {details.get('level_adjustment', '')} (태그 점수: {details.get('tag_score', 0)})"
+                base_reason = f"[감정 기반 룰] {details.get('level_adjustment', '')} (태그 점수: {details.get('tag_score', 0)})"
             elif source == "vector_search":
                 model_name = details.get("model", "unknown")
                 vec_score = float(details.get("score", 0.0))
-                reason = f"[벡터 검색 - {model_name}] 순위 {i+1}: 유사도 {vec_score:.3f} (레벨 필터링 적용됨)"
+                base_reason = f"[벡터 검색 - {model_name}] 유사도 {vec_score:.3f} (레벨 필터링 적용)"
             elif source == "basic_rule":
-                reason = f"[기본 룰] 순위 {i+1}: 레벨 및 관심사 태그 매칭 (백업 추천)"
+                base_reason = f"[기본 룰] 레벨 및 관심사 태그 매칭"
             else:
-                reason = f"[하이브리드] 순위 {i+1}: 알 수 없는 출처"
-
-            content["recommendation_reason"] = reason
+                base_reason = f"[하이브리드] 알 수 없는 출처"
+            
+            # LLM 리랭킹 정보 추가
+            if rerank_metadata.get("llm_used", False):
+                context_score = rerank_metadata.get("context_scores", {}).get(cid, None)
+                final_score = rerank_metadata.get("final_scores", {}).get(cid, None)
+                if context_score is not None:
+                    llm_info = f" → LLM 컨텍스트 점수: {context_score:.3f}, 최종점수: {final_score:.3f}"
+                    reason = f"{base_reason}{llm_info}"
+                else:
+                    reason = f"{base_reason} → LLM 평가 없음 (기존 점수 유지)"
+            else:
+                reason = f"{base_reason} → 수치 기반 리랭킹"
+            
+            content["recommendation_reason"] = f"순위 {i+1}: {reason}"
             content["recommendation_source"] = source
             content["recommendation_rank"] = i + 1
             content["recommendation_details"] = details
 
+            # 벡터 검색 관련 정보
             if source == "vector_search":
                 content["vector_model"] = details.get("model", "unknown")
                 content["vector_score"] = float(details.get("score", 0.0))
+            
+            # LLM 리랭킹 관련 정보
+            if rerank_metadata.get("llm_used", False):
+                content["llm_context_score"] = rerank_metadata.get("context_scores", {}).get(cid, None)
+                content["llm_final_score"] = rerank_metadata.get("final_scores", {}).get(cid, None)
+                content["llm_reranked"] = cid in rerank_metadata.get("context_scores", {})
 
             if source == "emotion_rule":
                 content["emotion_adjustment"] = emotion_rule_details
@@ -564,10 +837,14 @@ def get_hybrid_recommendations(user: Dict, **kwargs) -> Dict:
                 "basic_rule_supabase": len(basic_rule_ids),
             },
             "recommendation_sources": [candidate_sources.get(cid, "unknown") for cid in final_ids],
+            "llm_rerank_info": rerank_metadata,  # LLM 리랭킹 메타데이터 포함
+            "all_candidates": all_candidates,
+            "base_scores": base_scores,
             "optimization_info": {
                 "level_filtering_first": True,
                 "vector_search_on_filtered": True,
                 "supabase_query_used": True,
+                "llm_context_rerank_used": params["use_llm_rerank"],
                 "efficiency_improvement": f"벡터 검색 범위를 {len(level_filtered_cards)}/{len(all_contents)} 콘텐츠로 제한"
             },
         }
@@ -619,21 +896,39 @@ def test_hybrid_recommendation():
     test_user = {
         "user_id": "test_user",
         "level": "Beginner",
+        "emotions": -10,  # 약간 부정적
         "interest_tags": ["ETF", "투자", "경제"],
+        "user_summary": "투자에 관심이 많지만 아직 경험이 부족한 초보자",
+        "knowledge_summary": "기본적인 금융 용어는 알고 있으나 실제 투자 경험은 없음",
         "recent_seen_card_ids": [],
         "liked_tags": []
     }
-    print("🧪 하이브리드 추천 시스템 테스트")
-    print("=" * 50)
-    result = get_hybrid_recommendations(test_user)
+    print("🧪 하이브리드 추천 시스템 테스트 (GPT-4o-mini LLM 리랭킹)")
+    print("=" * 60)
+    result = get_hybrid_recommendations(test_user, use_llm_rerank=True)
     if result["success"]:
         print("✅ 추천 성공!")
         print(get_recommendation_summary(result))
+        
+        # LLM 리랭킹 정보
+        llm_info = result.get("metadata", {}).get("llm_rerank_info", {})
+        if llm_info.get("llm_used"):
+            print(f"\n🤖 LLM 리랭킹: {llm_info.get('llm_model')} 사용")
+            print(f"   평가 후보 수: {llm_info.get('llm_evaluated_candidates', 0)}")
+            context_scores = llm_info.get("context_scores", {})
+            if context_scores:
+                print("   컨텍스트 점수:")
+                for cid, score in context_scores.items():
+                    print(f"   - {cid[:8]}: {score:.3f}")
+        
         print("\n📚 추천 콘텐츠:")
         for i, content in enumerate(result["results"], 1):
             print(f"{i}. {content.get('title', 'Unknown')}")
             print(f"   레벨: {content.get('level')}")
             print(f"   태그: {content.get('tags', [])}")
+            if content.get('llm_reranked'):
+                ctx_score = content.get('llm_context_score', 0)
+                print(f"   🤖 LLM 컨텍스트 점수: {ctx_score:.3f}")
             print()
     else:
         print(f"❌ 추천 실패: {result['error']}")

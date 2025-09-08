@@ -1,0 +1,40 @@
+  2(경제): 78
+  6(사회): 45
+  4(과학): 33
+  5(금융): 69
+
+📊 토픽별 난이도별 개수:
+  2(경제):
+    Beginner: 41
+    Intermediate: 35
+    Advanced: 2
+  6(사회):
+    Beginner: 16
+    Intermediate: 19
+    Advanced: 10
+  4(과학):
+    Beginner: 11
+    Intermediate: 15
+    Advanced: 7
+  5(금융):
+    Beginner: 17
+    Intermediate: 43
+    Advanced: 9
+
+📊 토픽별 스타일별 개수:
+  2:
+    설명형: 78
+  6:
+    설명형: 45
+  4:
+    설명형: 33
+  5:
+    설명형: 69
+
+📊 난이도별 전체 합계:
+  Beginner: 85
+  Intermediate: 112
+  Advanced: 28
+
+📊 스타일별 전체 합계:
+  설명형: 225
