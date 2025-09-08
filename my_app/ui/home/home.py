@@ -289,35 +289,64 @@ def fetch_profile_by_email(email: str):
         return None
     return None
 
+def _get_user_id(user):
+    if not user:
+        return None
+    if isinstance(user, dict):
+        return user.get("user_id") or user.get("id")
+    return getattr(user, "user_id", None) or getattr(user, "id", None)
 
 # ==============================
 # 사용자 패널
 # ==============================
 def render_user_panel():
-    # 1) 현재 사용자 이메일 결정 (세션/해시/쿼리 등에서 가져오도록 확장 가능)
-    email = st.session_state.get("user_email") or st.session_state.get("email") or st.query_params.get("email", [None])[0] if hasattr(st, "query_params") else None
+    # 1) 현재 사용자 user_id 결정
+    supabase = get_supabase_client()
+    user = st.session_state.get("user")  # 로그인 객체(딕트/오브젝트) 들어온다고 가정
+    user_id = _get_user_id(user) or st.session_state.get("user_id")
 
-    # 2) 프로필 로드 (Supabase → 실패 시 데모)
-    profile = fetch_profile_by_email(email)
+    # (옵션) 쿼리/환경에서도 보조로 읽기
+    if not user_id:
+        try:
+            qp = st.query_params if hasattr(st, "query_params") else st.experimental_get_query_params()
+            user_id = (qp.get("user_id", [None])[0])
+        except Exception:
+            user_id = user_id or os.getenv("USER_ID")
+
+    # 2) 프로필 로드 (user_id → DB)
     demo = False
+    profile = None
+    if supabase and user_id:
+        try:
+            res = (
+                supabase
+                .table("profiles")
+                .select("id,email,name,role,knowledge_level,investment_level,risk_tolerance,interests_categories,investment_emotions,investment_goal,user_summary,knowledge_summary,updated_at")
+                .eq("id", user_id)
+                .single()                # v2: 단일행
+                .execute()
+            )
+            profile = getattr(res, "data", None) or (res.get("data") if isinstance(res, dict) else None)
+        except Exception as e:
+            print("profiles 조회 실패:", e)
+
+    # 3) 실패 시 데모
     if not profile:
         demo = True
-        # 데모용 미니 프로필 (DB 연결 안돼도 카드 UI 검증 가능)
         profile = {
-        "name": "Sohee An",
-        "email": "soheean1370@gmail.com",
-        "knowledge_level": "Advanced",
-        "investment_level": "Intermediate",  # DB에 []로 들어가 있던 부분 → 값 없을 때 None/빈 문자열로 처리
-        "risk_tolerance": "25",
-        "interests_categories": '{"혼합형 자산배분 펀드","주식·채권 혼합 펀드","자산배분 펀드","밸런스드 펀드","자산배분형 ETF","ETF","로보어드바이저","자동 리밸런싱","분산 투자","자동화 투자","퀀트 투자","알고리즘 투자","채권","국채","투자등급 회사채","인플레이션 연동채권","단기채","단기채 펀드","현금성 자산","현금대체 자산"}',
-        "investment_emotions": '{"아쉬움","불안","혼란","신중함","손실회피","안전욕구"}',
-        "investment_goal": "초기에는 단기적 투자 기간에서 원금 보존과 최소 위험을 최우선으로 하는 낮은 위험 허용도를 가졌으나, 투자 목표를 10년 이상의 장기 투자로 전환해 계산된 중간 수준의 리스크(최대 약 20% 손실 허용)를 수용하면서 자본 보존을 전제로 한 시장 평균 이상을 목표로 하는 장기적 자산 성장을 추구하는 것으로 목표가 전환되었습니다.",
-        "user_summary": "장기 고수익을 원하면서도 원금 손실을 피하고 싶은 신중한 성향",  # DB에 NULL → 필요하면 요약 텍스트 직접 추가 가능
-        "knowledge_summary": """사용자는 자산배분형 ETF, 혼합형 펀드, 자동 리밸런싱, 로보어드바이저 등 다양한 투자 전략과 상품에 대한 이해도가 높습니다.
-    복리 효과, 예금자보호제도, 채권 등의 기초 금융 개념뿐만 아니라 실전 투자에 필요한 세부 전략들에 대한 명확한 개념을 보유하고 있습니다.
-    다만 로보어드바이저와 자산배분형 ETF의 세부적인 장점 및 차이점 등 일부 고도화된 투자 전략에서 추가적인 심화 학습이 필요합니다.""",
-        "updated_at": datetime.utcnow().isoformat() + "Z",
-    }
+            "name": "Sohee An",
+            "email": "soheean1370@gmail.com",
+            "knowledge_level": "Advanced",
+            "investment_level": "Intermediate",
+            "risk_tolerance": "25",
+            "interests_categories": '{"혼합형 자산배분 펀드","주식·채권 혼합 펀드","자산배분 펀드","밸런스드 펀드","자산배분형 ETF","ETF","로보어드바이저","자동 리밸런싱","분산 투자","자동화 투자","퀀트 투자","알고리즘 투자","채권","국채","투자등급 회사채","인플레이션 연동채권","단기채","단기채 펀드","현금성 자산","현금대체 자산"}',
+            "investment_emotions": '{"아쉬움","불안","혼란","신중함","손실회피","안전욕구"}',
+            "investment_goal": "초기에는 단기적 투자 기간에서 원금 보존과 최소 위험을 최우선으로 하는 낮은 위험 허용도를 가졌으나, 투자 목표를 10년 이상의 장기 투자로 전환…",
+            "user_summary": "장기 고수익을 원하면서도 원금 손실을 피하고 싶은 신중한 성향",
+            "knowledge_summary": "자산배분형/혼합형, 자동 리밸런싱, 로보어드바이저 등 심화 이해도 높음.",
+            "updated_at": datetime.utcnow().isoformat() + "Z",
+        }
+
 
     # 3) 데이터 정리
     name = clean_text(profile.get("name"), "사용자")
