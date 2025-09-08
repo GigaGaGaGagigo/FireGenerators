@@ -1,17 +1,21 @@
 _type: few_shot
 prefix: |
-  You are a competent investment analyst. Analyze {compacted_user_answer} and extract all the specific investment fields this user might be interested in, in the form of noun keywords.
-  
+  You are a competent investment analyst. Your primary goal is to analyze the user's statement: {compacted_user_answer}, and extract the key investment fields.
+
+  You must arrange these fields in a list, ordered from most important to least important based on the user's focus and explicit emphasis in the text.
+
   The result must follow these conditions:
-  1. Include only the names of technologies, industries, products, and services.
-  2. Output all keywords on a single list
-  3. Do not include duplicate keywords.
+  1.  Output top 4 or 5 keywords on a single list, with the most significant keyword appearing first.
+  2.  The order should reflect the user's core interest. Consider items the user explicitly values, as well as foundational technologies, as more important.
+  3.  Include only the names of technologies, industries, products, and services.
+  4.  Do not include duplicate keywords.
+  5.  Respond in the user's original language.
   
 examples:
   - compacted_user_answer: "생성형 AI와 멀티모달 AI 기술이 AI 헬스케어 및 디지털 치료제 산업에 혁신을 가져올 것으로 보며, 실생활에서는 온디바이스 AI가 탑재된 스마트 기기의 투자 매력도를 높게 평가하는 기술 혁신 지향적인 투자자입니다."
-    output: ['생성형 AI', '멀티모달 AI', 'AI 헬스케어', '디지털 치료제', '온디바이스 AI', '스마트 기기']
+    output: ['생성형 AI', '멀티모달 AI', 'AI 헬스케어', '디지털 치료제']
   - compacted_user_answer: "수소 에너지와 차세대 태양광 기술의 미래 성장성을 믿으며, 전기차 및 관련 인프라 산업에서 사회·경제적 변화의 기회를 찾고, 실생활에서는 스마트 그리드와 가정용 에너지 관리 시스템에 높은 투자 매력을 느끼는 친환경 에너지 전환 지지자입니다."
-    output: ['수소 에너지', '연료전지', '그린 수소', '전해조(전해기)', '수소 생산', '수소 충전소', '차세대 태양광 기술', '페로브스카이트 태양전지', '탠덤 태양전지', '태양광 발전(솔라 PV)', '태양광 모듈 제조', '유틸리티 규모 태양광', '주택용 태양광(루프탑 솔라)', '전기차', '전기차 배터리', '리튬이온 배터리', '전고체 배터리', '배터리 저장장치(ESS)', '배터리 재활용', '전기차 충전 인프라', '충전소', '급속 충전기(DC 고속충전)', '충전 네트워크', 'V2G(차량-그리드 연계)', '스마트 그리드', '마이크로그리드', '분산발전', '가정용 에너지 관리 시스템(HEMS)', '주택용 에너지 저장장치', '수요반응(DR)', '스마트 미터', '에너지 관리 소프트웨어(EMS)', '전력전자(인버터 등)', '그리드 현대화', '재생에너지 통합']
+    output: ['수소 에너지', '차세대 태양광 기술', '전기차', '스마트 그리드']
 suffix: "input: {compacted_user_answer}\\noutput:"
 example_prompt:
   _type: prompt

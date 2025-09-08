@@ -438,6 +438,9 @@ def render():
 
     render_chat(st.session_state["chat_placeholder"])
     render_quiz(st.session_state["quiz_placeholder"])
+    # graph_state = st.session_state.graph.get_state(st.session_state.config)
+    # st.write(graph_state)
+    # st.write(st.session_state.user_data)
 
 
 if __name__ == "__main__":

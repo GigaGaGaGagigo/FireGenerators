@@ -1,31 +1,29 @@
-"""
-WRITER: Kang Joseph
-DATE: 2025-08-01
-DESCRIPTION:
-This module provides a function to build a langgraph graph.
-"""
-
 import time
 from pathlib import Path
 
-# pyrefly: ignore  # import-error
 from IPython.display import Image, display
 from langchain_core.messages import AIMessage, AnyMessage
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from my_app.chatbot.chat_core.nodes import (
     analyze_user_answers,
+    batch_filter_node,
     call_llm,
     compact_user_answer,
     create_followup_qa,
     determine_next_node,
+    generate_greeting_and_news,
     generate_greeting_message,
+    generate_queries_node,
+    generate_report_node,
     present_predefined_questions,
     process_human_input_tool,
     summarize_user_profile,
     update_user_meta_data,
     update_user_profile,
+    web_search_node,
 )
 from my_app.chatbot.chat_core.state import (
     InputState,
@@ -35,19 +33,25 @@ from my_app.chatbot.chat_core.state import (
 
 
 class GraphBuilder:
+    def __init__(self):
+        self.memory: InMemorySaver | None = InMemorySaver()
+        self.graph: CompiledStateGraph | None = None
+
     def _determine_initial_node(self, state: OverallState) -> str | None:
-        profile_status = state.user_meta_data.get("profile_status", None)
+        profile_status: str | None = state.user_meta_data.get("profile_status", None)
 
         if profile_status is None:
             raise ValueError("Profile status is not found in the user meta data.")
 
         if profile_status == "completed":
-            return "finished_chat"
+            return "generate_queries"
         else:
             return "ask_to_new_user"
 
     def _finished_chat_with_user(self, state: OverallState):
-        ai_message = f"프로필이 완성되어 있어요! {state.user_meta_data['name']}님, 이제 다른 메뉴를 체험해볼까요?"
+        ai_message: str = (
+            f"{state.user_meta_data['name']}님, 이제 다른 메뉴를 체험해볼까요?"
+        )
         return {
             "logs": [
                 {
@@ -57,6 +61,7 @@ class GraphBuilder:
                 }
             ],
             "messages": [AIMessage(content=ai_message)],
+            "search_dataset": state.search_dataset,
         }
 
     def _route_after_agent(self, state: OverallState):
@@ -109,12 +114,17 @@ class GraphBuilder:
         workflow.add_node("summarize_user_profile", summarize_user_profile)
         workflow.add_node("update_user_meta_data", update_user_meta_data)
         workflow.add_node("finished_chat", self._finished_chat_with_user)
+        workflow.add_node("generate_greeting_and_news", generate_greeting_and_news)
+        workflow.add_node("generate_queries", generate_queries_node)
+        workflow.add_node("web_search", web_search_node)
+        workflow.add_node("filter_results", batch_filter_node)
+        workflow.add_node("generate_report", generate_report_node)
 
         workflow.add_edge(START, "start_chat")
         workflow.add_conditional_edges(
             "start_chat",
             self._determine_initial_node,
-            path_map=["ask_to_new_user", "finished_chat"],
+            path_map=["ask_to_new_user", "generate_queries"],
         )
         workflow.add_edge("ask_to_new_user", "agent")
 
@@ -138,6 +148,10 @@ class GraphBuilder:
 
         workflow.add_edge("summarize_user_profile", "update_user_meta_data")
         workflow.add_edge("update_user_meta_data", END)
+        workflow.add_edge("generate_queries", "web_search")
+        workflow.add_edge("web_search", "filter_results")
+        workflow.add_edge("filter_results", "generate_report")
+        workflow.add_edge("generate_report", "finished_chat")
         workflow.add_edge("finished_chat", END)
 
         self.memory = InMemorySaver()
@@ -147,12 +161,19 @@ class GraphBuilder:
 
     def visualize_graph(self, save_path: Path | str | None = None) -> None:
         if save_path is None:
-            output_path = Path(__file__).parents[1] / "utils"
+            output_path: Path = Path(__file__).parents[1] / "utils"
             output_file = str(output_path / "graph_recursion_limit.png")
             save_path = output_file
 
-        display(
-            Image(
-                self.graph.get_graph().draw_mermaid_png(output_file_path=str(save_path))
+        if self.graph is not None:
+            display(
+                Image(
+                    self.graph.get_graph().draw_mermaid_png(
+                        output_file_path=str(save_path)
+                    )
+                )
             )
-        )
+        else:
+            raise ValueError(
+                "Graph has not been initialized. Please build the graph before visualizing."
+            )

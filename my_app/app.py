@@ -325,6 +325,7 @@ def logout() -> None:
     Note:
         안전한 접근을 위해 선택적으로 세션 정보 삭제
     """
+    # pyrefly: ignore  # import-error
     from ui.chatbot import USER_DATA_KEY
 
     if "session" in st.session_state and st.session_state.session:
@@ -510,6 +511,7 @@ def route_to_page():
     try:
         if current_page == "chatbot":
             try:
+                # pyrefly: ignore  # import-error
                 from ui.chatbot.chatbot import render
 
                 render()
@@ -519,6 +521,7 @@ def route_to_page():
 
         elif current_page == "quiz":
             try:
+                # pyrefly: ignore  # import-error
                 from ui.level_quiz.quiz import render
 
                 # 환영 메시지 설정
@@ -548,6 +551,7 @@ def route_to_page():
 
         elif current_page == "content":
             try:
+                # pyrefly: ignore  # import-error
                 from ui.contents.user_recommender import render
 
                 render()
@@ -558,6 +562,7 @@ def route_to_page():
 
         elif current_page == "rag_recommendation":
             try:
+                # pyrefly: ignore  # import-error
                 from ui.recommendation.rag_recommendation import render
 
                 render()
@@ -567,6 +572,7 @@ def route_to_page():
 
         elif current_page == "simulation":
             try:
+                # pyrefly: ignore  # import-error
                 from ui.trading.trading_ui import render
 
                 render()
@@ -590,6 +596,7 @@ def route_to_page():
 
         elif current_page == "settings":
             try:
+                # pyrefly: ignore  # import-error
                 from ui.settings.settings_sample import render
 
                 render()

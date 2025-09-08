@@ -6,12 +6,12 @@ DESCRIPTION: This file contains the nodes for the questions.
 
 import time
 from operator import add
+from typing import Annotated
 
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableAssign, RunnablePassthrough
 from pydantic import BaseModel, Field, ValidationError
-from typing_extensions import Annotated
 
 from my_app.chatbot.chat_core.model_loader import OPENAI_MODEL_NAME, get_llm_models
 from my_app.chatbot.chat_core.prompt_loader import load_prompt_from_yaml
@@ -145,7 +145,6 @@ respond in the "{compacted_user_answer}" language.
         ],
     )
 
-    # 여기는 또 도구랑 결합 안한 애로 데려와야 output을 받을 수 있네 하하
     llm = get_llm_models(OPENAI_MODEL_NAME)
 
     chain = prompt_template | llm.with_structured_output(FollowUpQA)

@@ -19,7 +19,7 @@ _llm_models = {}
 _llm_models_with_tool = {}
 
 
-def get_llm_models(model_name: str, tool: bool = False):
+def get_llm_models(model_name: str, tool: bool = False, new_user: bool = False):
     if tool:
         return _get_model_with_tool(model_name)
 
@@ -41,7 +41,7 @@ def get_llm_models(model_name: str, tool: bool = False):
     return _llm_models[model_name]
 
 
-def _get_model_with_tool(model_name: str):
+def _get_model_with_tool(model_name: str, new_user: bool = False):
     from my_app.chatbot.chat_core.nodes import (
         AnalyzeProfile,
         GenerateFollowUp,
@@ -60,9 +60,17 @@ def _get_model_with_tool(model_name: str):
         api_key=os.getenv("OPENAI_API_KEY"),  # pyright: ignore[reportArgumentType]
         # reasoning_effort="low",
     )
-    model_with_tool = model.bind_tools(
-        [RequestHumanInput, AnalyzeProfile, GenerateFollowUp]
-    )
+
+    tool_list = {
+        True: [RequestHumanInput, AnalyzeProfile, GenerateFollowUp],
+        False: [
+            RequestHumanInput,
+            AnalyzeProfile,
+            GenerateFollowUp,
+        ],  # TODO: add current user's tools
+    }
+
+    model_with_tool = model.bind_tools(tool_list[new_user])
     _llm_models_with_tool[model_name] = model_with_tool
     return _llm_models_with_tool[model_name]
 

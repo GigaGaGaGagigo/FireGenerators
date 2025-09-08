@@ -1,12 +1,7 @@
-"""
-LangGraph 상태 관리를 위한 헬퍼 함수들
-타입 안전성과 에러 처리를 개선합니다.
-"""
-
 import time
+from typing import Any
 
 import streamlit as st
-from typing_extensions import Any
 
 CATEGORY_KEYS: list[str] = [
     "interests_categories",
@@ -28,7 +23,7 @@ def determine_profile_status(user_data: dict) -> str:
                 categories_to_check.append(True)
             else:
                 categories_to_check.append(False)
-        elif value is None:
+        elif value is None or value == "":
             categories_to_check.append(True)
         elif key == "risk_tolerance" and value == 0:
             categories_to_check.append(True)
@@ -53,7 +48,7 @@ def find_missing_profile_categories(user_data: dict) -> list[str] | None:
         if isinstance(value, list):
             if len(value) == 0:
                 categories_to_update.append(key)
-        elif value is None:
+        elif value is None or value == "":
             categories_to_update.append(key)
         elif key == "risk_tolerance" and value == 0:
             categories_to_update.append(key)
@@ -66,17 +61,21 @@ def sync_questions() -> str | None:
     interrupts = st.session_state.get("interrupts", [])
     if not interrupts:
         return None
-    
+
     interrupt_obj = interrupts[-1]
-    
+
     # interrupt_obj가 None이거나 value가 없는 경우 처리
-    if not interrupt_obj or not hasattr(interrupt_obj, 'value') or not interrupt_obj.value:
+    if (
+        not interrupt_obj
+        or not hasattr(interrupt_obj, "value")
+        or not interrupt_obj.value
+    ):
         return None
 
     category = interrupt_obj.value.get("category")
     questions = interrupt_obj.value.get("questions")
     options = interrupt_obj.value.get("options")
-    
+
     # 필수 데이터가 없는 경우 처리
     if not category or not questions or not options:
         return None

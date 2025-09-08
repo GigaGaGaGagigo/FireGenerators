@@ -20,7 +20,12 @@ def update_user_profile(state: OverallState, config: RunnableConfig):
         current_data = state.user_meta_data[current_category]
 
         if current_category == "risk_tolerance":
-            current_data = int(current_data[-1])
+            current_data = int(current_data)
+        elif (
+            current_category == "investment_level"
+            or current_category == "knowledge_level"
+        ):
+            current_data = current_data
 
         profile_service.update_category(current_category, current_data)
 
@@ -90,4 +95,5 @@ def update_user_meta_data(state: OverallState, config: RunnableConfig):
             **state.user_meta_data,
             "user_profile_summary": user_profile_summary,
         },
+        search_dataset={},
     )
