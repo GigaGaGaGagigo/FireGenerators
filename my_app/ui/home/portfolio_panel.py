@@ -123,5 +123,5 @@ def render_trades_timeline(user_id: str):
     df_show = (df.sort_values("trade_time", ascending=False)
                  .loc[:, ["trade_time","market","symbol","action","price","qty"]]
                  .rename(columns={"trade_time":"Time","market":"Mkt","symbol":"Sym","action":"Side","price":"Price","qty":"Qty"}))
-    st.dataframe(df_show.head(10), hide_index=True, use_container_width=True)
+    # st.dataframe(df_show.head(10), hide_index=True, use_container_width=True)
     html('</div>')
