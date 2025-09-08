@@ -159,6 +159,7 @@ def render_user_profile_card(profile_data: Dict[str, Any]) -> None:
     
     main_profile_text = f"""
     <p>👋 안녕하세요, <strong>{user_name}</strong>님! 챗봇과 퀴즈로 분석한 당신의 금융 프로필을 알려드릴게요.</p>
+    <p>*상세한 프로필 내용은 홈 화면에서 확인 가능합니다.</p>
     <br>
     <p>🏦 <strong>금융 지식 수준:</strong> {user_level} ({knowledge_level})</p>
     <p>💭 <strong>현재 투자 심리:</strong> {emotion_info['emoji']} {emotion_info['status']}</p>
