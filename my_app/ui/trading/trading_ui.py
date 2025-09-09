@@ -10,6 +10,7 @@ import numpy as np
 import pandas_ta as ta
 import json
 from openai import OpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 # .env 로드
 load_dotenv()
@@ -220,53 +221,63 @@ def get_company_name(symbol: str, market: str) -> str:
 
 def get_holdings_data(user_id: str):
     """
-    trade_history를 읽어
-    - 종목별(심볼, 시장) 순보유수량, 평균매입가 계산
-    - 현재가 조회해 투자금액, 평가금액, 손익 계산
-    반환값: (holdings_df, total_invested, total_value)
+    v_current_holdings 뷰를 읽어서
+      - symbol, market, net_qty, avg_buy_price 가져옴
+      - 현재가/환율 조회 → 투자금액, 평가금액, 손익 계산
+    반환: (holdings_df, total_invested, total_value)
     """
-    df = get_trade_history(user_id)
-    if df.empty:
+    # 1) 뷰 조회
+    res = (
+        supabase
+        .table("v_current_holdings")        # View 이름을 table() 에 그대로 넘기면 됩니다
+        .select("symbol, market, net_qty, avg_buy_price")
+        .eq("user_id", user_id)
+        .execute()
+    )
+    # 에러 체크
+    if getattr(res, "status_code", 0) >= 400:
+        msg = getattr(res, "error_message", f"status={res.status_code}")
+        st.error(f"보유내역 조회 실패: {msg}")
         return pd.DataFrame(), 0.0, 0.0
 
-    # 1) 매수/매도 집계 → 순보유량
-    buy_df = df[df.action=="buy"].groupby(["symbol","market"]) \
-               .agg(avg_price=("price","mean"), qty_buy=("qty","sum")) \
-               .reset_index()
-    sell_df= df[df.action=="sell"].groupby(["symbol","market"]) \
-               .agg(qty_sell=("qty","sum")) \
-               .reset_index()
-    merged = buy_df.merge(sell_df, how="left", on=["symbol","market"])
-    merged.qty_sell = merged.qty_sell.fillna(0)
-    merged["net_qty"] = merged.qty_buy - merged.qty_sell
-    merged = merged[merged.net_qty>0].copy()
+    # 데이터가 없으면 빈 값 리턴
+    if not res.data:
+        return pd.DataFrame(), 0.0, 0.0
 
-    # 2) 각 종목별 현재가·PL 계산
+    df = pd.DataFrame(res.data)
+
+    # 2) 현재가·환율 조회 후 손익 계산
+    usdkrw = fetch_usd_krw_rate()  # 미리 구현해 둔 함수
     rows = []
     total_invested = 0.0
     total_value    = 0.0
-    usdkrw = fetch_usd_krw_rate()
 
-    for _, r in merged.iterrows():
-        sym, mk = r.symbol, r.market
-        buy_p, qty = float(r.avg_price), int(r.net_qty)
-        cur_p = fetch_current_price(sym,mk)
-        # 환산
-        inv_krw = buy_p*qty*(usdkrw if mk=="US" else 1)
-        val_krw = cur_p*qty*(usdkrw if mk=="US" else 1)
+    for r in df.to_dict(orient="records"):
+        sym = r["symbol"]
+        mk  = r["market"]
+        qty = float(r["net_qty"])
+        buy_p = float(r["avg_buy_price"])
+        cur_p = fetch_current_price(sym, mk)  # 미리 구현해 둔 함수
+
+        # 원화 환산
+        rate = usdkrw if mk == "US" else 1
+        inv_krw = buy_p * qty * rate
+        val_krw = cur_p * qty * rate
         pl       = val_krw - inv_krw
-        pl_pct   = pl/ inv_krw*100 if inv_krw else 0
+        pl_pct   = (pl / inv_krw * 100) if inv_krw else 0.0
 
         rows.append({
-            "종목": f"{get_company_name(sym,mk)} ({sym}/{mk})",
-            "매입단가":    buy_p,
-            "보유수량":    qty,
-            "투자금액(원)":inv_krw,
-            "현재가":      cur_p,
-            "평가금액(원)":val_krw,
-            "손익금액(원)":pl,
-            "수익률(%)":   pl_pct,
-            "symbol":sym, "market":mk
+            "종목":       f"{get_company_name(sym, mk)} ({sym}/{mk})",
+            "매입단가":     buy_p,
+            "보유수량":     qty,
+            "투자금액(원)":  inv_krw,
+            "현재가":       cur_p,
+            "평가금액(원)":  val_krw,
+            "손익금액(원)":  pl,
+            "수익률(%)":    pl_pct,
+            # internal 용
+            "symbol": sym,
+            "market": mk,
         })
         total_invested += inv_krw
         total_value    += val_krw
@@ -305,9 +316,10 @@ def update_trade(trade_id, new_date, new_action, new_symbol, new_market,
     else:
         st.error("수정 실패")
 
+
 def render ():
 
-    st.title("📊 모의투자 보유주식 관리")
+    st.title("📊 현재 보유주식 AI코칭")
 
     # ① 총 손익 영역
     holdings_df, total_inv, total_val = get_holdings_data(USER_ID)
@@ -334,9 +346,12 @@ def render ():
                 buy_date   = st.date_input("구매일", value=date.today(), key="buy_date")
             with col2:
                 buy_price = st.number_input("매입단가", min_value=0.0, step=0.01, key="buy_price")
-                buy_qty   = st.number_input("수량",     min_value=0.0, step=1.0, key="buy_qty")
+                buy_qty   = st.number_input("수량",     min_value=0, step=1, key="buy_qty")
 
             submitted_buy = st.form_submit_button("매수 저장")
+
+            
+            
             if submitted_buy:
                 if not buy_symbol or buy_price <= 0 or buy_qty <= 0:
                     st.error("종목, 단가, 수량을 모두 입력해주세요.")
@@ -350,6 +365,7 @@ def render ():
                         buy_date,
                         commission=0
                     )
+
 
     # ▶ 매도 탭
     with tab_sell:
@@ -406,7 +422,7 @@ def render ():
                     with c3:
                         new_price  = st.number_input("단가", value=float(price),
                                                     key=f"pr_{trade_id}")
-                        new_qty    = st.number_input("수량", value=float(qty),
+                        new_qty    = st.number_input("수량", value=int(qty),
                                                     key=f"qty_{trade_id}")
 
 
@@ -471,51 +487,91 @@ def render ():
         # st.text_area("프롬프트", latest["prompt"], height=300)
         st.write(latest["result"])
         st.divider()
+    columns = [
+        "name",
+        "investment_goal",
+        "investment_emotions",
+        "interests_categories",
+        "investment_level",
+        "knowledge_level",
+        "user_summary",
+        "knowledge_summary"
+    ]
+
+    # 2) supabase 에서 한 번에 select
+    ures = (
+        supabase
+        .table("profiles")
+        .select(",".join(columns))
+        .eq("id", USER_ID)
+        .limit(1)
+        .execute()
+    )
+
+    # 3) 응답이 비어있지 않다면 data 로 꺼내오기
+    if ures.data and len(ures.data) > 0:
+        data = ures.data[0]
+        name = data["name"]
+        investment_goal       = data["investment_goal"]
+        investment_emotions   = data["investment_emotions"]
+        interests_categories  = data["interests_categories"]
+        investment_level      = data["investment_level"]
+        knowledge_level       = data["knowledge_level"]
+        user_summary          = data["user_summary"]
+        knowledge_summary     = data["knowledge_summary"]
+    
+    # 1) 프로필에서 knowledge_level 가져오기
+    if ures.data and len(ures.data) > 0:
+        knowledge_level = ures.data[0]["knowledge_level"]
+    else:
+        knowledge_level = "beginner"  # 디폴트
+
+    # 2) 난이도 매핑 및 selectbox 렌더링
+    level_map = {
+        "beginner":    0,
+        "intermediate":1,
+        "advanced":    2
+    }
+    # 한국어 옵션으로 변경
+    prof_levels = ["초보", "중수", "고수"]
+
+    # DB에서 내려온 값이 소문자로 매핑될 수 있도록 .lower() 처리
+    default_idx = level_map.get(knowledge_level.lower(), 0)
+
+    prof_level = st.selectbox(
+        "🔧 금융지식",
+        prof_levels,
+        index=default_idx,
+        help="AI 코칭 결과를 어떤 난이도로 풀어서 설명할지 선택하세요."
+    )
 
     if st.button("AI 코칭 받기"):
-        columns = [
-            "name",
-            "investment_goal",
-            "investment_emotions",
-            "interests_categories",
-            "investment_level",
-            "knowledge_level",
-            "user_summary",
-            "knowledge_summary"
-        ]
-
-        # 2) supabase 에서 한 번에 select
-        ures = (
-            supabase
-            .table("profiles")
-            .select(",".join(columns))
-            .eq("id", USER_ID)
-            .limit(1)
-            .execute()
-        )
-
-        # 3) 응답이 비어있지 않다면 data 로 꺼내오기
-        if ures.data and len(ures.data) > 0:
-            data = ures.data[0]
-            name = data["name"]
-            investment_goal       = data["investment_goal"]
-            investment_emotions   = data["investment_emotions"]
-            interests_categories  = data["interests_categories"]
-            investment_level      = data["investment_level"]
-            knowledge_level       = data["knowledge_level"]
-            user_summary          = data["user_summary"]
-            knowledge_summary     = data["knowledge_summary"]
-
-
-
 
         # 1) 최근 거래내역 조회 (10건)
-        trades = supabase.table("trade_history") \
-            .select("*") \
-            .eq("user_id", USER_ID) \
-            .order("trade_time", desc=True) \
-            .limit(10) \
-            .execute().data or []
+        h_res = (
+            supabase
+            .table("v_current_holdings")       # View 명
+            .select("symbol")
+            .eq("user_id", USER_ID)
+            .execute()
+        )
+        current_symbols = [r["symbol"] for r in (h_res.data or [])]
+
+        # 2) 보유중인 심볼에 대해서만 최근 거래내역(최대 10건) 조회
+        if current_symbols:
+            trades = (
+                supabase
+                .table("trade_history")
+                .select("*")
+                .eq("user_id", USER_ID)
+                .in_("symbol", current_symbols)    # symbol IN (...)
+                .order("trade_time", desc=True)
+                .limit(10)
+                .execute()
+                .data or []
+            )
+        else:
+            trades = []
 
         # 2) 프롬프트 기본 문장
         system_message = [
@@ -542,7 +598,7 @@ def render ():
             )
 
         # 4) 오늘 기준 요약 지표(compute_advanced_stats) & 펀더멘털
-        prompt_lines.append("\n=== 오늘 기술지표 & 펀더멘털 ===")
+        prompt_lines.append("\n오늘 기술지표 & 펀더멘털:")
         # 거래된 종목들을 중복 없이
         symbols = list({t["symbol"] for t in trades})
         for sym in symbols:
@@ -566,6 +622,7 @@ def render ():
             stats = compute_advanced_stats(df_price, cur_price, idx, action="buy")
             stats_json = json.dumps(stats, ensure_ascii=False, indent=2)
 
+
             # 4-4) 펀더멘털 정보 가져오기
             fnd = fetch_fundamentals(sym, mk)
 
@@ -577,49 +634,113 @@ def render ():
                 f"사업개요: {fnd['사업개요']}\n"
             )
 
+            holding_info = holdings_df[holdings_df['symbol'] == sym]
+            if not holding_info.empty:
+                h_row = holding_info.iloc[0]
+                prompt_lines.append(
+                    f"보유 현황: 매입단가 {h_row['매입단가']:,.2f}, "
+                    f"현재가 {h_row['현재가']:,.2f}, "
+                    f"보유수량 {h_row['보유수량']}, "
+                    f"수익률 {h_row['수익률(%)']:.2f}%"
+                )
+        
+        role_json = {
+        "symbol":      "종목코드/시장 (예: AAPU/US)",
+        "holdings":    "prompt에 추가된 보유 현황을 표시",
+        "buy_timing":  "구체적인 매수 시점 제안 float값으로 표시",
+        "sell_timing": "구체적인 매도 시점 제안 float값으로 표시",
+        "stop_loss":   "손절가 제안 float값으로 표시",
+        "rationale":   "제안 근거를 간략하게 설명하고 현재 보유주식을 어떻게 할지 제시"
+        }
+        role_json = json.dumps(role_json, ensure_ascii=False, indent=2)
 
-        system_message = [
-        "당신은 친절하고 논리적인 투자 코치입니다.",
-        f"사용자({name})의 투자 목표: {investment_goal}",
-        f"사용자({name})의 투자 감정: {investment_emotions}",
-        f"사용자({name})의 관심 카테고리: {interests_categories}",
-        f"사용자({name})의 투자 수준: {investment_level}",
-        f"사용자({name})의 금융 지식 수준: {knowledge_level}",
-        f"사용자 요약: {user_summary}",
-        f"지식 요약: {knowledge_summary}",
-        "사용자의 최근 거래내역과 오늘 기준 기술지표, 펀더멘털, PER를 참고하여",
-        "매수·매도 타이밍과 손절가를 제안해주세요."
-        ]
-        full_system_message = "\n".join(system_message)
-        st.text_area("시스템_프롬프트", full_system_message, height=300)
-
+        prompt_lines.append("\n=== 응답 JSON 스키마 ===")
+        prompt_lines.append("결과는 반드시 각 기술지표 & 펀더멘털당 하나씩 아래 JSON 형태로만 반환하세요.")
+        prompt_lines.append("```json\n" + role_json + "\n```")
 
         full_prompt = "\n".join(prompt_lines)
-        st.text_area("프롬프트", full_prompt, height=300)
 
+        system_message = [
+            "당신은 친절하고 논리적인 투자 코치입니다.",
+            "사용자가 제시한 과거 거래내역과 기술지표·펀더멘털 데이터를 보고,",
+            "매수·매도 타이밍과 손절가를 제안해주세요.",
+            "출력은 반드시 아래 JSON 스키마를 준수해야 합니다."
+        ]
+        full_system_message = "\n".join(system_message)
+
+        #디버그
+        # st.text_area("시스템 프롬프트", full_system_message, height=300)
+        # st.text_area("프롬프트", full_prompt, height=300)
+        
         # 5) OpenAI API 호출
         with st.spinner("AI 코칭 생성 중..."):
+            # 2) 새 인터페이스로 호출
             response = client.chat.completions.create(
-                model="gpt-5",
+                model="gpt-5",    # 혹은 gpt-5-2025-08-07
                 messages=[
                     {"role":"system","content": full_system_message},
                     {"role":"user","content": full_prompt}
                 ],
                 max_completion_tokens=6000,
-            timeout=None
+            timeout=None       # 최대 생성 토큰 수
             )
 
+            # 디버그
+            # st.write(response)
+            # st.write("finish_reason:", response.choices[0].finish_reason)
+            # st.write("usage:", response.usage)
+
+
             ai_text = response.choices[0].message.content
+            # st.markdown("**✨ AI 코칭 결과 (GPT-5)**")
+            # st.write(ai_text)
+            
+
+            # → 이 부분을 o4-mini 호출 직전에 추가
+            explain_prompt = f"""
+            {ai_text}
+            이내용을 주식 {prof_level}도 알수 있게 풀어서 적어줘  
+            """
+
+            # 1) 프롬프트 화면에 출력
+            # st.subheader("📝 설명 생성용 프롬프트")
+            # st.text_area("", explain_prompt, height=300)
+
+            # 2) Gemini(GAI) 호출
+            try:
+                # 2-1) API 키 및 환경변수 처리
+                api_key = os.getenv("GOOGLE_API_KEY")
+                if not api_key:
+                    raise ValueError("환경변수 GOOGLE_API_KEY가 설정되지 않았습니다.")
+                # GOOGLE creds 충돌 방지
+                if 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ:
+                    del os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+
+                # 2-2) LLM 클라이언트 초기화
+                llm_client = ChatGoogleGenerativeAI(
+                    model="gemini-2.5-flash",
+                    temperature=0.4,
+                    max_retries=2,
+                    google_api_key=api_key,
+                )
+
+                resp = llm_client.invoke(explain_prompt)
+                explain_text = resp.content.strip()
+
+            except Exception as e:
+                explain_text = f"💥 Gemini 설명 생성 실패: {e}"
+
+            # 3) 결과 출력
             st.markdown("**✨ AI 코칭 결과**")
-            st.write(ai_text)
+            st.write(explain_text)
 
             # ✅ 결과 DB에 저장
             save_data = {
                 "user_id": USER_ID,
                 "save_type": "trading",
                 "sys_prompt": full_system_message,
-                "prompt": full_prompt,
-                "result": ai_text
+                "prompt": explain_prompt,
+                "result": explain_text
             }
             save_res = supabase.table("ai_return").insert(save_data).execute()
 
