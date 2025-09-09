@@ -104,3 +104,4 @@ sentence-transformers==5.1.0
 transformers==4.56.0
 tokenizers==0.20.3
 langchain-upstage==0.7.3
+yfinance # 추가
