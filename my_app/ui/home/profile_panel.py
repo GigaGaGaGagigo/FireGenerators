@@ -1,28 +1,123 @@
 from datetime import datetime
 import os
+import math
+import hashlib
+import altair as alt
 import streamlit as st
+import pandas as pd 
+import io, base64
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import font_manager as fm, rcParams
 from .utils import html, parse_listish, clean_text, clamp_pct
 from .router import PAGE_KEYS
 from home.db import get_supabase_client, fetch_profile_by_user_id, _get_user_id
+from .styles import inject_home_styles
 
-def render_missing_toast(missing_fields, auto_hide_sec: int = 12):
+def set_korean_font():
+    # 시스템에 있는 한글 폰트 중 첫 번째를 사용
+    candidates = [
+        "Malgun Gothic",             # Windows
+        "Apple SD Gothic Neo",       # macOS
+        "Noto Sans CJK KR",          # 리눅스
+        "NanumGothic", "NanumSquare", "NanumBarunGothic"
+    ]
+    available = {f.name for f in fm.fontManager.ttflist}
+    for name in candidates:
+        if name in available:
+            rcParams["font.family"] = name
+            break
+    rcParams["axes.unicode_minus"] = False
+
+def _stable_emotion_score(label: str) -> float:
+    """
+    감정 라벨만 있어도 40~90 구간의 안정적인 점수 생성 (세션/런타임 바뀌어도 동일).
+    추후 DB에 점수가 있으면 그 값을 사용.
+    """
+    h = hashlib.md5(label.encode("utf-8")).hexdigest()
+    v = int(h[:4], 16) / 0xFFFF  # 0~1
+    return 40 + v * 50           # 40~90
+
+def _radar_df(emotions: list[str], scores: dict|None=None, max_r: float = 100.0) -> pd.DataFrame:
+    """
+    레이더 차트용 x,y 좌표를 미리 계산(극좌표 → 직교).
+    scores 가 주어지면 그것을, 없으면 해시기반 점수 사용.
+    """
+    if not emotions:
+        emotions = ["감정없음"]
+    vals = []
+    for e in emotions:
+        if scores and e in scores:
+            s = float(scores[e])
+        else:
+            s = _stable_emotion_score(e)
+        s = max(0.0, min(max_r, s))
+        vals.append({"emotion": e, "score": s})
+
+    N = len(vals)
+    rows = []
+    for i, row in enumerate(vals):
+        ang = 2 * math.pi * i / N
+        r = row["score"] / max_r  # 0~1 정규화
+        x = r * math.sin(ang)
+        y = r * math.cos(ang)
+        rows.append({"emotion": row["emotion"], "score": row["score"], "x": x, "y": y, "order": i})
+
+    # 폴리곤 닫기 위해 첫 점 반복
+    rows.append({**rows[0], "order": N})
+
+    return pd.DataFrame(rows)
+
+def render_missing_toast(missing_fields: list[str], auto_hide_sec: int = 12):
     items = ", ".join(missing_fields)
+    # --auto CSS 변수로 자동 페이드 시간 주입
     html(f"""
     <div class="floating-wrap">
       <input id="ft-hide" type="checkbox" class="ft-hide">
-      <div class="floating-toast" style="--auto:{max(0,int(auto_hide_sec))}s;">
+      <div class="floating-toast" style="--auto: {max(0, int(auto_hide_sec))}s;">
         <label for="ft-hide" class="ft-close" title="닫기">×</label>
         <div class="ft-title">⚠️ 아직 정보가 부족합니다</div>
         <div class="ft-msg">{items}</div>
         <div class="ft-actions">
-          <a class="ft-btn primary hash-nav" href="#nav={PAGE_KEYS['Chatbot']}">Chatbot 열기</a>
-          <a class="ft-btn hash-nav" href="#nav={PAGE_KEYS['오늘의 퀴즈']}">오늘의 퀴즈</a>
-          <a class="ft-btn hash-nav" href="#nav={PAGE_KEYS['맞춤형 금융 지식']}">금융 지식</a>
-          <a class="ft-btn hash-nav" href="#nav={PAGE_KEYS['맞춤형 상품 추천']}">상품 추천</a>
+          <a class="ft-btn primary hash-nav" href="#nav=chatbot">Chatbot 열기</a>
+          <a class="ft-btn hash-nav" href="#nav=quiz">오늘의 퀴즈</a>
+          <a class="ft-btn hash-nav" href="#nav=content">맞춤형 금융 지식</a>
+          <a class="ft-btn hash-nav" href="#nav=rag_recommendation">상품 추천</a>
         </div>
       </div>
     </div>
     """)
+
+def render_emotion_card(emotions, score_map=None, size_in=3.8):
+    """
+    emotions: ["아쉬움","불안",...]
+    score_map: {"아쉬움":0.7, ...} (0~1) 없으면 간단 규칙으로 0.25/0.6 생성
+    width_px: IMG 최대 너비(px) — 그래프 작게 보이게 360 기본
+    """
+    set_korean_font()
+
+    axes = ["신중함","불안","아쉬움","혼란","자신감","욕심"]
+    scores = []
+    for k in axes:
+        if score_map and k in score_map: v = float(score_map[k])
+        else: v = 0.6 if (emotions and any(k in e for e in emotions)) else 0.25
+        scores.append(max(0.0, min(1.0, v)))
+    vals = scores + [scores[0]]
+    angs = np.linspace(0, 2*np.pi, len(axes)+1)
+
+    fig = plt.figure(figsize=(size_in, size_in), dpi=170)  # 정사각형
+    ax = fig.add_subplot(111, polar=True)
+    ax.plot(angs, vals, linewidth=2)
+    ax.fill(angs, vals, alpha=0.18)
+    ax.set_thetagrids(angs[:-1]*180/np.pi, axes, fontsize=10)
+    ax.set_rgrids([0.25,0.5,0.75,1.0], angle=0, fontsize=9)
+    ax.set_ylim(0,1); ax.grid(True, linestyle="--", alpha=0.35)
+    fig.tight_layout()
+
+    buf = io.BytesIO(); fig.savefig(buf, format="png", dpi=170, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
 
 def render_user_panel():
     sb = get_supabase_client()
@@ -65,6 +160,7 @@ def render_user_panel():
     ksum = clean_text(profile.get("knowledge_summary"), "요약 없음")
     updated = clean_text(profile.get("updated_at"), "—")
 
+    # 상단 프로필 헤더 + p-grid 열기
     html(f"""
     <div class="profile-pro">
       <div class="profile-cover">
@@ -77,30 +173,30 @@ def render_user_panel():
           </div>
         </div>
       </div>
-      <div class="p-body">
-        <div class="p-grid">
-          <div class="card" style="display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;">
-            <div class="ring" style="--p:{risk};"><div class="v">{risk}%</div></div>
-            <div><div style="font-weight:700;margin-bottom:6px;">리스크 허용도</div>
-                <div style="color:var(--muted);font-size:.92rem;">현재 설정된 위험 허용 수준입니다.</div></div>
-          </div>
-          <div class="card">
-            <label>관심 카테고리</label>
-            <div class="chips">
-              {''.join(f'<span class="chip">{x}</span>' for x in (interests[:8] or ['—']))}
-            </div>
-          </div>
-          <div class="card">
-            <label>투자 감정</label>
-            <div class="chips">
-              {''.join(f'<span class="chip">{x}</span>' for x in (emotions[:8] or ['—']))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    """)
 
+      <div class="p-body">
+        <div class="sq-row">
+            <div class="square-card emotion-card">
+              <div class="sq-inner">
+                <div class="ring lg" style="--p:{risk};"><div class="v">{risk}%</div></div>
+                <div>
+                  <div class="sq-title">리스크 허용도</div>
+                  <div class="muted">현재 설정된 위험 허용 수준입니다.</div>
+                </div>
+              </div>
+            </div>
+              <div class="square-card emotion-card">
+                <img class="radar-img"
+                    src="data:image/png;base64,{render_emotion_card(
+                          emotions,
+                          score_map=profile.get('investment_emotions_score'),
+                          size_in=6.0)}" alt="감정분석"/>
+                <div class="sq-rail-title">감정분석</div>
+            </div>
+          </div>
+      </div>     <!-- /.p-body -->
+    </div>       <!-- /.profile-pro -->
+    """)
     html(f"""
     <div class="mini-grid">
       <div class="sum"><h4>🧑‍💼 사용자 요약</h4><div>{usum}</div></div>

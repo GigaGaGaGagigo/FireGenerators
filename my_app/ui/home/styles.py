@@ -162,6 +162,104 @@ def inject_home_styles():
       .ft-btn.primary{background:#111827;border-color:#111827;color:#fff}
       .floating-toast .ft-close{position:absolute;top:8px;right:8px;cursor:pointer;font-size:18px;line-height:1;color:#94a3b8}
       .floating-toast .ft-close:hover{color:#0f172a}
+      /* === 정사각형 카드 행(리스크/감정) === */
+      .sq-row{
+        grid-column: 1 / -1;                   
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);  /* 큼직하게 */
+        gap: 16px;
+      }
+      @media (max-width: 1200px){
+        .sq-row{ grid-template-columns: 1fr; }  /* 좁을 땐 세로 스택 */
+      }
+
+      /* 카드 자체 */
+      .card.sq{
+        display:flex; align-items:center; justify-content:center;
+        padding: 100px;
+      }
+                
+      /* 정사각형 카드 전체(이미 사용 중이면 그대로) */
+      .square-card{
+        border:1px solid var(--border);
+        border-radius:16px;
+        background:#fff;
+        padding:16px;
+        aspect-ratio: 1 / 1;         /* 정사각형 유지 */
+      }
+
+      /* 감정 카드: 왼쪽에 그래프, 오른쪽 좁은 타이틀 레일 */
+      .emotion-card{
+        display:grid;
+        grid-template-columns: 1fr 56px; /* 오른쪽 제목 레일 폭 */
+        align-items:center;
+      }
+
+      /* 그래프 이미지 크게 보이도록 */
+      .emotion-card .radar-img{
+        width: 94%;
+        max-width: 560px;            /* 필요시 600까지 */
+        height: auto;
+        justify-self: center;
+        display: block;
+        margin: 0 auto;
+      }
+
+      /* 오른쪽 세로제목(한국어 세로쓰기) */
+      .sq-rail-title{
+        writing-mode: vertical-rl;   /* 세로 레일 */
+        text-orientation: mixed;
+        font-weight: 800;
+        letter-spacing: .08em;
+        color: var(--ink);
+        justify-self: end;
+        user-select: none;
+      }
+
+      /* (수평으로 두고 싶으면)
+      .sq-rail-title{ writing-mode: horizontal-tb; transform: rotate(90deg); } */
+
+
+      /* 카드 안 레이아웃 */
+      .sq-inner{
+        display:flex; align-items:center; justify-content:center; gap:16px;
+      }
+      .sq-inner.col{ flex-direction:column; }
+
+      /* 큼직한 제목 */
+      .sq-title{ font-weight:800; margin:0 0 8px; font-size:1.05rem; }
+
+      /* 큰 도넛 */
+      .ring{
+        --p:0; --size:220px; --thick:20px;
+        width: var(--size);
+        aspect-ratio: 1 / 1;     /* 정사각 비율 고정 */
+        height: auto;
+        border-radius: 50%;
+        background: conic-gradient(var(--accent) calc(var(--p)*1%), #e2e8f0 0);
+        position: relative;
+
+        /* 정렬 */
+        justify-self: start;     /* grid일 때 왼쪽 */
+        align-self: center;      /* 세로 중앙 */
+      }
+      .ring::before{
+        content:"";
+        position:absolute; inset: var(--thick);
+        border-radius:50%; background:#fff;
+      }
+      .ring .v{ position:absolute; inset:0; display:grid; place-items:center; }
+
+      /* 레이더 이미지가 카드 안에서 깔끔히 보이게 */
+      .radar-img{
+        width: 88%;
+        height: 78%;
+        max-width: 520px;
+        object-fit: contain;
+        display:block;
+        margin: 4px auto 0;
+      }
+
     </style>
     """, unsafe_allow_html=True)
 
