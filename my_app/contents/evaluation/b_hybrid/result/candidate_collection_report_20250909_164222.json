@@ -1,0 +1,703 @@
+{
+  "metadata": {
+    "timestamp": "2025-09-09T16:42:22.147906",
+    "total_time_seconds": 0.0009162425994873047,
+    "total_users": 10,
+    "total_experiments": 2,
+    "total_cases": 20,
+    "successful_cases": 10
+  },
+  "experiment_results": {
+    "vector_only": {
+      "total_cases": 10,
+      "successful_cases": 0,
+      "success_rate": 0,
+      "error": "No successful cases"
+    },
+    "hybrid": {
+      "total_cases": 10,
+      "successful_cases": 10,
+      "success_rate": 100.0,
+      "avg_recommendations": 3.0,
+      "std_recommendations": 0.0,
+      "avg_response_time": 100.0,
+      "std_response_time": 0.0,
+      "avg_relevance": 0.0,
+      "std_relevance": 0.0,
+      "avg_diversity": 1.0,
+      "std_diversity": 0.0
+    }
+  },
+  "raw_results": [
+    {
+      "user_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      "experiment_id": "B1_vector_only_candidates",
+      "strategy": "vector_only",
+      "success": false,
+      "metrics": {
+        "recommendation_count": 0,
+        "response_time": 0.0001239776611328125,
+        "relevance_score": 0.0,
+        "diversity_score": 0.0
+      },
+      "result": {
+        "success": false,
+        "results": [],
+        "metadata": {
+          "processing_time": 0.0001239776611328125
+        },
+        "error": "No module named 'faiss'"
+      }
+    },
+    {
+      "user_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      "experiment_id": "B2_hybrid_candidates",
+      "strategy": "hybrid",
+      "success": true,
+      "metrics": {
+        "recommendation_count": 3,
+        "response_time": 100.0,
+        "relevance_score": 0.0,
+        "diversity_score": 1.0
+      },
+      "result": {
+        "success": true,
+        "results": [
+          {
+            "title": "Mock Content 1",
+            "card_id": "mock1",
+            "level": "Beginner",
+            "tags": [
+              "투자"
+            ]
+          },
+          {
+            "title": "Mock Content 2",
+            "card_id": "mock2",
+            "level": "Intermediate",
+            "tags": [
+              "주식"
+            ]
+          },
+          {
+            "title": "Mock Content 3",
+            "card_id": "mock3",
+            "level": "Advanced",
+            "tags": [
+              "펀드"
+            ]
+          }
+        ],
+        "metadata": {
+          "processing_time": 0.1,
+          "total_candidates": 3,
+          "final_recommendations": 3,
+          "candidate_collection_strategy": "hybrid"
+        }
+      }
+    },
+    {
+      "user_id": "a2b3c4d5-e6f7-8901-2345-67890abcdef1",
+      "experiment_id": "B1_vector_only_candidates",
+      "strategy": "vector_only",
+      "success": false,
+      "metrics": {
+        "recommendation_count": 0,
+        "response_time": 8.7738037109375e-05,
+        "relevance_score": 0.0,
+        "diversity_score": 0.0
+      },
+      "result": {
+        "success": false,
+        "results": [],
+        "metadata": {
+          "processing_time": 8.7738037109375e-05
+        },
+        "error": "No module named 'faiss'"
+      }
+    },
+    {
+      "user_id": "a2b3c4d5-e6f7-8901-2345-67890abcdef1",
+      "experiment_id": "B2_hybrid_candidates",
+      "strategy": "hybrid",
+      "success": true,
+      "metrics": {
+        "recommendation_count": 3,
+        "response_time": 100.0,
+        "relevance_score": 0.0,
+        "diversity_score": 1.0
+      },
+      "result": {
+        "success": true,
+        "results": [
+          {
+            "title": "Mock Content 1",
+            "card_id": "mock1",
+            "level": "Beginner",
+            "tags": [
+              "투자"
+            ]
+          },
+          {
+            "title": "Mock Content 2",
+            "card_id": "mock2",
+            "level": "Intermediate",
+            "tags": [
+              "주식"
+            ]
+          },
+          {
+            "title": "Mock Content 3",
+            "card_id": "mock3",
+            "level": "Advanced",
+            "tags": [
+              "펀드"
+            ]
+          }
+        ],
+        "metadata": {
+          "processing_time": 0.1,
+          "total_candidates": 3,
+          "final_recommendations": 3,
+          "candidate_collection_strategy": "hybrid"
+        }
+      }
+    },
+    {
+      "user_id": "a3b4c5d6-e7f8-9012-3456-7890abcdef12",
+      "experiment_id": "B1_vector_only_candidates",
+      "strategy": "vector_only",
+      "success": false,
+      "metrics": {
+        "recommendation_count": 0,
+        "response_time": 7.772445678710938e-05,
+        "relevance_score": 0.0,
+        "diversity_score": 0.0
+      },
+      "result": {
+        "success": false,
+        "results": [],
+        "metadata": {
+          "processing_time": 7.772445678710938e-05
+        },
+        "error": "No module named 'faiss'"
+      }
+    },
+    {
+      "user_id": "a3b4c5d6-e7f8-9012-3456-7890abcdef12",
+      "experiment_id": "B2_hybrid_candidates",
+      "strategy": "hybrid",
+      "success": true,
+      "metrics": {
+        "recommendation_count": 3,
+        "response_time": 100.0,
+        "relevance_score": 0.0,
+        "diversity_score": 1.0
+      },
+      "result": {
+        "success": true,
+        "results": [
+          {
+            "title": "Mock Content 1",
+            "card_id": "mock1",
+            "level": "Beginner",
+            "tags": [
+              "투자"
+            ]
+          },
+          {
+            "title": "Mock Content 2",
+            "card_id": "mock2",
+            "level": "Intermediate",
+            "tags": [
+              "주식"
+            ]
+          },
+          {
+            "title": "Mock Content 3",
+            "card_id": "mock3",
+            "level": "Advanced",
+            "tags": [
+              "펀드"
+            ]
+          }
+        ],
+        "metadata": {
+          "processing_time": 0.1,
+          "total_candidates": 3,
+          "final_recommendations": 3,
+          "candidate_collection_strategy": "hybrid"
+        }
+      }
+    },
+    {
+      "user_id": "a4b5c6d7-e8f9-0123-4567-890abcdef123",
+      "experiment_id": "B1_vector_only_candidates",
+      "strategy": "vector_only",
+      "success": false,
+      "metrics": {
+        "recommendation_count": 0,
+        "response_time": 7.081031799316406e-05,
+        "relevance_score": 0.0,
+        "diversity_score": 0.0
+      },
+      "result": {
+        "success": false,
+        "results": [],
+        "metadata": {
+          "processing_time": 7.081031799316406e-05
+        },
+        "error": "No module named 'faiss'"
+      }
+    },
+    {
+      "user_id": "a4b5c6d7-e8f9-0123-4567-890abcdef123",
+      "experiment_id": "B2_hybrid_candidates",
+      "strategy": "hybrid",
+      "success": true,
+      "metrics": {
+        "recommendation_count": 3,
+        "response_time": 100.0,
+        "relevance_score": 0.0,
+        "diversity_score": 1.0
+      },
+      "result": {
+        "success": true,
+        "results": [
+          {
+            "title": "Mock Content 1",
+            "card_id": "mock1",
+            "level": "Beginner",
+            "tags": [
+              "투자"
+            ]
+          },
+          {
+            "title": "Mock Content 2",
+            "card_id": "mock2",
+            "level": "Intermediate",
+            "tags": [
+              "주식"
+            ]
+          },
+          {
+            "title": "Mock Content 3",
+            "card_id": "mock3",
+            "level": "Advanced",
+            "tags": [
+              "펀드"
+            ]
+          }
+        ],
+        "metadata": {
+          "processing_time": 0.1,
+          "total_candidates": 3,
+          "final_recommendations": 3,
+          "candidate_collection_strategy": "hybrid"
+        }
+      }
+    },
+    {
+      "user_id": "b2c3d4e5-f6a7-8901-2345-67890abcdef1",
+      "experiment_id": "B1_vector_only_candidates",
+      "strategy": "vector_only",
+      "success": false,
+      "metrics": {
+        "recommendation_count": 0,
+        "response_time": 6.914138793945312e-05,
+        "relevance_score": 0.0,
+        "diversity_score": 0.0
+      },
+      "result": {
+        "success": false,
+        "results": [],
+        "metadata": {
+          "processing_time": 6.914138793945312e-05
+        },
+        "error": "No module named 'faiss'"
+      }
+    },
+    {
+      "user_id": "b2c3d4e5-f6a7-8901-2345-67890abcdef1",
+      "experiment_id": "B2_hybrid_candidates",
+      "strategy": "hybrid",
+      "success": true,
+      "metrics": {
+        "recommendation_count": 3,
+        "response_time": 100.0,
+        "relevance_score": 0.0,
+        "diversity_score": 1.0
+      },
+      "result": {
+        "success": true,
+        "results": [
+          {
+            "title": "Mock Content 1",
+            "card_id": "mock1",
+            "level": "Beginner",
+            "tags": [
+              "투자"
+            ]
+          },
+          {
+            "title": "Mock Content 2",
+            "card_id": "mock2",
+            "level": "Intermediate",
+            "tags": [
+              "주식"
+            ]
+          },
+          {
+            "title": "Mock Content 3",
+            "card_id": "mock3",
+            "level": "Advanced",
+            "tags": [
+              "펀드"
+            ]
+          }
+        ],
+        "metadata": {
+          "processing_time": 0.1,
+          "total_candidates": 3,
+          "final_recommendations": 3,
+          "candidate_collection_strategy": "hybrid"
+        }
+      }
+    },
+    {
+      "user_id": "b3c4d5e6-f7a8-9012-3456-7890abcdef12",
+      "experiment_id": "B1_vector_only_candidates",
+      "strategy": "vector_only",
+      "success": false,
+      "metrics": {
+        "recommendation_count": 0,
+        "response_time": 7.390975952148438e-05,
+        "relevance_score": 0.0,
+        "diversity_score": 0.0
+      },
+      "result": {
+        "success": false,
+        "results": [],
+        "metadata": {
+          "processing_time": 7.390975952148438e-05
+        },
+        "error": "No module named 'faiss'"
+      }
+    },
+    {
+      "user_id": "b3c4d5e6-f7a8-9012-3456-7890abcdef12",
+      "experiment_id": "B2_hybrid_candidates",
+      "strategy": "hybrid",
+      "success": true,
+      "metrics": {
+        "recommendation_count": 3,
+        "response_time": 100.0,
+        "relevance_score": 0.0,
+        "diversity_score": 1.0
+      },
+      "result": {
+        "success": true,
+        "results": [
+          {
+            "title": "Mock Content 1",
+            "card_id": "mock1",
+            "level": "Beginner",
+            "tags": [
+              "투자"
+            ]
+          },
+          {
+            "title": "Mock Content 2",
+            "card_id": "mock2",
+            "level": "Intermediate",
+            "tags": [
+              "주식"
+            ]
+          },
+          {
+            "title": "Mock Content 3",
+            "card_id": "mock3",
+            "level": "Advanced",
+            "tags": [
+              "펀드"
+            ]
+          }
+        ],
+        "metadata": {
+          "processing_time": 0.1,
+          "total_candidates": 3,
+          "final_recommendations": 3,
+          "candidate_collection_strategy": "hybrid"
+        }
+      }
+    },
+    {
+      "user_id": "b4c5d6e7-f8a9-0123-4567-890abcdef123",
+      "experiment_id": "B1_vector_only_candidates",
+      "strategy": "vector_only",
+      "success": false,
+      "metrics": {
+        "recommendation_count": 0,
+        "response_time": 6.985664367675781e-05,
+        "relevance_score": 0.0,
+        "diversity_score": 0.0
+      },
+      "result": {
+        "success": false,
+        "results": [],
+        "metadata": {
+          "processing_time": 6.985664367675781e-05
+        },
+        "error": "No module named 'faiss'"
+      }
+    },
+    {
+      "user_id": "b4c5d6e7-f8a9-0123-4567-890abcdef123",
+      "experiment_id": "B2_hybrid_candidates",
+      "strategy": "hybrid",
+      "success": true,
+      "metrics": {
+        "recommendation_count": 3,
+        "response_time": 100.0,
+        "relevance_score": 0.0,
+        "diversity_score": 1.0
+      },
+      "result": {
+        "success": true,
+        "results": [
+          {
+            "title": "Mock Content 1",
+            "card_id": "mock1",
+            "level": "Beginner",
+            "tags": [
+              "투자"
+            ]
+          },
+          {
+            "title": "Mock Content 2",
+            "card_id": "mock2",
+            "level": "Intermediate",
+            "tags": [
+              "주식"
+            ]
+          },
+          {
+            "title": "Mock Content 3",
+            "card_id": "mock3",
+            "level": "Advanced",
+            "tags": [
+              "펀드"
+            ]
+          }
+        ],
+        "metadata": {
+          "processing_time": 0.1,
+          "total_candidates": 3,
+          "final_recommendations": 3,
+          "candidate_collection_strategy": "hybrid"
+        }
+      }
+    },
+    {
+      "user_id": "b5c6d7e8-f9a0-1234-5678-90abcdef1234",
+      "experiment_id": "B1_vector_only_candidates",
+      "strategy": "vector_only",
+      "success": false,
+      "metrics": {
+        "recommendation_count": 0,
+        "response_time": 6.914138793945312e-05,
+        "relevance_score": 0.0,
+        "diversity_score": 0.0
+      },
+      "result": {
+        "success": false,
+        "results": [],
+        "metadata": {
+          "processing_time": 6.914138793945312e-05
+        },
+        "error": "No module named 'faiss'"
+      }
+    },
+    {
+      "user_id": "b5c6d7e8-f9a0-1234-5678-90abcdef1234",
+      "experiment_id": "B2_hybrid_candidates",
+      "strategy": "hybrid",
+      "success": true,
+      "metrics": {
+        "recommendation_count": 3,
+        "response_time": 100.0,
+        "relevance_score": 0.0,
+        "diversity_score": 1.0
+      },
+      "result": {
+        "success": true,
+        "results": [
+          {
+            "title": "Mock Content 1",
+            "card_id": "mock1",
+            "level": "Beginner",
+            "tags": [
+              "투자"
+            ]
+          },
+          {
+            "title": "Mock Content 2",
+            "card_id": "mock2",
+            "level": "Intermediate",
+            "tags": [
+              "주식"
+            ]
+          },
+          {
+            "title": "Mock Content 3",
+            "card_id": "mock3",
+            "level": "Advanced",
+            "tags": [
+              "펀드"
+            ]
+          }
+        ],
+        "metadata": {
+          "processing_time": 0.1,
+          "total_candidates": 3,
+          "final_recommendations": 3,
+          "candidate_collection_strategy": "hybrid"
+        }
+      }
+    },
+    {
+      "user_id": "c3d4e5f6-a7b8-9012-3456-7890abcdef12",
+      "experiment_id": "B1_vector_only_candidates",
+      "strategy": "vector_only",
+      "success": false,
+      "metrics": {
+        "recommendation_count": 0,
+        "response_time": 6.604194641113281e-05,
+        "relevance_score": 0.0,
+        "diversity_score": 0.0
+      },
+      "result": {
+        "success": false,
+        "results": [],
+        "metadata": {
+          "processing_time": 6.604194641113281e-05
+        },
+        "error": "No module named 'faiss'"
+      }
+    },
+    {
+      "user_id": "c3d4e5f6-a7b8-9012-3456-7890abcdef12",
+      "experiment_id": "B2_hybrid_candidates",
+      "strategy": "hybrid",
+      "success": true,
+      "metrics": {
+        "recommendation_count": 3,
+        "response_time": 100.0,
+        "relevance_score": 0.0,
+        "diversity_score": 1.0
+      },
+      "result": {
+        "success": true,
+        "results": [
+          {
+            "title": "Mock Content 1",
+            "card_id": "mock1",
+            "level": "Beginner",
+            "tags": [
+              "투자"
+            ]
+          },
+          {
+            "title": "Mock Content 2",
+            "card_id": "mock2",
+            "level": "Intermediate",
+            "tags": [
+              "주식"
+            ]
+          },
+          {
+            "title": "Mock Content 3",
+            "card_id": "mock3",
+            "level": "Advanced",
+            "tags": [
+              "펀드"
+            ]
+          }
+        ],
+        "metadata": {
+          "processing_time": 0.1,
+          "total_candidates": 3,
+          "final_recommendations": 3,
+          "candidate_collection_strategy": "hybrid"
+        }
+      }
+    },
+    {
+      "user_id": "c4d5e6f7-a8b9-0123-4567-890abcdef123",
+      "experiment_id": "B1_vector_only_candidates",
+      "strategy": "vector_only",
+      "success": false,
+      "metrics": {
+        "recommendation_count": 0,
+        "response_time": 6.67572021484375e-05,
+        "relevance_score": 0.0,
+        "diversity_score": 0.0
+      },
+      "result": {
+        "success": false,
+        "results": [],
+        "metadata": {
+          "processing_time": 6.67572021484375e-05
+        },
+        "error": "No module named 'faiss'"
+      }
+    },
+    {
+      "user_id": "c4d5e6f7-a8b9-0123-4567-890abcdef123",
+      "experiment_id": "B2_hybrid_candidates",
+      "strategy": "hybrid",
+      "success": true,
+      "metrics": {
+        "recommendation_count": 3,
+        "response_time": 100.0,
+        "relevance_score": 0.0,
+        "diversity_score": 1.0
+      },
+      "result": {
+        "success": true,
+        "results": [
+          {
+            "title": "Mock Content 1",
+            "card_id": "mock1",
+            "level": "Beginner",
+            "tags": [
+              "투자"
+            ]
+          },
+          {
+            "title": "Mock Content 2",
+            "card_id": "mock2",
+            "level": "Intermediate",
+            "tags": [
+              "주식"
+            ]
+          },
+          {
+            "title": "Mock Content 3",
+            "card_id": "mock3",
+            "level": "Advanced",
+            "tags": [
+              "펀드"
+            ]
+          }
+        ],
+        "metadata": {
+          "processing_time": 0.1,
+          "total_candidates": 3,
+          "final_recommendations": 3,
+          "candidate_collection_strategy": "hybrid"
+        }
+      }
+    }
+  ]
+}

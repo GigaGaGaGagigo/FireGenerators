@@ -1,0 +1,7 @@
+﻿experiment_id,search_model,filtering_strategy,reranking_params,total_cases,avg_recommendations,std_recommendations,avg_response_time,std_response_time,avg_relevance,std_relevance,avg_diversity,std_diversity
+ko-sroberta_vector_plus_rules_gpt-4o-mini_generic,ko-sroberta,vector_plus_rules,"{'alpha': 0.7, 'beta': 0.2, 'gamma': 0.1}",5,0.4,0.48989794855663565,687.7501964569092,1325.4467247878433,0.08,0.09797958971132713,0.4,0.48989794855663565
+bge-m3_vector_plus_rules_gpt-4o-mini_generic,bge-m3,vector_plus_rules,"{'alpha': 0.7, 'beta': 0.2, 'gamma': 0.1}",5,0.2,0.4,957.6831340789795,1850.6279535562514,0.04,0.08,0.2,0.4
+hybrid_vector_plus_rules_gpt-4o-mini_generic,hybrid,vector_plus_rules,"{'alpha': 0.7, 'beta': 0.2, 'gamma': 0.1}",5,0.4,0.48989794855663565,274.7870445251465,37.4475392439617,0.08,0.09797958971132713,0.4,0.48989794855663565
+hybrid_vector_only_gpt-4o-mini_generic,hybrid,vector_only,"{'alpha': 0.7, 'beta': 0.2, 'gamma': 0.1}",5,5.0,0.0,226.47757530212402,35.975203572306135,1.0,0.0,0.2,0.0
+hybrid_vector_plus_rules_gemini-flash_generic,hybrid,vector_plus_rules,"{'alpha': 0.7, 'beta': 0.2, 'gamma': 0.1}",5,0.4,0.48989794855663565,212.0387077331543,19.58566069613672,0.08,0.09797958971132713,0.4,0.48989794855663565
+hybrid_vector_plus_rules_claude-3-haiku_generic,hybrid,vector_plus_rules,"{'alpha': 0.7, 'beta': 0.2, 'gamma': 0.1}",5,0.4,0.48989794855663565,224.87244606018066,32.67327029594107,0.08,0.09797958971132713,0.4,0.48989794855663565

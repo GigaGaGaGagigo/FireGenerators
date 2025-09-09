@@ -297,7 +297,7 @@ def render_candidate_collection_tab() -> None:
         **📊 매개변수:**
         - 후보 수: 10개  
         - 유사도 임계값: 0.15
-        - 레벨 필터링: 사전 적용
+        - 레벨 필터링: 완화 적용 (level_strict=False)
         """)
         
     with col3:
@@ -309,7 +309,7 @@ def render_candidate_collection_tab() -> None:
         
         **📊 매개변수:**
         - 후보 수: 10개
-        - 레벨 필터링: 엄격 모드
+        - 레벨 필터링: 완화 모드 (level_strict=False)
         - 태그 점수 가중치: 40%
         """)
 
@@ -335,6 +335,7 @@ def render_numerical_reranking_tab() -> None:
     - **이전 조회 패널티**: -0.2 (중복 방지)
     - **선호 태그 보너스**: +0.1 (개인화 강화)
     - **레벨 차이 패널티**: 1.0 - 0.3 × |차이| (적절한 난이도)
+    - **레벨 필터링**: 완화 적용 (Ablation Study 결과 반영)
     """)
 
 
@@ -391,7 +392,7 @@ def render_system_configuration() -> None:
     metrics_data = [
         ("후보군 크기", "~20개", "룰베이스 + 벡터서치"),
         ("리랭킹 방식", "2단계", "수치 → LLM"),
-        ("개인화 수준", "HIGH", "컨텍스트 분석"),
+        ("레벨 필터링", "완화 적용", "Ablation Study 반영"),
         ("처리 속도", "~3초", "LLM 포함")
     ]
     

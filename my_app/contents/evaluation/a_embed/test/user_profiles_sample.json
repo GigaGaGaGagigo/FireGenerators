@@ -1,0 +1,182 @@
+[
+  {
+    "id": "user_001",
+    "emotion_state": "anxious",
+    "primary_interest": "investment",
+    "knowledge_level": "advanced",
+    "knowledge_summary": "advanced level user interested in investment, feeling anxious",
+    "user_summary": "User seeks investment guidance with anxious mindset",
+    "created_at": "2025-09-09T15:24:55.726967"
+  },
+  {
+    "id": "user_002",
+    "emotion_state": "anxious",
+    "primary_interest": "saving",
+    "knowledge_level": "advanced",
+    "knowledge_summary": "advanced level user interested in saving, feeling anxious",
+    "user_summary": "User seeks saving guidance with anxious mindset",
+    "created_at": "2025-09-09T15:24:55.726981"
+  },
+  {
+    "id": "user_003",
+    "emotion_state": "anxious",
+    "primary_interest": "debt",
+    "knowledge_level": "beginner",
+    "knowledge_summary": "beginner level user interested in debt, feeling anxious",
+    "user_summary": "User seeks debt guidance with anxious mindset",
+    "created_at": "2025-09-09T15:24:55.726989"
+  },
+  {
+    "id": "user_004",
+    "emotion_state": "anxious",
+    "primary_interest": "retirement",
+    "knowledge_level": "beginner",
+    "knowledge_summary": "beginner level user interested in retirement, feeling anxious",
+    "user_summary": "User seeks retirement guidance with anxious mindset",
+    "created_at": "2025-09-09T15:24:55.726995"
+  },
+  {
+    "id": "user_005",
+    "emotion_state": "anxious",
+    "primary_interest": "budget",
+    "knowledge_level": "intermediate",
+    "knowledge_summary": "intermediate level user interested in budget, feeling anxious",
+    "user_summary": "User seeks budget guidance with anxious mindset",
+    "created_at": "2025-09-09T15:24:55.727000"
+  },
+  {
+    "id": "user_006",
+    "emotion_state": "confident",
+    "primary_interest": "investment",
+    "knowledge_level": "advanced",
+    "knowledge_summary": "advanced level user interested in investment, feeling confident",
+    "user_summary": "User seeks investment guidance with confident mindset",
+    "created_at": "2025-09-09T15:24:55.727005"
+  },
+  {
+    "id": "user_007",
+    "emotion_state": "confident",
+    "primary_interest": "saving",
+    "knowledge_level": "intermediate",
+    "knowledge_summary": "intermediate level user interested in saving, feeling confident",
+    "user_summary": "User seeks saving guidance with confident mindset",
+    "created_at": "2025-09-09T15:24:55.727010"
+  },
+  {
+    "id": "user_008",
+    "emotion_state": "confident",
+    "primary_interest": "debt",
+    "knowledge_level": "intermediate",
+    "knowledge_summary": "intermediate level user interested in debt, feeling confident",
+    "user_summary": "User seeks debt guidance with confident mindset",
+    "created_at": "2025-09-09T15:24:55.727014"
+  },
+  {
+    "id": "user_009",
+    "emotion_state": "confident",
+    "primary_interest": "retirement",
+    "knowledge_level": "beginner",
+    "knowledge_summary": "beginner level user interested in retirement, feeling confident",
+    "user_summary": "User seeks retirement guidance with confident mindset",
+    "created_at": "2025-09-09T15:24:55.727019"
+  },
+  {
+    "id": "user_010",
+    "emotion_state": "confident",
+    "primary_interest": "budget",
+    "knowledge_level": "beginner",
+    "knowledge_summary": "beginner level user interested in budget, feeling confident",
+    "user_summary": "User seeks budget guidance with confident mindset",
+    "created_at": "2025-09-09T15:24:55.727025"
+  },
+  {
+    "id": "user_011",
+    "emotion_state": "confused",
+    "primary_interest": "investment",
+    "knowledge_level": "beginner",
+    "knowledge_summary": "beginner level user interested in investment, feeling confused",
+    "user_summary": "User seeks investment guidance with confused mindset",
+    "created_at": "2025-09-09T15:24:55.727030"
+  },
+  {
+    "id": "user_012",
+    "emotion_state": "confused",
+    "primary_interest": "saving",
+    "knowledge_level": "intermediate",
+    "knowledge_summary": "intermediate level user interested in saving, feeling confused",
+    "user_summary": "User seeks saving guidance with confused mindset",
+    "created_at": "2025-09-09T15:24:55.727035"
+  },
+  {
+    "id": "user_013",
+    "emotion_state": "confused",
+    "primary_interest": "debt",
+    "knowledge_level": "intermediate",
+    "knowledge_summary": "intermediate level user interested in debt, feeling confused",
+    "user_summary": "User seeks debt guidance with confused mindset",
+    "created_at": "2025-09-09T15:24:55.727039"
+  },
+  {
+    "id": "user_014",
+    "emotion_state": "confused",
+    "primary_interest": "retirement",
+    "knowledge_level": "advanced",
+    "knowledge_summary": "advanced level user interested in retirement, feeling confused",
+    "user_summary": "User seeks retirement guidance with confused mindset",
+    "created_at": "2025-09-09T15:24:55.727043"
+  },
+  {
+    "id": "user_015",
+    "emotion_state": "confused",
+    "primary_interest": "budget",
+    "knowledge_level": "beginner",
+    "knowledge_summary": "beginner level user interested in budget, feeling confused",
+    "user_summary": "User seeks budget guidance with confused mindset",
+    "created_at": "2025-09-09T15:24:55.727048"
+  },
+  {
+    "id": "user_016",
+    "emotion_state": "motivated",
+    "primary_interest": "investment",
+    "knowledge_level": "beginner",
+    "knowledge_summary": "beginner level user interested in investment, feeling motivated",
+    "user_summary": "User seeks investment guidance with motivated mindset",
+    "created_at": "2025-09-09T15:24:55.727052"
+  },
+  {
+    "id": "user_017",
+    "emotion_state": "motivated",
+    "primary_interest": "saving",
+    "knowledge_level": "beginner",
+    "knowledge_summary": "beginner level user interested in saving, feeling motivated",
+    "user_summary": "User seeks saving guidance with motivated mindset",
+    "created_at": "2025-09-09T15:24:55.727056"
+  },
+  {
+    "id": "user_018",
+    "emotion_state": "motivated",
+    "primary_interest": "debt",
+    "knowledge_level": "beginner",
+    "knowledge_summary": "beginner level user interested in debt, feeling motivated",
+    "user_summary": "User seeks debt guidance with motivated mindset",
+    "created_at": "2025-09-09T15:24:55.727060"
+  },
+  {
+    "id": "user_019",
+    "emotion_state": "motivated",
+    "primary_interest": "retirement",
+    "knowledge_level": "advanced",
+    "knowledge_summary": "advanced level user interested in retirement, feeling motivated",
+    "user_summary": "User seeks retirement guidance with motivated mindset",
+    "created_at": "2025-09-09T15:24:55.727064"
+  },
+  {
+    "id": "user_020",
+    "emotion_state": "motivated",
+    "primary_interest": "budget",
+    "knowledge_level": "advanced",
+    "knowledge_summary": "advanced level user interested in budget, feeling motivated",
+    "user_summary": "User seeks budget guidance with motivated mindset",
+    "created_at": "2025-09-09T15:24:55.727069"
+  }
+]
