@@ -105,6 +105,62 @@ class DataMigrator:
         logger.info(f"업로드 완료 - 성공: {total_uploaded}, 실패: {total_failed}")
         return total_uploaded, total_failed
     
+    def migrate_specific_file(self, file_path: str):
+        """특정 JSON 파일 하나만 마이그레이션"""
+        if not os.path.exists(file_path):
+            logger.error(f"파일을 찾을 수 없습니다: {file_path}")
+            return False
+        
+        logger.info(f"특정 파일 마이그레이션 시작: {file_path}")
+        
+        # 파일 로드 및 변환
+        raw_data = self.load_json_file(file_path)
+        if not raw_data:
+            logger.error("데이터를 로드할 수 없습니다")
+            return False
+        
+        transformed_data = self.transform_data(raw_data)
+        if not transformed_data:
+            logger.error("변환된 데이터가 없습니다")
+            return False
+        
+        # 업로드
+        logger.info(f"총 {len(transformed_data)}개 콘텐츠를 업로드합니다...")
+        uploaded_count, failed_count = self.upload_to_supabase(transformed_data)
+        
+        logger.info(f"✅ 특정 파일 마이그레이션 완료: {file_path}")
+        return uploaded_count > 0
+    
+    def migrate_specific_files(self, file_paths: list):
+        """여러 특정 파일들을 마이그레이션"""
+        total_success = 0
+        total_failed = 0
+        
+        for file_path in file_paths:
+            if not os.path.exists(file_path):
+                logger.warning(f"파일을 찾을 수 없습니다, 건너뜀: {file_path}")
+                total_failed += 1
+                continue
+            
+            logger.info(f"처리 중: {os.path.basename(file_path)}")
+            
+            raw_data = self.load_json_file(file_path)
+            if raw_data:
+                transformed_data = self.transform_data(raw_data)
+                if transformed_data:
+                    uploaded_count, failed_count = self.upload_to_supabase(transformed_data)
+                    if uploaded_count > 0:
+                        total_success += 1
+                    else:
+                        total_failed += 1
+                else:
+                    total_failed += 1
+            else:
+                total_failed += 1
+        
+        logger.info(f"다중 파일 마이그레이션 완료 - 성공: {total_success}개 파일, 실패: {total_failed}개 파일")
+        return total_success, total_failed
+    
     def migrate_contents_folder(self, contents_folder: str):
         """contents 폴더의 모든 JSON 파일을 마이그레이션"""
         contents_path = Path(contents_folder)
@@ -137,13 +193,24 @@ class DataMigrator:
             logger.warning("업로드할 데이터가 없습니다")
 
 def main():
-    # 사용법 예시
+    """사용법 예시"""
     migrator = DataMigrator()
     
-    # contents 폴더 경로 설정 (본인의 경로로 수정)
-    contents_folder = "."
+    # 사용법 1: 전체 폴더 마이그레이션
+    # contents_folder = "."
+    # migrator.migrate_contents_folder(contents_folder)
     
-    migrator.migrate_contents_folder(contents_folder)
+    # 사용법 2: 특정 파일 하나만 마이그레이션
+    # specific_file = "contents_금융.json"
+    # migrator.migrate_specific_file(specific_file)
+    
+    # 사용법 3: 여러 특정 파일들 마이그레이션
+    # specific_files = ["contents_경제.json", "contents_사회.json"]
+    # migrator.migrate_specific_files(specific_files)
+    
+    # 현재 설정: 전체 폴더 마이그레이션 (기본값)
+    specific_files = ["contents_과학.json", "contents_금융.json"]
+    migrator.migrate_specific_files(specific_files)
 
 if __name__ == "__main__":
     main()

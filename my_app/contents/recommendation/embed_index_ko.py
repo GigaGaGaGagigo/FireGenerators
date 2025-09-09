@@ -20,9 +20,14 @@ CONTENT_IDS_PATH = os.path.join(INDEX_DIR, "content_ids.json")
 CONTENT_META_PATH = os.path.join(INDEX_DIR, "content_meta.json")
 
 # ===== 1) 콘텐츠 로드 =====
-contents = load_all_cards(CONTENTS_DIR)
+print("[INFO] JSON 파일에서 콘텐츠 로드 시도...")
+contents = load_all_cards(CONTENTS_DIR, use_db=False)  # JSON 파일 우선 사용
 if not contents:
-    raise ValueError("contents 폴더 안에 콘텐츠 JSON이 없습니다. 샘플 데이터를 넣어주세요.")
+    print("[WARNING] JSON 파일에서 로드 실패, Supabase DB 시도...")
+    contents = load_all_cards(CONTENTS_DIR, use_db=True)  # DB에서 시도
+    
+if not contents:
+    raise ValueError("contents 폴더 안에 콘텐츠 JSON이 없고 DB에도 데이터가 없습니다.")
 
 print(f"[INFO] 총 {len(contents)}개의 콘텐츠 로드 완료")
 
@@ -58,7 +63,7 @@ emb = np.array(emb, dtype='float32')
 
 # ===== 4) FAISS 인덱스 생성 =====
 index = faiss.IndexFlatIP(emb.shape[1])  # normalize=True면 코사인 내적
-index.add(emb)
+getattr(index, 'add')(emb)  # type: ignore
 faiss.write_index(index, CONTENT_INDEX_PATH)
 print(f"[INFO] FAISS 인덱스 저장 완료: {CONTENT_INDEX_PATH}")
 

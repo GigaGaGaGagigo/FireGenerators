@@ -1,7 +1,17 @@
 import yaml
 import os
+import sys
 from pathlib import Path
+from typing import Optional
+
+# 경로 설정
+current_file = Path(__file__).resolve()
+project_root = current_file.parent.parent.parent  # my_app
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 from langchain_google_genai import ChatGoogleGenerativeAI
+from contents.recommendation.user_contents_logger import get_logger
 
 
 # 현재 파일 (explanation_generator.py) 위치 기준
@@ -20,10 +30,19 @@ def load_prompt(level: str):
         return yaml.safe_load(f)
 
 
-def generate_explanation(level: str, content_title: str, content_description: str) -> str:
+def generate_explanation(level: str, content_title: str, content_description: str, contents_id: Optional[str] = None) -> str:
     """
-    Gemini를 사용하여 레벨별 맞춤 설명 생성
+    Gemini를 사용하여 레벨별 맞춤 설명 생성.
+    DB에 캐시된 설명이 있으면 먼저 반환.
     """
+    logger = get_logger()
+    # 1. DB에서 캐시된 설명 확인
+    if contents_id and logger:
+        cached_explanation = logger.get_cached_explanation(contents_id=contents_id, user_level=level)
+        if cached_explanation:
+            return cached_explanation
+
+    # 2. 캐시 없으면 LLM 호출
     # GEMINI API 키 불러오기
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -35,7 +54,7 @@ def generate_explanation(level: str, content_title: str, content_description: st
 
     # LLM 초기화
     llm_client = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
+        model="gemini-1.5-flash",
         temperature=0.4,
         max_retries=2,
         google_api_key=api_key,
@@ -60,4 +79,12 @@ def generate_explanation(level: str, content_title: str, content_description: st
     # Gemini 호출
     response = llm_client.invoke(user_prompt)
 
-    return response.content.strip()
+    # response.content가 문자열인지 확인 후 안전하게 처리
+    content = response.content
+    if isinstance(content, str):
+        explanation = content.strip()
+    else:
+        # content가 리스트나 다른 타입인 경우 문자열로 변환
+        explanation = str(content).strip()
+
+    return explanation
