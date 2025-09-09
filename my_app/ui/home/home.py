@@ -1,7 +1,7 @@
 import os
 import streamlit as st
 from .router import sync_nav_hash_bidirectional, PAGE_KEYS
-from .styles import inject_home_styles
+from .styles import inject_home_styles,render_full_hero
 from .utils import html
 from .widgets import render_link_card
 from .profile_panel import render_user_panel
@@ -13,13 +13,19 @@ def render():
     sync_nav_hash_bidirectional()
     inject_home_styles()
 
-    # Hero
-    html("""
-    <div class="home-hero">
-      <h1>🚀 FIREGENERATOR</h1>
-      <p>2030 세대를 위한 금융 지식 퀴즈, AI 챗봇 상담, 투자 시뮬레이션과 맞춤형 리포트</p>
-    </div>
-    """)
+    # === FULL HERO ===
+    rate = None
+    try:
+        from my_app.home.fx import fetch_usd_krw_rate  # 있으면 사용
+        rate = fetch_usd_krw_rate() or None
+    except Exception:
+        pass
+    render_full_hero(rate)
+
+    # 히어로 아래로 스크롤될 위치(앵커)
+    html('<div id="dash" class="anchor"></div>')
+
+    # ===== 좌우 2단: 프로필 / 자산 =====
 
     # 레이아웃: 좌(프로필) / 우(포트폴리오+FX+체결+뉴스)
     user = st.session_state.get("user")
@@ -32,18 +38,23 @@ def render():
     with left:
         render_user_panel()
     with right:
-        render_portfolio_panel(user_id)
-        default_rate = float(os.getenv("FX_USDKRW") or os.getenv("USDKRW") or 1350)
+        try:
+            from home.fx import fetch_usd_krw_rate
+            default_rate = fetch_usd_krw_rate() or 1350.0
+        except Exception:
+            default_rate = 1350.0
 
-        top1, top2 = st.columns([1,1], vertical_alignment="top")
+        render_portfolio_panel(user_id)
+        top1, top2 = st.columns([1, 1], vertical_alignment="top")
         with top1:
-            render_fx_card(default_rate)
+            render_fx_card(default_rate)     # ← 여기!
         with top2:
             render_trades_timeline(user_id)
 
-        trades_for_news = fetch_trades_by_user_id(user_id) if user_id else []
+        # 뉴스
+        trades_for_news = fetch_trades_by_user_id(user_id)
         tickers = sorted({t["symbol"] for t in trades_for_news})[:10] if trades_for_news else None
-        render_news_list(tickers=tickers, query="주식 OR 시장 OR 채권 OR 금리 OR 환율")
+        render_news_list(query="주식 OR 시장 OR 채권 OR 금리 OR 환율", tickers=tickers)
 
     st.divider()
 

@@ -1,16 +1,94 @@
 import streamlit as st
+from .utils import html
 
 def inject_home_styles():
     st.markdown("""
     <style>
-      :root {
+       /* ====== FULL HERO ====== */
+      :root{
         --ink:#0f172a; --muted:#475569; --border:rgba(148,163,184,.28);
-        --chip:#f8fafc; --chip-text:#0f172a; --accent:#4f46e5; --green:#10b981;
+        --accent:#16a34a; /* green-600 */
+        --accent2:#2563eb; /* blue-600 */
+      } 
+      html{ scroll-behavior:smooth; }
+
+      .mega-hero{
+        min-height: 88vh;  /* 화면 꽉 채우기 */
+        width: 100%;
+        border-radius: 24px;
+        padding: clamp(28px, 4vw, 48px);
+        display:grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: clamp(20px, 3vw, 40px);
+        align-items: center;
+        background:
+          radial-gradient(900px 380px at 0% 0%, rgba(37,99,235,.12), transparent 60%),
+          radial-gradient(900px 380px at 100% 0%, rgba(22,163,74,.14), transparent 60%),
+          linear-gradient(135deg, #f0f9ff, #ecfdf5);
+        border:1px solid var(--border);
       }
-      .home-hero{background:linear-gradient(135deg,rgba(79,70,229,.12),rgba(16,185,129,.12));
-        border-radius:20px;padding:40px 30px;text-align:center;margin-bottom:24px}
-      .home-hero h1{font-size:2.2rem;font-weight:900;color:var(--ink);margin:0 0 .5rem}
-      .home-hero p{font-size:1.05rem;color:var(--muted);margin:0}
+      @media (max-width: 980px){
+        .mega-hero{ grid-template-columns: 1fr; min-height: 78vh; }
+      }
+
+      .hero-title{ font-weight:900; line-height:1.1; color:var(--ink);
+                   font-size: clamp(34px, 4.6vw, 54px); margin:0 0 10px; }
+      .hero-sub{
+        font-size: clamp(16px, 1.6vw, 20px);  /* 살짝 업 */
+        line-height: 1.6;                     /* 가독성 보정 */
+        color: var(--muted);
+        margin: 0 0 18px;
+      }
+
+
+
+      .hero-bullets{ display:grid; gap:10px; margin:18px 0 26px; }
+      .hero-bullets .item{
+        display:flex; gap:10px; align-items:flex-start;
+        background:#fff; border:1px solid var(--border); border-radius:14px;
+        padding:10px 12px;
+      }
+      .dot{ width:18px; height:18px; border-radius:50%;
+            background:linear-gradient(135deg,var(--accent),var(--accent2)); }
+
+      .cta-row{ display:flex; gap:12px; flex-wrap:wrap; }
+      .cta{
+        display:inline-flex; align-items:center; gap:8px;
+        background:linear-gradient(135deg,var(--accent),var(--accent2));
+        color:#fff; padding:12px 18px; border-radius:12px; text-decoration:none;
+        font-weight:700; border:0;
+        box-shadow:0 10px 24px rgba(37,99,235,.18);
+      }
+      .cta:hover{ transform: translateY(-1px); }
+      .ghost{
+        display:inline-flex; align-items:center; gap:8px;
+        padding:11px 16px; border-radius:12px; text-decoration:none;
+        background:#fff; color:var(--ink); border:1px solid var(--border);
+      }
+
+      /* phone mock */
+      .phone{
+        width: min(380px, 90%); margin-inline: auto;
+        border-radius: 28px; padding: 18px;
+        background: #0a0f1f;
+        color: #e5e7eb;
+        border: 1px solid rgba(255,255,255,.08);
+        box-shadow: 0 30px 60px rgba(2,6,23,.20);
+      }
+      .ph-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+      .ph-bal{ font-weight:800; font-size:22px; }
+      .ph-chip{ font-size:12px; padding:4px 8px; border-radius:999px; border:1px solid rgba(255,255,255,.12); }
+      .ph-list{ display:grid; gap:8px; margin-top:10px; }
+      .ph-row{
+        display:grid; grid-template-columns: 1fr auto; gap:8px;
+        padding:10px 12px; border-radius:12px; background:rgba(255,255,255,.04);
+        border:1px solid rgba(255,255,255,.06);
+      }
+      .ph-sym{ font-weight:700; }
+      .ph-pl.pos{ color:#34d399; } .ph-pl.neg{ color:#f87171; }
+
+      /* 섹션 앵커(히어로 밑으로 스크롤) */
+      .anchor{ scroll-margin-top: 24px; }
 
       /* profile */
       .profile-pro{width:100%}
@@ -86,3 +164,39 @@ def inject_home_styles():
       .floating-toast .ft-close:hover{color:#0f172a}
     </style>
     """, unsafe_allow_html=True)
+
+def render_full_hero(usdkrw: float | None = None):
+    rate_txt = f"{usdkrw:,.2f}" if usdkrw else "—"
+
+
+    html(
+        """
+        <section class="mega-hero">
+          <div>
+            <h1 class="hero-title">FIREGENERATOR로<br/>더 똑똑하게 투자하세요</h1>
+            <p class="hero-sub">
+              챗봇에서 목표·감정·관심사·투자 수준을 입력하고 상담을 시작하세요.
+              오늘의 퀴즈로 현재 지식을 점검한 뒤, 결과와 관심사에 맞춘 금융 콘텐츠를 학습하고<br/>
+              관심 종목 피드백과 보유주식 AI 코칭으로 전략을 다듬은 다음,
+              투자 성향에 맞는 맞춤형 상품 추천까지 받아보세요.
+            </p>
+
+          </div>
+
+          <div>
+            <div class="phone">
+              <div class="ph-top">
+                <div class="ph-bal">₩ 25,901,000</div>
+                <div class="ph-chip">USDKRW """ + rate_txt + """</div>
+              </div>
+              <div class="ph-list">
+                <div class="ph-row"><div class="ph-sym">AAPL</div><div class="ph-pl pos">+5.2%</div></div>
+                <div class="ph-row"><div class="ph-sym">TSLA</div><div class="ph-pl neg">-1.8%</div></div>
+                <div class="ph-row"><div class="ph-sym">MSFT</div><div class="ph-pl pos">+0.9%</div></div>
+                <div class="ph-row"><div class="ph-sym">NVDA</div><div class="ph-pl pos">+2.4%</div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+        """
+    )
