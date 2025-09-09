@@ -102,3 +102,4 @@ faiss-cpu
 pydantic==2.11.7 # 추가 
 sentence-transformers==5.1.0 #추가
 transformers==4.44.2 # 추가
+yfinance # 추가
