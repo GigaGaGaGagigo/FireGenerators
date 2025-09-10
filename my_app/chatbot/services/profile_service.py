@@ -50,6 +50,42 @@ class ProfileService:
             print(f"ERROR: Supabase update failed for category '{category}': {e}")
             raise
 
+    def update_news_logs(self, data: Any) -> bool:
+        """
+        Updates the profile data for a specific category in the database.
+
+        Args:
+            category: The category to update (e.g., "investment_goal").
+            data: The data to be saved.
+
+        Returns:
+            bool: Whether the update was successful.
+
+        Raises:
+            Exception: If an error occurs during the database operation.
+        """
+        try:
+            result = (
+                self.db.table("user_news_logs")
+                .insert(
+                    {
+                        "user_id": self.user_id,
+                        "summary": data.get("summary", ""),
+                        "key_opportunities": data.get("key_opportunities", []),
+                        "potential_risks": data.get("potential_risks", []),
+                        "analyst_take": data.get("analyst_take", ""),
+                        "links": data.get("links", []),
+                    }
+                )
+                .execute()
+            )
+            # if result.data is not empty, consider it successful
+            return bool(result.data)
+        except Exception as e:
+            # instead of UI feedback, raise an error to be handled by the caller
+            print(f"ERROR: Supabase update failed for category : {e}")
+            raise
+
 
 class MockProfileService(ProfileService):
     """

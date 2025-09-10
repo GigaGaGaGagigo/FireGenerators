@@ -11,6 +11,7 @@ from my_app.chatbot.services import ProfileService
 def update_user_profile(state: OverallState, config: RunnableConfig):
     profile_service: ProfileService | None = None
     configurable = config.get("configurable")
+
     if configurable and hasattr(configurable, "get"):
         profile_service = configurable.get("profile_service")
 
@@ -19,7 +20,12 @@ def update_user_profile(state: OverallState, config: RunnableConfig):
         current_data = state.user_meta_data[current_category]
 
         if current_category == "risk_tolerance":
-            current_data = int(current_data[-1])
+            current_data = int(current_data)
+        elif (
+            current_category == "investment_level"
+            or current_category == "knowledge_level"
+        ):
+            current_data = current_data
 
         profile_service.update_category(current_category, current_data)
 
@@ -44,6 +50,7 @@ def update_user_profile(state: OverallState, config: RunnableConfig):
             "user_meta_data": {
                 **state.user_meta_data,
                 "profile_status": current_status,
+                "edit_mode": "FINISHED",
             },
         }
     else:
@@ -52,6 +59,7 @@ def update_user_profile(state: OverallState, config: RunnableConfig):
             "user_meta_data": {
                 **state.user_meta_data,
                 "profile_status": "completed",
+                "edit_mode": "UNCOMPLETED",
             },
         }
 
@@ -89,4 +97,59 @@ def update_user_meta_data(state: OverallState, config: RunnableConfig):
             **state.user_meta_data,
             "user_profile_summary": user_profile_summary,
         },
+        user_meta_data_updated={},
+        search_dataset={},
     )
+
+
+def update_user_profile_based_on_report(state: OverallState, config: RunnableConfig):
+    profile_service: ProfileService | None = None
+    configurable = config.get("configurable")
+
+    if configurable and hasattr(configurable, "get"):
+        profile_service = configurable.get("profile_service")
+
+    if profile_service is not None:
+        combine_categories = [
+            "interests_categories",
+            "investment_emotions",
+            "investment_goal",
+            "risk_tolerance",
+        ]
+
+        for current_category in combine_categories:
+            current_data = state.user_meta_data[current_category]
+
+            profile_service.update_category(current_category, current_data)
+
+        # log update code
+        profile_service.update_news_logs(state.search_dataset["report"])
+
+        edit_mode = "FINISHED"
+
+        ai_message = f"{state.user_meta_data['name']}님 과의 대화를 통해 새로운 정보가 업데이트 되었습니다."
+
+        return {
+            "logs": [
+                {
+                    "level": "info",
+                    "message": "User profile updated",
+                    "timestamp": time.time(),
+                }
+            ],
+            "target_profile_category": state.target_profile_category,
+            "user_meta_data": {
+                **state.user_meta_data,
+                "edit_mode": edit_mode,
+            },
+            "messages": [AIMessage(content=ai_message)],
+        }
+    else:
+        return {
+            "target_profile_category": state.target_profile_category,
+            "user_meta_data": {
+                **state.user_meta_data,
+                "profile_status": "completed",
+                "edit_mode": "UNCOMPLETED",
+            },
+        }

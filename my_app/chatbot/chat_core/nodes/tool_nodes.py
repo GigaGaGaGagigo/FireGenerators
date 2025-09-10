@@ -1,24 +1,9 @@
-"""
-Tool Nodes for Human-in-the-Loop Patterns
-
-이 모듈은 interrupt 방식을 대신하여 tool call을 통해 사용자 입력을 수집하는
-더 자연스러운 LangGraph 워크플로우를 구현합니다.
-
-핵심 개념:
-1. interrupt_before 대신 tool call을 사용하여 사용자 입력 요청
-2. Streamlit UI가 tool call에 응답하여 사용자 선택 전달
-3. LangGraph가 tool response를 받아 워크플로우 계속 진행
-
-WRITER: Kang Joseph (with Claude Code assistance)
-DATE: 2025-08-23
-"""
-
 import time
+from typing import Annotated, Any, Dict
 
 from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.types import interrupt
 from pydantic import BaseModel, Field
-from typing_extensions import Annotated, Any, Dict
 
 from my_app.chatbot.chat_core.model_loader import (
     OPENAI_MODEL_NAME,
@@ -34,7 +19,7 @@ class RequestHumanInput(BaseModel):
 
 
 def call_llm(state: OverallState):
-    llm = get_llm_models(OPENAI_MODEL_NAME, tool=True)
+    llm = get_llm_models(OPENAI_MODEL_NAME, tool=True, new_user=True)
     messages = state.messages
     response = llm.invoke(messages)
 
@@ -42,22 +27,6 @@ def call_llm(state: OverallState):
 
 
 def process_human_input_tool(state: OverallState) -> Dict[str, Any]:
-    """
-    사용자에게 질문을 요청하는 노드
-    request predefined question set from the user
-
-    이 함수는 interrupt_before 방식을 대체합니다:
-        - 기존: interrupt_before로 workflow 중단 후 사용자 입력 대기
-    - 새로운 방식: tool call을 생성하여 UI가 자연스럽게 응답하도록 함
-
-    작동 순서:
-    1. 현재 진행 중인 카테고리 확인
-    2. 해당 카테고리의 질문 데이터 로드
-    3. 이미 답변된 질문 수를 계산하여 다음 질문 결정
-    4. tool call이 포함된 AIMessage 생성
-    5. Streamlit UI가 처리할 추가 데이터 준비
-    """
-
     try:
         last_message = state.messages[-1]
         tool_call = getattr(last_message, "tool_calls", [])[0]

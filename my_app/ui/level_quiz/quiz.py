@@ -11,6 +11,9 @@ from ui.level_quiz.ui_utils import (
 )
 from my_app.quiz_core.services import update_rolling_summary
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from my_app.quiz_core.offline_eval import export_recent_questions_judgement, export_monthly_cost
+from my_app.quiz_core.eval_quality import default_pricing
+
 
 # (있으면) 우측 챗봇 샘플
 try:
@@ -735,6 +738,19 @@ def render():
             })
             st.session_state.streaming = True
             st.rerun()
+    # 1) 최근 문항 10개 품질 평가 → 파일 저장
+    paths = export_recent_questions_judgement(
+        questions=st.session_state.get("quiz_questions", []),
+        outdir="my_app/quiz_core/exports/judge",  # 원하는 폴더
+        n=10,
+        judge_model="gpt-5",    # 느리지만 판사 용도
+        examples_to_show=3,
+    )
+    print(paths)  # {'jsonl': '...', 'csv': '...', 'summary': '...'}
+
+    # 2) 월별 비용 추산 → 파일 저장
+    cost_path = export_monthly_cost(outdir="my_app/quiz_core/exports/eval")
+    print(cost_path)  # 'exports/eval/cost_YYYYmmdd_HHMMSS.json'
 
 # Streamlit 엔트리
 if __name__ == "__main__":

@@ -6,12 +6,12 @@ DESCRIPTION: This file contains the nodes for the questions.
 
 import time
 from operator import add
+from typing import Annotated
 
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableAssign, RunnablePassthrough
 from pydantic import BaseModel, Field, ValidationError
-from typing_extensions import Annotated
 
 from my_app.chatbot.chat_core.model_loader import OPENAI_MODEL_NAME, get_llm_models
 from my_app.chatbot.chat_core.prompt_loader import load_prompt_from_yaml
@@ -71,7 +71,7 @@ def present_predefined_questions(state: OverallState) -> dict:
         RunnablePassthrough.assign(chat_history=persona_prompt) | introduce_qa  # type: ignore
     )
 
-    llm = get_llm_models(OPENAI_MODEL_NAME)
+    llm = get_llm_models(OPENAI_MODEL_NAME, tool=True, new_user=False)
     chain = prompt_template | llm
 
     result = chain.invoke(
@@ -145,7 +145,6 @@ respond in the "{compacted_user_answer}" language.
         ],
     )
 
-    # 여기는 또 도구랑 결합 안한 애로 데려와야 output을 받을 수 있네 하하
     llm = get_llm_models(OPENAI_MODEL_NAME)
 
     chain = prompt_template | llm.with_structured_output(FollowUpQA)
@@ -163,11 +162,10 @@ respond in the "{compacted_user_answer}" language.
     except ValidationError as e:
         raise ValueError(f"Unexpected result type from chain.invoke: {e}")
 
-    instruction_message: HumanMessage = HumanMessage(
+    human_message: HumanMessage = HumanMessage(
         content=f"""
 Ask user follow-up quiz sets. Use the 'RequestHumanInput' Tool.
 Follow-up quiz sets will be passed to the tool.
-Generate message to introduce the Data's purpose to user.
 
 Follow-up quiz sets:
 - Category: {current_category}
@@ -182,7 +180,7 @@ Follow-up quiz sets:
     current_options = current_quiz_content.get("options", [])
 
     return {
-        "messages": [instruction_message],
+        "messages": [human_message],
         "logs": [
             {
                 "level": "info",
