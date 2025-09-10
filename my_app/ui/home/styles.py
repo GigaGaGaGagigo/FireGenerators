@@ -165,6 +165,7 @@ def inject_home_styles():
         display:grid;
         grid-template-columns: 1fr 1fr;
         gap:10px;
+        text-decoration: none;   /* 밑줄 제거 */        
       }
       @media (max-width: 1100px){ .news-grid{ grid-template-columns:1fr; } }
 
@@ -182,6 +183,8 @@ def inject_home_styles():
         transform: translateY(-2px);
         box-shadow:0 10px 22px rgba(2,6,23,.10);
         border-color: rgba(37,99,235,.35);
+        color: var(--accent2);   /* 호버 시 색만 변하도록 */
+        text-decoration: none;   /* 호버 때도 밑줄 X */
       }
       .news-tag{
         display:inline-flex; align-items:center; gap:6px;
@@ -194,13 +197,35 @@ def inject_home_styles():
         margin-bottom:6px;
       }
       .news-title{
-        font-weight:800; line-height:1.35; margin:2px 0 4px 0; font-size:.98rem;
+        font-weight:800; line-height:1.35; margin:2px 0 4px 0; font-size:.98rem; text-decoration: none;
       }
       .news-meta{
-        font-size:.86rem; color:var(--muted);
-      }``
+        font-size:.86rem; color:var(--muted);  color:var(--muted);
+      }
+                
+      .news-grid a,
+      .news-card,
+      .news-card:link,
+      .news-card:visited,
+      .news-card:hover,
+      .news-card:active {
+        text-decoration: none !important;
+        border-bottom: none !important; /* 일부 테마가 밑줄 대신 border-bottom 사용 */
+        outline: none;
+        color: var(--ink);
+      }
 
+      .news-card * {
+        text-decoration: none !important; /* 앵커 내부 모든 자식에도 강제 */
+        border-bottom: none !important;
+      }
 
+      .news-title {
+        font-weight:800; line-height:1.35; margin:2px 0 4px 0; font-size:.98rem;
+        color: var(--ink); text-decoration: none !important;
+      }
+      .news-card:hover .news-title { color: var(--accent2); }
+    
       /* floating toast */
       .floating-wrap{position:fixed;right:22px;bottom:22px;z-index:9999;width:360px;max-width:calc(100vw - 40px)}
       .ft-hide{position:absolute;opacity:0;pointer-events:none}
