@@ -105,3 +105,4 @@ transformers==4.56.0
 tokenizers==0.20.3
 langchain-upstage==0.7.3
 langfuse==3.3.4
+seaborn==0.13.2
