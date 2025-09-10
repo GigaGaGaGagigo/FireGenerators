@@ -56,7 +56,7 @@ ROLES: list[str | None] = [None, "User", "Admin"]
 
 # 페이지별 아이콘 매핑 - 팀원이 쉽게 수정 가능
 PAGE_ICONS = {
-    "home" : "house",
+    "home": "house",
     "chatbot": "chat-dots",
     "dashboard": "bar-chart-line",
     "quiz": "question-circle",
@@ -75,7 +75,7 @@ PAGE_ICONS = {
 USER_MENUS = {
     "User": [
         ("홈 화면", "home"),
-        ("Chatbot", "chatbot"),
+        ("사용자 메타 분석", "chatbot"),
         ("오늘의 퀴즈", "quiz"),
         ("맞춤 금융 지식", "content"),
         ("맞춤형 상품 추천", "rag_recommendation"),
@@ -190,8 +190,12 @@ def check_auth_params() -> None:
                             "knowledge_level"
                         ],
                         "risk_tolerance": response_user_data.data[0]["risk_tolerance"],
-                        "user_summary": response_user_data.data[0].get("user_summary", ""),
-                        "knowledge_summary": response_user_data.data[0].get("knowledge_summary", ""),
+                        "user_summary": response_user_data.data[0].get(
+                            "user_summary", ""
+                        ),
+                        "knowledge_summary": response_user_data.data[0].get(
+                            "knowledge_summary", ""
+                        ),
                     }
                     st.session_state.user_data = user_data
 
@@ -520,6 +524,7 @@ def route_to_page():
         if current_page == "home":
             try:
                 from ui.home.home import render
+
                 render()
             except Exception as e:
                 st.title("🏠 홈")
