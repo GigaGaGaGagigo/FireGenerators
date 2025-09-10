@@ -141,6 +141,25 @@ def inject_home_styles():
       .down-arrow{text-align:center;font-size:2rem;margin:10px 0;opacity:.6;user-select:none}
 
       /* portfolio/news */
+      .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
+      @media (max-width:1100px){.kpi-row{grid-template-columns:1fr 1fr}}
+      .kpi{border:1px solid var(--border);border-radius:14px;background:#fff;padding:14px}
+      .kpi small{color:var(--muted);display:block;margin-bottom:6px}
+      .kpi b{font-size:1.2rem;color:var(--ink)}
+      .kpi .pos{color:#059669}.kpi .neg{color:#dc2626}
+      .port-card{border:1px solid var(--border);border-radius:16px;background:#fff;color:var(--ink);padding:16px}
+      .port-title{font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+      .badge-soft{font-size:.8rem;padding:2px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted)}
+      .table-hint{color:var(--muted);font-size:.9rem;margin-top:6px}
+      .empty{border:1px dashed var(--border);border-radius:14px;padding:16px;background:#fff;color:var(--muted)}
+      .subcard{border:1px solid var(--border);border-radius:16px;background:#fff;padding:14px}
+      .subcard h4{margin:0 0 8px 0;font-size:1rem}
+      .news-list{display:grid;grid-template-columns:1fr;gap:10px}
+      .news-item{border:1px solid var(--border);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;background:#fff}
+      .news-item .meta{color:var(--muted);font-size:.86rem}
+      .news-item a{text-decoration:none}
+      .tag{font-size:.78rem;padding:2px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted)}
+                
       /* ==== News-only Cards ==== */
       .news-grid{
         display:grid;
