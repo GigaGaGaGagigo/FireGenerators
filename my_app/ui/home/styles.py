@@ -1,5 +1,5 @@
 import streamlit as st
-from .utils import html
+from .utils import html, asset_b64
 
 def inject_home_styles():
     st.markdown("""
@@ -21,6 +21,7 @@ def inject_home_styles():
         grid-template-columns: 1.2fr 1fr;
         gap: clamp(20px, 3vw, 40px);
         align-items: center;
+        position: relative;
         background:
           radial-gradient(900px 380px at 0% 0%, rgba(37,99,235,.12), transparent 60%),
           radial-gradient(900px 380px at 100% 0%, rgba(22,163,74,.14), transparent 60%),
@@ -39,9 +40,20 @@ def inject_home_styles():
         color: var(--muted);
         margin: 0 0 18px;
       }
-
-
-
+      .hero-logo{
+        position: absolute;
+        right: clamp(16px, 3vw, 44px);
+        top: clamp(18px, 6vh, 68px);
+        width: clamp(120px, 13vw, 220px);     /* 크기 반응형 */
+        pointer-events: none;                 /* 클릭 막기 */
+        user-select: none;
+        opacity: .96;
+        filter: drop-shadow(0 18px 36px rgba(2,6,23,.25));
+        z-index: 4;                           /* 카드 위로 */
+      }
+      @media (max-width: 900px){
+        .hero-logo{ right: 12px; top: 12px; width: 120px; }
+      }                
       .hero-bullets{ display:grid; gap:10px; margin:18px 0 26px; }
       .hero-bullets .item{
         display:flex; gap:10px; align-items:flex-start;
@@ -129,24 +141,46 @@ def inject_home_styles():
       .down-arrow{text-align:center;font-size:2rem;margin:10px 0;opacity:.6;user-select:none}
 
       /* portfolio/news */
-      .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
-      @media (max-width:1100px){.kpi-row{grid-template-columns:1fr 1fr}}
-      .kpi{border:1px solid var(--border);border-radius:14px;background:#fff;padding:14px}
-      .kpi small{color:var(--muted);display:block;margin-bottom:6px}
-      .kpi b{font-size:1.2rem;color:var(--ink)}
-      .kpi .pos{color:#059669}.kpi .neg{color:#dc2626}
-      .port-card{border:1px solid var(--border);border-radius:16px;background:#fff;color:var(--ink);padding:16px}
-      .port-title{font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px}
-      .badge-soft{font-size:.8rem;padding:2px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted)}
-      .table-hint{color:var(--muted);font-size:.9rem;margin-top:6px}
-      .empty{border:1px dashed var(--border);border-radius:14px;padding:16px;background:#fff;color:var(--muted)}
-      .subcard{border:1px solid var(--border);border-radius:16px;background:#fff;padding:14px}
-      .subcard h4{margin:0 0 8px 0;font-size:1rem}
-      .news-list{display:grid;grid-template-columns:1fr;gap:10px}
-      .news-item{border:1px solid var(--border);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;background:#fff}
-      .news-item .meta{color:var(--muted);font-size:.86rem}
-      .news-item a{text-decoration:none}
-      .tag{font-size:.78rem;padding:2px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted)}
+      /* ==== News-only Cards ==== */
+      .news-grid{
+        display:grid;
+        grid-template-columns: 1fr 1fr;
+        gap:10px;
+      }
+      @media (max-width: 1100px){ .news-grid{ grid-template-columns:1fr; } }
+
+      .news-card{
+        display:block;
+        text-decoration:none;
+        border:1px solid var(--border);
+        border-radius:14px;
+        background:#fff;
+        padding:12px 14px;
+        transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+        color:var(--ink);
+      }
+      .news-card:hover{
+        transform: translateY(-2px);
+        box-shadow:0 10px 22px rgba(2,6,23,.10);
+        border-color: rgba(37,99,235,.35);
+      }
+      .news-tag{
+        display:inline-flex; align-items:center; gap:6px;
+        font-size:.78rem;
+        padding:3px 8px;
+        border-radius:999px;
+        background:#eef2ff;
+        color:#1e3a8a;
+        border:1px solid rgba(37,99,235,.18);
+        margin-bottom:6px;
+      }
+      .news-title{
+        font-weight:800; line-height:1.35; margin:2px 0 4px 0; font-size:.98rem;
+      }
+      .news-meta{
+        font-size:.86rem; color:var(--muted);
+      }``
+
 
       /* floating toast */
       .floating-wrap{position:fixed;right:22px;bottom:22px;z-index:9999;width:360px;max-width:calc(100vw - 40px)}
@@ -259,6 +293,8 @@ def inject_home_styles():
         display:block;
         margin: 4px auto 0;
       }
+                
+      
 
     </style>
     """, unsafe_allow_html=True)
