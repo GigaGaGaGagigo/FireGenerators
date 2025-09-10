@@ -1,6 +1,17 @@
 import json, re
 from textwrap import dedent
 import streamlit as st
+from pathlib import Path
+import base64
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+def asset_b64(rel_path: str) -> str:
+    root = Path(__file__).resolve().parents[2]  # -> my_app/
+    p = root / rel_path.lstrip("/\\")           # "assets/logo1.png"
+    with open(p, "rb") as f:
+        return base64.b64encode(f.read()).decode("ascii")
 
 def html(s: str):
     st.markdown(dedent(s), unsafe_allow_html=True)
