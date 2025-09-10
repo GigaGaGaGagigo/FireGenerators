@@ -48,12 +48,14 @@ mcp server
 *.md
 *.toml
 .claude**
-.gemini**
+.gemini-clipboard**
 .ruff**
 .CLAUDE**
 .GEMINI**
 .pyproject.toml
-.poetry.lock
-# my_app/chatbot/notebooks/
+poetry.lock
+typings/
+my_app/chatbot/notebooks/
 my_app/ui/level_quiz/data/generated/
 my_app/ui/recommendation/data/recommendation_logs.jsonl
+my_app/quiz_core/exports

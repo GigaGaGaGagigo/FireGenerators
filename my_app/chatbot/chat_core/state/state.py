@@ -77,7 +77,7 @@ class OverallState(BaseModel):
     )
     messages: Annotated[
         List[AnyMessage],
-        add_messages,
+        add,
         Field(default_factory=list, description="All messages in the conversation."),
     ]
     questions_by_category: Annotated[
@@ -114,6 +114,20 @@ class OverallState(BaseModel):
             description="User Meta data that is updated throughout the conversation. Contains name, profile status, investment goal, investment emotions, interests categories, investment level, knowledge level, risk tolerance, user profile summary",
         ),
     ]
+    user_meta_data_updated: Annotated[
+        Dict[str, Any],
+        Field(
+            default_factory=dict,
+            description="User Meta data that is updated throughout the conversation. Contains name, profile status, investment goal, investment emotions, interests categories, investment level, knowledge level, risk tolerance, user profile summary",
+        ),
+    ]
+    search_dataset: Annotated[
+        Dict[str, Any],
+        Field(
+            default_factory=dict,
+            description="Search dataset that is updated throughout the conversation. Includes search queries, search results, and report.",
+        ),
+    ]
 
 
 class OutputState(BaseModel):
@@ -131,5 +145,19 @@ class OutputState(BaseModel):
         Field(
             default_factory=dict,
             description="The final User Meta data that is consolidated throughout the conversation",
+        ),
+    ]
+    user_meta_data_updated: Annotated[
+        Dict[str, Any],
+        Field(
+            default_factory=dict,
+            description="User Meta data that is updated throughout the conversation. Contains name, profile status, investment goal, investment emotions, interests categories, investment level, knowledge level, risk tolerance, user profile summary",
+        ),
+    ]
+    search_dataset: Annotated[
+        Dict[str, Any],
+        Field(
+            default_factory=dict,
+            description="Search dataset that is updated throughout the conversation. Includes search queries, search results, and report.",
         ),
     ]

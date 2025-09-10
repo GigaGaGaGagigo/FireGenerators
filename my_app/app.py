@@ -56,7 +56,7 @@ ROLES: list[str | None] = [None, "User", "Admin"]
 
 # 페이지별 아이콘 매핑 - 팀원이 쉽게 수정 가능
 PAGE_ICONS = {
-    "home" : "house",
+    "home": "house",
     "chatbot": "chat-dots",
     "dashboard": "bar-chart-line",
     "quiz": "question-circle",
@@ -75,7 +75,7 @@ PAGE_ICONS = {
 USER_MENUS = {
     "User": [
         ("홈 화면", "home"),
-        ("Chatbot", "chatbot"),
+        ("사용자 메타 분석", "chatbot"),
         ("오늘의 퀴즈", "quiz"),
         ("맞춤 금융 지식", "content"),
         ("맞춤형 상품 추천", "rag_recommendation"),
@@ -190,8 +190,12 @@ def check_auth_params() -> None:
                             "knowledge_level"
                         ],
                         "risk_tolerance": response_user_data.data[0]["risk_tolerance"],
-                        "user_summary": response_user_data.data[0].get("user_summary", ""),
-                        "knowledge_summary": response_user_data.data[0].get("knowledge_summary", ""),
+                        "user_summary": response_user_data.data[0].get(
+                            "user_summary", ""
+                        ),
+                        "knowledge_summary": response_user_data.data[0].get(
+                            "knowledge_summary", ""
+                        ),
                     }
                     st.session_state.user_data = user_data
 
@@ -333,6 +337,7 @@ def logout() -> None:
     Note:
         안전한 접근을 위해 선택적으로 세션 정보 삭제
     """
+    # pyrefly: ignore  # import-error
     from ui.chatbot import USER_DATA_KEY
 
     if "session" in st.session_state and st.session_state.session:
@@ -519,6 +524,7 @@ def route_to_page():
         if current_page == "home":
             try:
                 from ui.home.home import render
+
                 render()
             except Exception as e:
                 st.title("🏠 홈")
@@ -527,6 +533,7 @@ def route_to_page():
                 st.stop()
         elif current_page == "chatbot":
             try:
+                # pyrefly: ignore  # import-error
                 from ui.chatbot.chatbot import render
 
                 render()
@@ -536,6 +543,7 @@ def route_to_page():
 
         elif current_page == "quiz":
             try:
+                # pyrefly: ignore  # import-error
                 from ui.level_quiz.quiz import render
 
                 # 환영 메시지 설정
@@ -565,6 +573,7 @@ def route_to_page():
 
         elif current_page == "content":
             try:
+                # pyrefly: ignore  # import-error
                 from ui.contents.user_recommender import render
 
                 render()
@@ -575,6 +584,7 @@ def route_to_page():
 
         elif current_page == "rag_recommendation":
             try:
+                # pyrefly: ignore  # import-error
                 from ui.recommendation.rag_recommendation import render
 
                 render()
@@ -584,6 +594,7 @@ def route_to_page():
 
         elif current_page == "simulation":
             try:
+                # pyrefly: ignore  # import-error
                 from ui.trading.trading_ui import render
 
                 render()
@@ -596,6 +607,7 @@ def route_to_page():
         elif current_page == "analysis":
             try:
                 from ui.analysis.streamlit_app import render  # type: ignore
+
                 render()
             except Exception as e:
                 st.error(f"{e} 모듈 임포트 중 오류가 발생했습니다.")
@@ -606,6 +618,7 @@ def route_to_page():
 
         elif current_page == "settings":
             try:
+                # pyrefly: ignore  # import-error
                 from ui.settings.settings_sample import render
 
                 render()
@@ -613,9 +626,9 @@ def route_to_page():
                 st.title("⚙️ Settings")
                 st.info("ui/settings/settings.py 파일을 생성해주세요.")
 
-        else:
-            st.title("🏠 홈")
-            st.write("환영합니다! 사이드바에서 원하는 메뉴를 선택해주세요.")
+        # else:
+        #     st.title("🏠 홈")
+        #     st.write("환영합니다! 사이드바에서 원하는 메뉴를 선택해주세요.")
 
     except Exception as e:
         st.error(f"페이지 로딩 중 오류가 발생했습니다: {e}")
