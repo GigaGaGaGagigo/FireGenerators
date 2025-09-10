@@ -1,4 +1,4 @@
-# FireGenerators - 금융 지식 학습 및 투자 코칭 웹 서비스
+# [임시] FireGenerators - 금융 지식 학습 및 투자 코칭 웹 서비스
 
 <img src="my_app\assets\FIRE_LOGO_large.png" width="200"/>  
 
