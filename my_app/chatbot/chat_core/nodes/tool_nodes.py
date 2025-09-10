@@ -27,22 +27,6 @@ def call_llm(state: OverallState):
 
 
 def process_human_input_tool(state: OverallState) -> Dict[str, Any]:
-    """
-    사용자에게 질문을 요청하는 노드
-    request predefined question set from the user
-
-    이 함수는 interrupt_before 방식을 대체합니다:
-        - 기존: interrupt_before로 workflow 중단 후 사용자 입력 대기
-    - 새로운 방식: tool call을 생성하여 UI가 자연스럽게 응답하도록 함
-
-    작동 순서:
-    1. 현재 진행 중인 카테고리 확인
-    2. 해당 카테고리의 질문 데이터 로드
-    3. 이미 답변된 질문 수를 계산하여 다음 질문 결정
-    4. tool call이 포함된 AIMessage 생성
-    5. Streamlit UI가 처리할 추가 데이터 준비
-    """
-
     try:
         last_message = state.messages[-1]
         tool_call = getattr(last_message, "tool_calls", [])[0]

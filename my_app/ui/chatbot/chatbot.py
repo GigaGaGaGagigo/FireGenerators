@@ -35,10 +35,12 @@ FINISHED_CHAT_IMAGE_PATH: Path = Path(__file__).parents[2] / "assets" / "2.png"
 
 USER_DATA_KEY: list[str] = [
     "ai",
+    "interrupts",
     "quiz",
-    "user_answers",
-    "toolupdated_profile",
     "state_result",
+    "tool",
+    "updated_profile",
+    "user_answers",
 ]
 
 STREAM_DELAY_S = 0.01
@@ -80,7 +82,7 @@ def initialize_chatbot():
         st.session_state["events"] = []
         st.session_state["interrupts"] = []
 
-        for category in CATEGORY_KEYS:
+        for category in CATEGORY_KEYS + ["continue_conversation"]:
             st.session_state["quiz"][category] = {"questions": [], "options": []}
             st.session_state["quiz"][category]["synced"] = False
             st.session_state["updated_profile"] = {}
@@ -361,7 +363,10 @@ def render_chat(container):
 
         user_meta_data = getattr(graph_state, "values", {}).get("user_meta_data", {})
 
-        if user_meta_data.get("profile_status", "") == "completed":
+        if (
+            user_meta_data.get("profile_status", "") == "completed"
+            and user_meta_data.get("edit_mode", "") == "FINISHED"
+        ):
             st.session_state["interrupts"] = []
             for category in CATEGORY_KEYS:
                 st.session_state["user_answers"][category] = []
@@ -438,9 +443,9 @@ def render():
 
     render_chat(st.session_state["chat_placeholder"])
     render_quiz(st.session_state["quiz_placeholder"])
-    # graph_state = st.session_state.graph.get_state(st.session_state.config)
-    # st.write(graph_state)
-    # st.write(st.session_state.user_data)
+    graph_state = st.session_state.graph.get_state(st.session_state.config)
+    st.write(graph_state)
+    # st.write(st.session_state)
 
 
 if __name__ == "__main__":

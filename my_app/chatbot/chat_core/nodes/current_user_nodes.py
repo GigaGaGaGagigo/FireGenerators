@@ -1,84 +1,138 @@
 import json
 import time
-from datetime import datetime
-from typing import Annotated
 
-from langchain.prompts import ChatPromptTemplate
-from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
-from langchain_core.messages import AIMessage
+from langchain.prompts import PromptTemplate
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langgraph.types import interrupt
 from pydantic import BaseModel, Field
 
 from my_app.chatbot.chat_core.model_loader import OPENAI_MODEL_NAME, get_llm_models
+from my_app.chatbot.chat_core.prompt_loader import load_prompt_from_yaml
 from my_app.chatbot.chat_core.state import OverallState
 
 
-class RequestUserToStartConversation(BaseModel):
-    answer: Annotated[
-        str,
-        Field(description="User's answer to start conversation, must be 'yes' or 'no'"),
-    ]
+class GenerateQuestions(BaseModel):
+    pass
 
 
-# TODO: making a greeting message -> how? search interests categories news -> recommend news.
+class RequestUserInput(BaseModel):
+    pass
 
 
-def generate_greeting_and_news(state: OverallState):
-    ai_message = f"{state.user_meta_data['name']}님, 오늘은 어떤 일이 있었을까요? 잠시만 기다려주세요."
+class CombineUserMetaData(BaseModel):
+    pass
 
-    prompt_content = f"""
-Use the 'SearchNews' tool to search news with user's interests categories.
 
-user's interests categories:
-- keywords: {state.user_meta_data["interests_categories"]}
+class PresentQuestions(BaseModel):
+    pass
+
+
+class UpdateProfileList(BaseModel):
+    content: list[str] = Field(
+        description="A list of strings containing the analysis result."
+    )
+
+
+def ask_to_start_conversation(state: OverallState):
+    ai_message = AIMessage(
+        content=f"{state.user_meta_data['name']}님, 오늘의 정보와 관련된 대화를 진행해보고 싶으신가요?"
+    )
+
+    prompt_content = """
+Ask user to start conversation.
+Use the 'RequestUserInput' tool to ask user to start conversation.
 """
+    human_message = HumanMessage(content=prompt_content)
 
     return {
         "logs": [
             {
                 "level": "info",
-                "message": "Greeting message generated",
+                "message": "Ask user to start conversation",
                 "timestamp": time.time(),
             }
         ],
-        "messages": [
-            {"role": "ai", "content": ai_message},
-            {"role": "user", "content": prompt_content},
-        ],
+        "messages": [ai_message, human_message],
+        "user_meta_data": {
+            **state.user_meta_data,
+            "edit_mode": "ASKING",
+        },
     }
 
 
-def ask_to_start_conversation(state: OverallState):
-    pass
-    # set_profile_catetories: list[str] = [
-    #     "interests_categories",
-    #     "investment_emotions",
-    #     "investment_goal",
-    #     "investment_level",
-    #     "risk_tolerance",
-    # ]
+def process_to_start_conversation(state: OverallState):
+    try:
+        last_message = state.messages[-1]
+        tool_call = getattr(last_message, "tool_calls", [])[0]
+        tool_call_id: str = tool_call["id"]
 
-    # persona_prompt = load_prompt_from_yaml("persona")
-    # introduce_qa = load_prompt_from_yaml("introduce_qa")
+        questions_to_ask: dict[str, list[list[str]] | list[str] | str] = {
+            "category": "continue_conversation",
+            "questions": ["대화를 진행하시겠습니까?"],
+            "options": [["yes", "no"]],
+        }
 
-    # prompt_template: RunnableAssign = (
-    #     RunnablePassthrough.assign(chat_history=persona_prompt) | introduce_qa  # type: ignore
-    # )
+    except (IndexError, KeyError, AttributeError, Exception) as e:
+        return {
+            "logs": [
+                {
+                    "level": "error",
+                    "message": f"failed to extract tool_call: {e}",
+                    "timestamp": time.time(),
+                }
+            ]
+        }
 
-    # llm = get_llm_models(OPENAI_MODEL_NAME)
-    # chain = prompt_template | llm
+    user_answers: list[tuple[str, str]] = interrupt(questions_to_ask)
 
-    # result = chain.invoke(
-    #     {
-    #         "target_profile_category": set_profile_catetories,
-    #         "user_name": state.user_meta_data["name"],
-    #     }
-    # )
+    user_answer = user_answers[0][1]
 
-    # return {
-    #     "messages": "temp",
-    #     "target_profile_category": set_profile_catetories,
-    #     "user_meta_data": state.user_meta_data,
-    # }
+    edit_mode = "CONTINUE" if user_answer == "yes" else "FINISHED"
+
+    tool_message: ToolMessage = ToolMessage(
+        content=str(user_answers),
+        tool_call_id=tool_call_id,
+    )
+
+    return {
+        "messages": [tool_message],
+        "logs": [
+            {
+                "level": "info",
+                "message": "user_answers collected for start conversation",
+                "timestamp": time.time(),
+            }
+        ],
+        "user_meta_data": {
+            **state.user_meta_data,
+            "edit_mode": edit_mode,
+        },
+    }
+
+
+def decide_to_continue_conversation(state: OverallState):
+    edit_mode = state.user_meta_data["edit_mode"]
+
+    human_message = (
+        "Continue the conversation. Call 'GenerateQuestions' tool."
+        if edit_mode == "CONTINUE"
+        else "Finish the conversation."
+    )
+
+    return {
+        "messages": [HumanMessage(content=human_message)],
+        "logs": [
+            {
+                "level": "info",
+                "message": "Decide to continue conversation",
+                "timestamp": time.time(),
+            }
+        ],
+        "user_meta_data": {
+            **state.user_meta_data,
+            "edit_mode": edit_mode,
+        },
+    }
 
 
 def talk_llm(state: OverallState):
@@ -88,284 +142,357 @@ def talk_llm(state: OverallState):
     return {"messages": [response]}
 
 
-# 노드(Node) 함수 정의
-def generate_queries_node(state: OverallState):
-    """리스트로 받은 각 관심 분야에 대해 검색어를 생성"""
-    llm = get_llm_models(OPENAI_MODEL_NAME)
-    all_queries = []
-    interests_categories = state.user_meta_data["interests_categories"]
-    for category in interests_categories:
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                (
-                    "system",
-                    "You are a helpful research assistant. Your task is to generate 2-3 relevant and specific search queries for a given investment topic. Do not add numbers like '1.' or '2.' to the queries. Respond in the user's original language.",
-                ),
-                ("user", "Generate search queries for the following topic: {topic}"),
-            ]
-        )
-        chain = prompt | llm
-        response = chain.invoke({"topic": category})
-        queries = [
-            q.lstrip("0123456789. ") for q in response.content.split("\n") if q.strip()
-        ]
-        all_queries.extend(queries)
-
-    return {
-        "search_dataset": {
-            **state.search_dataset,
-            "search_queries": all_queries,
-        },
-        "messages": [],
-        "logs": [
-            {
-                "level": "info",
-                "message": f"검색어 생성 완료 (총 {len(all_queries)}개 검색어)",
-                "timestamp": time.time(),
-            }
-        ],
-    }
-
-
-def web_search_node(state: OverallState):
-    api_wrapper = DuckDuckGoSearchAPIWrapper(time="w")
-    all_results = []
-    for query in state.search_dataset["search_queries"]:
-        parsed_results = api_wrapper.results(query, max_results=10)
-        all_results.extend(parsed_results)
-
-    cleaned_results = [
-        {
-            "title": res.get("title"),
-            "url": res.get("link"),
-            "snippet": res.get("snippet"),
-        }
-        for res in all_results
-        if res.get("link") and res.get("title") and res.get("snippet")
+def generate_questions_based_on_report(state: OverallState):
+    target_profile_category = [
+        "interests_categories",
+        "investment_emotions",
+        "investment_goal",
+        "risk_tolerance",
     ]
+    report = state.search_dataset["report"]
 
-    return {
-        "messages": [],
-        "logs": [
-            {
-                "level": "info",
-                "message": f"웹 검색 완료 (총 {len(cleaned_results)}개 결과)",
-                "timestamp": time.time(),
-            }
-        ],
-        "search_dataset": {
-            **state.search_dataset,
-            "search_results": cleaned_results,
-        },
-    }
+    prompt_content = """
+You are a 'Prompt Engineer' who analyzes a user's investment tendencies to create a personalized profile. 
+Your mission is to analyze the provided {report} data in JSON format and generate a set of questions to understand the user's disposition for each item specified in {target_profile_category}.
 
+1.  **Analyze Input Data**: Analyze the "summary", "key_opportunities", "potential_risks", and "analyst_take" sections of the given {report} to comprehensively understand the profile of a potential investor (interests, emotions, goals, risk tolerance).
+2.  **Generate Questions and Options**:
+    *   For each item specified in {target_profile_category}, create **3 questions** designed to verify and elaborate on the inferred investment profile.
+    *   Each question must be accompanied by **4 options** for the user to choose from.
+3.  **Prevent Bias**: To avoid leading the user, minimize the direct use of specific keywords from the {report} (e.g., 'AI', 'semiconductor') in the questions. Instead, use more abstract and neutral language.
+4.  **Output Format**: The final output must strictly adhere to the JSON structure provided in the example below. Do not add numbers or letters to the questions or options.
 
-def batch_filter_node(state: OverallState):
-    search_results = state.search_dataset["search_results"]
-    if not search_results:
-        return {"search_results": []}
-
-    formatted_results = ""
-    for i, res in enumerate(search_results):
-        formatted_results += f"{i + 1}. Title: {res['title']}\n   Snippet: {res['snippet']}\n   Source URL: {res['url']}\n\n"
-
-    batch_prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                """You are a highly discerning financial analyst assistant. Your primary goal is to prioritize **objective, verifiable sources** over personal opinions. Review the numbered list of articles and select the ones most suitable for a data-driven investment report.
-
-**Source Preference Hierarchy (Prioritize in this order):**
-1.  **High-Quality Sources:** Reputable news outlets (e.g., Reuters, Bloomberg), official research reports (e.g., Gartner, Deloitte), government/institutional data, official company press releases.
-2.  **Acceptable with Caution:** Well-known industry-specific publications or tech blogs from reputable companies (e.g., Google AI Blog), but only if they contain data and facts.
-3.  **Generally Exclude:** Personal blogs (e.g., from Naver Blog, Tistory, Medium), marketing-focused company blogs, forums, or unverified sources.
-
-**Inclusion Criteria (What to KEEP):**
-- Articles from High-Quality Sources (Tier 1).
-- Articles containing hard data, statistics, financial metrics (e.g., ROI, GDP, market size), even if from Tier 2 sources.
-
-**Exclusion Criteria (What to DISCARD):**
-- **Almost all articles from Tier 3 sources (personal blogs, marketing content).** Exclude them unless they present truly unique and verifiable data not found elsewhere.
-- Basic definitions or encyclopedia entries.
-- Articles focused on social/political controversies, opinions without data, or stereotypes.
-- Promotional content, advertisements, or articles that primarily aim to sell a product.
-
-Review the list below, paying close attention to the Source URL to judge the source's reliability. Respond with a JSON object containing a single key 'include_indices' with a list of the integer index numbers of the articles to keep.
-Example: {{"include_indices": [1, 3, 8, 15]}}""",
-            ),
-            ("user", "Article List:\n\n{articles}"),
-        ]
-    )
-
-    llm = get_llm_models(OPENAI_MODEL_NAME)
-
-    filter_chain = batch_prompt | llm
-
-    response = filter_chain.invoke({"articles": formatted_results})
-
-    try:
-        included_indices = json.loads(response.content).get("include_indices", [])
-        final_results = [
-            search_results[i - 1]
-            for i in included_indices
-            if 0 < i <= len(search_results)
-        ]
-
-        return {
-            "search_dataset": {"search_results": final_results},
-            "messages": [],
-            "logs": [
-                {
-                    "level": "info",
-                    "message": f"배치 필터링 완료 (통과: {len(final_results)}개 / 원본: {len(search_results)}개)",
-                    "timestamp": time.time(),
-                }
-            ],
-        }
-
-    except (json.JSONDecodeError, AttributeError) as e:
-        return {
-            "search_dataset": {
-                **state.search_dataset,
-                "search_results": search_results,
-            },
-            "messages": [],
-            "logs": [
-                {
-                    "level": "info",
-                    "message": f"배치 필터링 오류: {e}. 필터링 없이 진행합니다.",
-                    "timestamp": time.time(),
-                }
-            ],
-        }
-
-
-def generate_report_node(state: OverallState):
-    today = datetime.now().strftime("%Y-%m-%d")
-    categories_str = ", ".join(state.user_meta_data["interests_categories"])
-
-    user_prompt = """
-You are a veteran investment analyst with 15 years of experience. You specialize in analyzing {interests_categories}, and you are known for providing sober, data-driven analysis.
-
-Synthesize news and market data for the 3-days period ending on `{today}` for {interests_categories} and draft an in-depth analysis report based on the format below.
-You must go beyond simple news summarization and connect facts with data to provide persuasive insights.
-**Crucially, you must use the real URLs provided in the search results to populate the 'links' section. Do not invent or use placeholder URLs.**
-
-Always respond in Korean.
-
-Please return nothing but a JSON in the following format
-
+Output only the JSON object as plain text, without any markdown, code block, or extra formatting.
 {{
-    "summary": "A concise summary of the entire analysis in about 3 sentences.",
-    "key_opportunities": [
-        "A summary of the first key opportunity.",
-        "A summary of the second key opportunity.",
-        "A summary of the third key opportunity."
-    ],
-    "potential_risks": [
-        "A summary of the first potential risk.",
-        "A summary of the second potential risk.",
-        "A summary of the third potential risk."
-    ],
-    "analyst_take": "Based on the analysis, provide your professional opinion on whether now is a suitable time to buy, hold, or sell. (Note: This is an opinion based on analysis, not direct investment advice.)",
-    "links" : [
-        {{
-        "title": "Article Title or Brief Description 1",
-        "url": "the source of data link 1"
-        }},
-        {{
-        "title": "Article Title or Brief Description 2",
-        "url": "the source of data link 2"
-        }}
-    ]
+    "interests_categories": {{
+        "questions": ["새로운 투자 기회를 탐색할 때 어떤 유형의 정보에 가장 먼저 주목하시나요?", "...", "..."],
+        "options": [[
+        "안정적인 현금 흐름을 가진 전통 산업 관련 뉴스",
+        "기술 혁신으로 미래 시장을 주도할 신흥 기술 동향",
+        "정부 정책 변화나 규제 완화에 따른 수혜 분야 분석",
+        "시장 변동성이 낮고 예측 가능한 분야의 보고서"
+        ],["..."],["..."]]
+    }},
+    "investment_emotions": {{
+        "questions": ["유망한 투자처를 발견했지만, 동시에 잠재적 위험에 대한 경고를 접했을 때 어떤 감정이 드시나요?", "...", "..."],
+        "options": [[
+        "위험을 감수하더라도 기회를 잡아야 한다는 강한 기대감",
+        "기회와 위험을 신중하게 분석하며 관망하려는 침착함",
+        "손실 가능성에 대한 우려로 투자를 주저하게 되는 불안감",
+        "이미 알려진 위험이라면 문제가 없다고 생각하는 낙관론"
+        ],["..."], ["..."]]
+    }},
+    // ... (이하 생략) ...
 }}
 """
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", user_prompt),
-            (
-                "user",
-                "Here are the pre-screened, objective search results from the last week:\n\n{search_results}",
-            ),
-        ]
-    )
 
+    prompt = PromptTemplate.from_template(template=prompt_content)
     llm = get_llm_models(OPENAI_MODEL_NAME)
-
     chain = prompt | llm
 
-    search_results_str = "\n\n".join(
-        [
-            f"Title: {res['title']}\nURL: {res['url']}\nSnippet: {res['snippet']}"
-            for res in state.search_dataset["search_results"]
-        ]
+    result = chain.invoke(
+        {"report": report, "target_profile_category": target_profile_category}
     )
 
-    response = chain.invoke(
-        {
-            "today": today,
-            "interests_categories": categories_str,
-            "search_results": search_results_str,
-        }
-    )
+    result_json = json.loads(result.content)
 
-    result_json = json.loads(response.content)
+    last_message = state.messages[-1]
+    tool_call = getattr(last_message, "tool_calls", [])[0]
+    tool_call_id: str = tool_call["id"]
 
-    summary = result_json["summary"]
-    key_opportunities = result_json["key_opportunities"]
-    potential_risks = result_json["potential_risks"]
-    analyst_take = result_json["analyst_take"]
-    links = result_json["links"]
-
-    summary_message = AIMessage(
-        content=f"관심 분야에 대한 최신 뉴스를 정리해봤어요. \n\n {summary}"
-    )
-    key_opportunities_message = []
-    for i in range(len(key_opportunities)):
-        key_opportunities_message.append(f"{i + 1}. {key_opportunities[i]}")
-
-    key_opportunities_message = AIMessage(
-        content="현재 해당 분야의 최적의 투자 기회는 다음과 같습니다. \n"
-        + "\n".join(key_opportunities_message)
-    )
-    potential_risks_message = []
-    for i in range(len(potential_risks)):
-        potential_risks_message.append(f"{i + 1}. {potential_risks[i]}")
-
-    potential_risks_message = AIMessage(
-        content="현재 해당 분야의 주의해야 할 리스크는 다음과 같습니다. \n"
-        + "\n".join(potential_risks_message)
-    )
-    analyst_take_message = AIMessage(
-        content=f"저의 최종 의견은 다음과 같습니다. \n\n {analyst_take}"
-    )
-
-    links_message = []
-    for i in range(len(links)):
-        links_message.append(f"{i + 1}. {links[i]['title']} \n {links[i]['url']}")
-
-    links_message = AIMessage(
-        content="제가 찾아본 데이터의 참고 자료 링크입니다. \n "
-        + "\n".join(links_message)
+    tool_message: ToolMessage = ToolMessage(
+        content=str(result_json),
+        tool_call_id=tool_call_id,
     )
 
     return {
-        "search_dataset": {
-            **state.search_dataset,
-            "report": response.content,
-        },
+        "messages": [tool_message],
+        "logs": [
+            {
+                "level": "info",
+                "message": "questions generated based on report",
+                "timestamp": time.time(),
+            }
+        ],
+        "questions_by_category": result_json,
+        "target_profile_category": target_profile_category,
+    }
+
+
+def decide_to_present_questions(state: OverallState):
+    return {
         "messages": [
-            summary_message,
-            key_opportunities_message,
-            potential_risks_message,
-            analyst_take_message,
-            links_message,
+            HumanMessage(
+                content="Ask user to answer the questions. Call 'PresentQuestion' tool."
+            )
         ],
         "logs": [
             {
                 "level": "info",
-                "message": "보고서 생성 완료",
+                "message": "Decide to present questions",
                 "timestamp": time.time(),
             }
         ],
+    }
+
+
+def present_questions_based_on_report(state: OverallState):
+    last_message = state.messages[-1]
+    tool_call = getattr(last_message, "tool_calls", [])[0]
+    tool_call_id: str = tool_call["id"]
+
+    current_category = state.target_profile_category[0]
+    questions = state.questions_by_category[current_category]["questions"]
+    options = state.questions_by_category[current_category]["options"]
+
+    questions_to_ask: dict[str, list[list[str]] | list[str] | str] = {
+        "category": current_category,
+        "questions": questions,
+        "options": options,
+    }
+    user_answers: list[tuple[str, str]] = interrupt(questions_to_ask)
+
+    if not user_answers:
+        return {
+            "logs": [
+                {
+                    "level": "warning",
+                    "message": "failed to extract user_answers",
+                    "timestamp": time.time(),
+                }
+            ],
+            "messages": [
+                {"tool_call_id": tool_call_id, "type": "tool", "content": "[]"}
+            ],
+        }
+
+    tool_message: ToolMessage = ToolMessage(
+        content=str(user_answers),
+        tool_call_id=tool_call_id,
+    )
+
+    return {
+        "messages": [tool_message],
+        "logs": [
+            {
+                "level": "info",
+                "message": "user_input collected",
+                "timestamp": time.time(),
+            }
+        ],
+        "user_answers_by_category": {
+            **state.user_answers_by_category,
+            current_category: user_answers,
+        },
+    }
+
+
+def compact_user_answer_based_on_report(state: OverallState):
+    current_category = state.target_profile_category[0]
+    qa_pairs = state.user_answers_by_category[current_category]
+    llm = get_llm_models(OPENAI_MODEL_NAME)
+
+    #     prompt = f"""
+    # Compact the {qa_pairs} in one sentence. The provided data is a list of tuples, where each tuple consists of a question and its corresponding answer.
+    # Your task is to understand the intent of the question and, based on the user's answer.
+    # The summary sentence must include the key words from the input data. Ensure the output is in the user's original language.
+    # """
+
+    prompt = """
+You are an expert profiler specializing in analyzing investor psychology and tendencies.
+Your mission is to synthesize the provided {qa_pairs} into a single, insightful Korean sentence that creates a concise "profile" of the investor for a specific: {target_category}.
+
+Follow this process:
+1.  **Identify the Core Theme:** First, analyze the common intent of the questions to understand the central theme of the dataset (e.g., 'emotional response to investment', 'investment goals and time horizon').
+2.  **Extract and Connect Meanings:** Extract the core meaning from each of the user's answers. Then, logically connect these meanings into one coherent narrative.
+3.  **Generate the Profile Sentence:** The final output must be an insightful summary that holistically represents the investor's characteristics for the given category.
+
+**Output Rules:**
+- The final output must be the profile sentence ONLY.
+- Do not include any prefixes, titles, or labels.
+- The response must begin directly with the generated sentence itself.
+- Respond in the user's original language.
+"""
+
+    prompt_template = PromptTemplate(
+        template=prompt, input_variables=["qa_pairs", "target_category"]
+    )
+
+    chain = prompt_template | llm
+
+    response = chain.invoke({"qa_pairs": qa_pairs, "target_category": current_category})
+
+    return {
+        "messages": [],
+        "logs": [
+            {
+                "level": "info",
+                "message": f"User answer compacted based on report for {current_category}",
+                "timestamp": time.time(),
+            }
+        ],
+        "user_answers_compacted": {
+            current_category: [response.content],
+        },
+    }
+
+
+def analyze_user_answers_based_on_report(state: OverallState) -> dict:
+    # 기존 메타 데이터를 저장할 곳이 필요함
+    current_category = state.target_profile_category[0]
+
+    prompt_list = {
+        "interests_categories": load_prompt_from_yaml("analysis_interests_categories"),
+        "investment_emotions": load_prompt_from_yaml("analysis_investment_emotions"),
+        "investment_goal": load_prompt_from_yaml("analysis_investment_goal"),
+        "risk_tolerance": load_prompt_from_yaml("analysis_risk_tolerance"),
+    }
+
+    prompt_template = prompt_list[current_category]
+
+    llm = get_llm_models(OPENAI_MODEL_NAME)
+
+    chain_list = {
+        "interests_categories": prompt_template
+        | llm.with_structured_output(UpdateProfileList),
+        "investment_emotions": prompt_template
+        | llm.with_structured_output(UpdateProfileList),
+        "investment_goal": prompt_template
+        | llm.with_structured_output(UpdateProfileList),
+        "investment_level": prompt_template | llm,
+        "knowledge_level": prompt_template | llm,
+        "risk_tolerance": prompt_template | llm,
+    }
+
+    chain = chain_list[current_category]
+
+    result = chain.invoke(  # type: ignore
+        {"compacted_user_answer": state.user_answers_compacted[current_category]},
+    )
+
+    analysis_data = result.content
+
+    message_prompt = f"{state.user_meta_data['name']}님과의 대화를 통해 새로  알아낸 내용은 다음과 같습니다:{analysis_data}"
+
+    return {
+        "logs": [
+            {
+                "level": "info",
+                "message": f"User answer analyzed for {current_category}",
+                "timestamp": time.time(),
+            }
+        ],
+        "messages": [AIMessage(content=message_prompt)],
+        "user_meta_data_updated": {
+            **state.user_meta_data_updated,
+            current_category: analysis_data,
+        },
+    }
+
+
+def determine_next_user_node(state: OverallState):
+    state.target_profile_category.pop(0)
+
+    order_message = (
+        HumanMessage(content="Call 'CombineUserMetaData' tool.")
+        if len(state.target_profile_category) == 0
+        else HumanMessage(content=" Call 'PresentQuestions' tool.")
+    )
+
+    return {
+        "logs": [
+            {
+                "level": "info",
+                "message": "Determine next user node",
+                "timestamp": time.time(),
+            }
+        ],
+        "messages": [order_message],
+        "target_profile_category": state.target_profile_category,
+    }
+
+
+def combine_user_meta_data(state: OverallState):
+    combine_categories = [
+        "interests_categories",
+        "investment_emotions",
+        "investment_goal",
+    ]
+
+    prompt_list = {
+        "interests_categories": """
+# Persona
+You are an expert data analyst specializing in updating and managing user metadata. Your primary function is to accurately interpret shifts in user preferences and merge data lists logically.
+
+# Primary Task
+You will receive two lists of investment interests: {old_data} and {new_data}. Your task is to merge these lists into a single, updated list of interests.
+
+# Processing Rules
+1.  **Uniqueness:** The final list must contain only unique items. Duplicates must be removed.
+2.  **Prioritize New Data (Weighting):** The {new_data} list represents the user's most current interests. All unique items from {new_data} MUST be included in the final list.
+3.  **Conflict Resolution and Merging:**
+    *   Analyze the themes of both lists. The provided {old_data} focuses purely on growth/tech ("AI", "Future Growth Tech"). The {new_data} expands significantly into safe assets ("Government Bonds," "Short-term Bonds," "Cash Equivalents") and specific investment methods ("Individual Stocks," "Micro-investing"), while retaining one growth theme.
+    *   This indicates a shift or expansion in strategy, not a complete replacement.
+    *   Therefore, retain items from {old_data} ONLY IF they are not conceptually redundant or directly contradicted by the new, broader focus. (In this context, "AI" is a specific example of "Future Growth Tech," which was retained, so "AI" should also be retained as a related interest).
+4.  **Order:** The specific order of the final list is less important than the inclusion of all relevant items, but new items should be treated as the primary interest set.
+5.  **Output:** You must output ONLY the final, merged Python list (array) of strings. Do not add any explanatory text, reasoning.
+
+# Output Format
+You must output ONLY the final, merged Python list (array) of strings. Do not add any explanatory text, reasoning, or formatting.
+        """,
+        "investment_emotions": """
+You are a "User Metadata Management Specialist" who meticulously analyzes and manages user data. Your mission is to merge existing data {old_data} with new data {new_data} to create a single, unified list (`updated_data`) that accurately reflects the user's latest state.
+
+### CRITICAL INSTRUCTION
+Your primary task is to **MERGE**, not simply replace. The final `updated_data` list must be a superset of {new_data} and all compatible elements from {old_data}. Do not discard {old_data} entirely unless all its elements conflict with {new_data}.
+
+### Step-by-Step Process
+You must follow this process exactly:
+1.  **Initialize:** Start the `updated_data` list by adding all elements from {new_data}. This list represents the user's most current state.
+2.  **Evaluate:** Iterate through each element of the {old_data} list one by one.
+3.  **Decision:** For each element from {old_data}, determine if it semantically or emotionally conflicts with the overall context established by {new_data}.
+4.  **Append:** If the element from {old_data} does **not** conflict, append it to the `updated_data` list. If it conflicts, discard it.
+
+### Output Format
+Your final output must be **only** the `updated_data` list, formatted as a Python list of strings. Do not include any other text, explanations, or formatting.
+
+### Example
+Learn how to apply the process by studying this example:
+        """,
+        "investment_goal": """
+You are an expert User Profile Analyst AI. Your primary skill is to synthesize user data into a single, highly coherent summary sentence that captures their most current intentions.
+
+# Objective
+Analyze the user's {old_data} and {new_data} for the given {category}. Your goal is to produce a single, consolidated summary sentence that accurately reflects the user's updated profile, giving strict priority to {new_data} in case of any conflicts.
+
+# Instructions
+1.  **Analyze**: Examine the statements in both {old_data} and {new_data}.
+2.  **CRITICAL RULE**: The output MUST be a single, complete, and natural-sounding sentence. Do not use multiple sentences or bullet points.
+        """,
+    }
+
+    for category in combine_categories:
+        prompt_string = prompt_list[category]
+        prompt_template = PromptTemplate.from_template(template=prompt_string)
+        llm = get_llm_models(OPENAI_MODEL_NAME)
+        chain = prompt_template | llm
+        result = chain.invoke(
+            {
+                "old_data": state.user_meta_data[category],
+                "new_data": state.user_meta_data_updated[category],
+                "category": category,
+            }
+        )
+        state.user_meta_data[category] = result.content
+
+    old_data = int(state.user_meta_data["risk_tolerance"])
+    new_data = int(state.user_meta_data_updated["risk_tolerance"])
+    updated_data = int((old_data + new_data) / 2)
+    state.user_meta_data["risk_tolerance"] = updated_data
+
+    return {
+        "user_meta_data": {
+            **state.user_meta_data,
+            **state.user_meta_data_updated,
+        },
     }

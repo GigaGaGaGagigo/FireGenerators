@@ -71,7 +71,7 @@ def present_predefined_questions(state: OverallState) -> dict:
         RunnablePassthrough.assign(chat_history=persona_prompt) | introduce_qa  # type: ignore
     )
 
-    llm = get_llm_models(OPENAI_MODEL_NAME)
+    llm = get_llm_models(OPENAI_MODEL_NAME, tool=True, new_user=False)
     chain = prompt_template | llm
 
     result = chain.invoke(
@@ -162,11 +162,10 @@ respond in the "{compacted_user_answer}" language.
     except ValidationError as e:
         raise ValueError(f"Unexpected result type from chain.invoke: {e}")
 
-    instruction_message: HumanMessage = HumanMessage(
+    human_message: HumanMessage = HumanMessage(
         content=f"""
 Ask user follow-up quiz sets. Use the 'RequestHumanInput' Tool.
 Follow-up quiz sets will be passed to the tool.
-Generate message to introduce the Data's purpose to user.
 
 Follow-up quiz sets:
 - Category: {current_category}
@@ -181,7 +180,7 @@ Follow-up quiz sets:
     current_options = current_quiz_content.get("options", [])
 
     return {
-        "messages": [instruction_message],
+        "messages": [human_message],
         "logs": [
             {
                 "level": "info",

@@ -21,7 +21,7 @@ _llm_models_with_tool = {}
 
 def get_llm_models(model_name: str, tool: bool = False, new_user: bool = False):
     if tool:
-        return _get_model_with_tool(model_name)
+        return _get_model_with_tool(model_name, new_user)
 
     if model_name in _llm_models:
         return _llm_models[model_name]
@@ -44,12 +44,18 @@ def get_llm_models(model_name: str, tool: bool = False, new_user: bool = False):
 def _get_model_with_tool(model_name: str, new_user: bool = False):
     from my_app.chatbot.chat_core.nodes import (
         AnalyzeProfile,
+        CombineUserMetaData,
         GenerateFollowUp,
+        GenerateQuestions,
+        PresentQuestions,
         RequestHumanInput,
+        RequestUserInput,
     )
 
-    if model_name in _llm_models_with_tool:
-        return _llm_models_with_tool[model_name]
+    model_tag = "_new_user" if new_user else "_user"
+
+    if model_name + model_tag in _llm_models_with_tool:
+        return _llm_models_with_tool[model_name + model_tag]
 
     print(f"Creating new LLM client for {model_name} with tool")
 
@@ -64,15 +70,16 @@ def _get_model_with_tool(model_name: str, new_user: bool = False):
     tool_list = {
         True: [RequestHumanInput, AnalyzeProfile, GenerateFollowUp],
         False: [
-            RequestHumanInput,
-            AnalyzeProfile,
-            GenerateFollowUp,
+            CombineUserMetaData,
+            RequestUserInput,
+            PresentQuestions,
+            GenerateQuestions,
         ],  # TODO: add current user's tools
     }
 
     model_with_tool = model.bind_tools(tool_list[new_user])
-    _llm_models_with_tool[model_name] = model_with_tool
-    return _llm_models_with_tool[model_name]
+    _llm_models_with_tool[model_name + model_tag] = model_with_tool
+    return _llm_models_with_tool[model_name + model_tag]
 
 
 def get_embedding_model():
