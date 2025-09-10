@@ -1,17 +1,11 @@
-"""
-WRITER: Kang Joseph
-DATE: 2025-08-12
-DESCRIPTION: Final response node(s) for summarizing the user's goal from Q&A.
-"""
-
 import time
+from typing import Annotated, Literal
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableConfig
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field, ValidationError
-from typing_extensions import Annotated, Literal
 
 from my_app.chatbot.chat_core.model_loader import (
     OPENAI_MODEL_NAME,
@@ -26,7 +20,7 @@ class AnalyzeProfile(BaseModel):
 
 
 class AnalysisData(BaseModel):
-    data: list[str] = Field(
+    content: list[str] = Field(
         description="A list of strings containing the analysis result."
     )
 
@@ -57,33 +51,49 @@ ANALYSIS_USER_ANSWER_PROMPTS = {
 def analyze_user_answers(state: OverallState) -> dict:
     current_category = state.target_profile_category[0]
 
-    if current_category == "interests_categories":
-        prompt_template = load_prompt_from_yaml("analysis_interests_categories")
-    elif current_category == "investment_emotions":
-        prompt_template = load_prompt_from_yaml("analysis_investment_emotions")
-    elif current_category == "investment_goal":
-        prompt_template = load_prompt_from_yaml("analysis_investment_goal")
-    elif current_category == "investment_level":
-        prompt_template = load_prompt_from_yaml("analysis_investment_level")
-    elif current_category == "knowledge_level":
-        prompt_template = load_prompt_from_yaml("analysis_knowledge_level")
-    elif current_category == "risk_tolerance":
-        prompt_template = load_prompt_from_yaml("analysis_risk_tolerance")
+    prompt_list = {
+        "interests_categories": load_prompt_from_yaml("analysis_interests_categories"),
+        "investment_emotions": load_prompt_from_yaml("analysis_investment_emotions"),
+        "investment_goal": load_prompt_from_yaml("analysis_investment_goal"),
+        "investment_level": load_prompt_from_yaml("analysis_investment_level"),
+        "knowledge_level": load_prompt_from_yaml("analysis_knowledge_level"),
+        "risk_tolerance": load_prompt_from_yaml("analysis_risk_tolerance"),
+    }
+
+    prompt_template = prompt_list[current_category]
 
     llm = get_llm_models(OPENAI_MODEL_NAME)
 
-    chain = prompt_template | llm.with_structured_output(AnalysisData)  # pyright: ignore[reportPossiblyUnboundVariable]
+    chain_list = {
+        "interests_categories": prompt_template
+        | llm.with_structured_output(AnalysisData),
+        "investment_emotions": prompt_template
+        | llm.with_structured_output(AnalysisData),
+        "investment_goal": prompt_template | llm.with_structured_output(AnalysisData),
+        "investment_level": prompt_template | llm,
+        "knowledge_level": prompt_template | llm,
+        "risk_tolerance": prompt_template | llm,
+    }
 
+    chain = chain_list[current_category]
     result = chain.invoke(
-        {"compacted_user_answer": state.user_answers_compacted[current_category]}
+        {"compacted_user_answer": state.user_answers_compacted[current_category]},
     )
-    analysis_data = result.data
+
+    analysis_data = result.content
 
     message_prompt: str = ANALYSIS_USER_ANSWER_PROMPTS[current_category].format(
         user_name=state.user_meta_data["name"], data=analysis_data
     )
 
     return {
+        "logs": [
+            {
+                "level": "info",
+                "message": f"User answer analyzed for {current_category}",
+                "timestamp": time.time(),
+            }
+        ],
         "messages": [AIMessage(content=message_prompt)],
         "user_meta_data": {
             **state.user_meta_data,
@@ -262,6 +272,7 @@ Using the provided `{data}`, write a sharp, analytical profile as **a single, co
     )
 
     llm = get_llm_models(OPENAI_MODEL_NAME)
+
     structured_llm = llm
 
     chain = prompt_template | structured_llm

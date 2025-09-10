@@ -1,8 +1,8 @@
 from pathlib import Path
+from typing import Any
 
 import yaml
 from langchain_core.prompts import load_prompt
-from typing_extensions import Any
 
 PROMPTS_PATH = Path(__file__).parent / "prompts"
 
