@@ -61,7 +61,7 @@ def content_text(content):
     topic_id = str(content.get("topic_id", ""))
     
     return (
-        f"{content.get('title','')} "
+        f"{content.get('title','')}" 
         f"[태그:{tags_txt}] "
         f"[레벨:{level}] "
         f"[스타일:{style}] "
@@ -136,8 +136,12 @@ print(f"[INFO] 임베딩 차원: {emb_array.shape[1]}")
 
 # ===== 5) FAISS 인덱스 생성 =====
 print("[INFO] FAISS 인덱스 생성 중...")
-index = faiss.IndexFlatIP(emb_array.shape[1])  # 코사인 유사도용 (정규화된 벡터 사용)
-index.add(emb_array)
+
+# 코사인 유사도 검색을 위해 벡터를 정규화합니다.
+faiss.normalize_L2(emb_array)  # type: ignore
+
+index = faiss.IndexFlatIP(emb_array.shape[1])  # 정규화된 벡터에는 IndexFlatIP가 코사인 유사도와 동일
+index.add(emb_array) # type: ignore
 faiss.write_index(index, CONTENT_INDEX_PATH)
 print(f"[INFO] FAISS 인덱스 저장 완료: {CONTENT_INDEX_PATH}")
 

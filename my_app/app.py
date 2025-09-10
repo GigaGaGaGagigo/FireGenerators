@@ -2,12 +2,14 @@ import sys
 import uuid
 from pathlib import Path
 
+# Increase recursion limit to fix regex module issues
+sys.setrecursionlimit(3000)
+
 # Add project root to sys.path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
 import streamlit as st  # noqa: E402
-from streamlit.navigation.page import Page as Page  # noqa: E402
 from streamlit_option_menu import option_menu  # noqa: E402
 from supabase import Client, create_client  # noqa: E402
 from supabase._sync.client import SyncClient  # noqa: E402
@@ -54,6 +56,7 @@ ROLES: list[str | None] = [None, "User", "Admin"]
 
 # 페이지별 아이콘 매핑 - 팀원이 쉽게 수정 가능
 PAGE_ICONS = {
+    "home" : "house",
     "chatbot": "chat-dots",
     "dashboard": "bar-chart-line",
     "quiz": "question-circle",
@@ -71,9 +74,10 @@ PAGE_ICONS = {
 # 사용자 역할별 메뉴 구성 - 새로운 메뉴 추가시 여기서 수정
 USER_MENUS = {
     "User": [
-        ("사용자 메타 분석", "chatbot"),
+        ("홈 화면", "home"),
+        ("Chatbot", "chatbot"),
         ("오늘의 퀴즈", "quiz"),
-        ("맞춤형 금융 지식", "content"),
+        ("맞춤 금융 지식", "content"),
         ("맞춤형 상품 추천", "rag_recommendation"),
         ("현재 보유주식 AI코칭", "simulation"),
         ("종목 피드백", "analysis"),
@@ -81,9 +85,10 @@ USER_MENUS = {
         ("Logout", "logout"),
     ],
     "Admin": [
+        ("홈 화면", "home"),
         ("Chatbot", "chatbot"),
         ("Dashboard", "dashboard"),
-        ("맞춤형 금융 지식", "content"),
+        ("맞춤 금융 지식", "content"),
         ("Admin 1", "admin1"),
         ("Admin 2", "admin2"),
         ("Settings", "settings"),
@@ -164,6 +169,7 @@ def check_auth_params() -> None:
                 )
                 if "user_data" not in st.session_state:
                     user_data: dict = {
+                        "id": st.session_state.user.id if st.session_state.user else "",
                         "user_email": response_user_data.data[0]["email"],
                         "name": response_user_data.data[0]["name"],
                         "age": response_user_data.data[0]["age"],
@@ -184,6 +190,8 @@ def check_auth_params() -> None:
                             "knowledge_level"
                         ],
                         "risk_tolerance": response_user_data.data[0]["risk_tolerance"],
+                        "user_summary": response_user_data.data[0].get("user_summary", ""),
+                        "knowledge_summary": response_user_data.data[0].get("knowledge_summary", ""),
                     }
                     st.session_state.user_data = user_data
 
@@ -268,7 +276,7 @@ def login() -> None:
     )
 
     # 3열 레이아웃으로 버튼 중앙 배치
-    col1, col2, col3 = st.columns([1, 2, 1])
+    _, col2, _ = st.columns([1, 2, 1])
     with col2:
         # 로고 이미지 표시 (크기 조절 + 중앙 정렬)
         image_path = Path(__file__).parent / "assets" / "FIRE_LOGO_large.png"
@@ -342,9 +350,9 @@ def logout() -> None:
     # 인증 관련 세션 정보만 선택적으로 삭제
     AUTH_KEYS: list[str] = ["session", "user", "role", "current_page"]
 
-    RESSETABLE_KEYS: list[str] = USER_DATA_KEY + AUTH_KEYS
+    RESETTABLE_KEYS: list[str] = USER_DATA_KEY + AUTH_KEYS
 
-    for key in RESSETABLE_KEYS:
+    for key in RESETTABLE_KEYS:
         if key in st.session_state:
             del st.session_state[key]
 
@@ -453,7 +461,7 @@ def render_sidebar():
         page_mapping = {label: page_key for label, page_key in menu_config}
 
         # 현재 선택된 메뉴 인덱스 찾기
-        current_page = st.session_state.get("current_page", "chatbot")
+        current_page = st.session_state.get("current_page", "home")
         current_index = 0
         for i, (_, page_key) in enumerate(menu_config):
             if page_key == current_page:
@@ -506,10 +514,19 @@ def route_to_page():
     Note:
         각 페이지의 실제 구현은 ui/ 폴더의 해당 파일에서 import하여 사용
     """
-    current_page = st.session_state.get("current_page", "chatbot")
+    current_page = st.session_state.get("current_page", "home")
 
     try:
-        if current_page == "chatbot":
+        if current_page == "home":
+            try:
+                from ui.home.home import render
+                render()
+            except Exception as e:
+                st.title("🏠 홈")
+                st.error("홈 모듈 임포트 중 오류가 발생했습니다.")
+                st.exception(e)
+                st.stop()
+        elif current_page == "chatbot":
             try:
                 # pyrefly: ignore  # import-error
                 from ui.chatbot.chatbot import render
@@ -556,7 +573,7 @@ def route_to_page():
 
                 render()
             except ImportError as e:
-                st.title("🔥 맞춤형 금융 지식")
+                st.title("🔥 맞춤 금융 지식")
                 st.error(f"페이지를 불러올 수 없습니다: {e}")
                 st.info("ui/contents/user_recommender.py 파일을 확인해주세요.")
 
@@ -578,7 +595,7 @@ def route_to_page():
                 render()
             except Exception as e:
                 st.error(f"{e} 모듈 임포트 중 오류가 발생했습니다.")
-                st.exception
+                st.exception(e)
             # except ImportError:
             #     st.title("📈 현재 보유주식 AI코칭")
             #     st.info("ui/trading/trading_ui.py 파일을 생성해주세요.")
@@ -589,7 +606,7 @@ def route_to_page():
                 render()
             except Exception as e:
                 st.error(f"{e} 모듈 임포트 중 오류가 발생했습니다.")
-                st.exception
+                st.exception(e)
             # except ImportError:
             #     st.title("📊 종목 피드백")
             #     st.info("ui/analysis/analysis.py 파일을 생성해주세요.")
@@ -655,7 +672,7 @@ def main():
         st.session_state.role = None
 
     if "current_page" not in st.session_state:
-        st.session_state.current_page = "chatbot"
+        st.session_state.current_page = "home"
 
     # OAuth 콜백 처리 (페이지 로드시마다 확인)
     check_auth_params()
