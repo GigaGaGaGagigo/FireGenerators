@@ -99,6 +99,9 @@ for ticker in tqdm(tickers, desc="S&P 500 기업 정보 수집 중"):
         # 필요한 정보 추출
         long_name = info.get('longName')
         long_summary = info.get('longBusinessSummary')
+        market_cap = info.get('marketCap')
+        sector = info.get('sector')
+        industry = info.get('industry')
 
         # 기업 정보가 충분한지 확인
         if not long_name or not long_summary or len(long_summary) < 100:
@@ -114,6 +117,9 @@ for ticker in tqdm(tickers, desc="S&P 500 기업 정보 수집 중"):
             'metadata': {
                 'ticker': ticker,
                 'name': long_name,
+                'sector': sector if sector else "Unknown",
+                'industry': industry if industry else "Unknown", 
+                'marketCap': market_cap if market_cap else 0,  # 시가총액 추가
                 'text': long_summary
             }
         }
