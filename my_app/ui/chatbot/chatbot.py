@@ -319,7 +319,7 @@ def render_quiz(container):
 
 def render_finished_chat(container):
     with container:
-        st.image(FINISHED_CHAT_IMAGE_PATH, width="stretch")
+        st.image(FINISHED_CHAT_IMAGE_PATH)
 
 
 def reset_data():

@@ -681,8 +681,8 @@ def render ():
                     {"role":"system","content": full_system_message},
                     {"role":"user","content": full_prompt}
                 ],
-                max_completion_tokens=6000,
-            timeout=None       # 최대 생성 토큰 수
+                # max_completion_tokens=6000,
+                timeout=None       # 최대 생성 토큰 수
             )
 
             # 디버그
