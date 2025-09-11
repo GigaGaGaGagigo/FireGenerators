@@ -97,26 +97,49 @@ def render_emotion_card(emotions, score_map=None, size_in=3.8):
     set_korean_font()
 
     axes = ["신중함","불안","아쉬움","혼란","자신감","욕심"]
+    synonyms = {
+        "신중함": {"신중함","침착함","차분함","현실성"},
+        "불안": {"불안","불안감","초조","걱정"},
+        "아쉬움": {"아쉬움","후회"},
+        "혼란": {"혼란","동요","갈등"},
+        "자신감": {"자신감","희망","기대감","도전","적극성"},
+        "욕심": {"욕심","욕구","탐욕"},
+    }
+
+    def _norm(x): 
+        try: return max(0.0, min(1.0, float(x)))
+        except: return 0.0
+
+    emo_list = emotions or []
     scores = []
     for k in axes:
-        if score_map and k in score_map: v = float(score_map[k])
-        else: v = 0.6 if (emotions and any(k in e for e in emotions)) else 0.25
-        scores.append(max(0.0, min(1.0, v)))
+        if score_map and k in score_map:
+            v = _norm(score_map[k])
+        else:
+            # 감정 단어가 동의어에 몇 개나 걸리는지로 강도 추정 (0.35/0.55/0.75)
+            hit = sum(1 for e in emo_list for syn in synonyms[k] if syn in str(e))
+            v = 0.35 + min(hit, 2) * 0.20
+        scores.append(_norm(v))
+
     vals = scores + [scores[0]]
     angs = np.linspace(0, 2*np.pi, len(axes)+1)
 
-    fig = plt.figure(figsize=(size_in, size_in), dpi=170)  # 정사각형
+    fig = plt.figure(figsize=(size_in, size_in), dpi=220)
     ax = fig.add_subplot(111, polar=True)
-    ax.plot(angs, vals, linewidth=2)
-    ax.fill(angs, vals, alpha=0.18)
-    ax.set_thetagrids(angs[:-1]*180/np.pi, axes, fontsize=10)
-    ax.set_rgrids([0.25,0.5,0.75,1.0], angle=0, fontsize=9)
-    ax.set_ylim(0,1); ax.grid(True, linestyle="--", alpha=0.35)
-    fig.tight_layout()
+    ax.set_position([0.04, 0.04, 0.92, 0.92])   # 원 영역 크게
 
-    buf = io.BytesIO(); fig.savefig(buf, format="png", dpi=170, bbox_inches="tight", facecolor="white")
+    ax.plot(angs, vals, linewidth=2.2)
+    ax.fill(angs, vals, alpha=0.18)
+    ax.set_thetagrids(angs[:-1]*180/np.pi, axes, fontsize=40)  # 글씨 키움
+    ax.tick_params(axis="x", pad=30) 
+    ax.set_ylim(0, 1)
+    ax.grid(True, linestyle="--", alpha=0.35)
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=190, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     return base64.b64encode(buf.getvalue()).decode("ascii")
+
 
 
 def render_user_panel():
@@ -177,21 +200,19 @@ def render_user_panel():
       <div class="p-body">
         <div class="sq-row">
             <div class="square-card emotion-card">
+              <div class="card-head">리스크 허용도</div>
               <div class="sq-inner">
                 <div class="ring lg" style="--p:{risk};"><div class="v">{risk}%</div></div>
-                <div>
-                  <div class="sq-title">리스크 허용도</div>
-                  <div class="muted">현재 설정된 위험 허용 수준입니다.</div>
-                </div>
               </div>
             </div>
-              <div class="square-card emotion-card">
-                <img class="radar-img"
-                    src="data:image/png;base64,{render_emotion_card(
-                          emotions,
-                          score_map=profile.get('investment_emotions_score'),
-                          size_in=6.0)}" alt="감정분석"/>
-                <div class="sq-rail-title">감정분석</div>
+            <div class="square-card emotion-card">
+              <div class="card-head">감정분석</div>
+              <img class="radar-img"
+                  src="data:image/png;base64,{render_emotion_card(
+                        emotions,
+                        score_map=profile.get('investment_emotions_score'),
+                        size_in=6.0)}"
+                  alt="감정분석"/>
             </div>
           </div>
       </div>     <!-- /.p-body -->
