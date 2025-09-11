@@ -196,9 +196,6 @@ def inject_home_styles():
         border:1px solid rgba(37,99,235,.18);
         margin-bottom:6px;
       }
-      .news-title{
-        font-weight:800; line-height:1.35; margin:2px 0 4px 0; font-size:.98rem; text-decoration: none;
-      }
       .news-meta{
         font-size:.86rem; color:var(--muted);  color:var(--muted);
       }
