@@ -262,3 +262,4 @@ langchain-upstage==0.7.3
 langfuse==3.3.4
 seaborn==0.13.2
 yfinance # 추가
+langchain-anthropic==0.3.19
