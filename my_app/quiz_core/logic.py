@@ -125,10 +125,17 @@ def generate_next_question(proficiency: int, score: int, max_score: int, wrong_n
         wrong_summary=wrong_summary, history_summary=history_summary, keywords_str=keywords_str
     )
 
-    data = chat_json(SYSTEM_PROMPT_QGEN, user_prompt, QGEN_SCHEMA, model=MODEL_QGEN)
+    data, usage = chat_json(SYSTEM_PROMPT_QGEN, user_prompt, QGEN_SCHEMA, model=MODEL_QGEN, return_usage=True)
 
     if not data:
         raise RuntimeError("문항 생성 실패: LLM 응답 없음")
+    
+    if usage and "qeval" in st.session_state and st.session_state.qeval:
+        st.session_state.qeval.add_usage(
+            model=MODEL_QGEN,
+            input_tokens=usage["prompt_tokens"],
+            output_tokens=usage["completion_tokens"],
+        )
 
     q_type = (data.get("question_type") or "mcq").lower()
     q = {
@@ -158,10 +165,17 @@ def evaluate_answer(question_text: str, options, answer: str, user_answer: str, 
         question_text=question_text, options=options if options else [], answer=answer,
         user_answer=user_answer, level=(level or "easy"), proficiency=proficiency
     )
-    data = chat_json(SYSTEM_PROMPT_EVAL, user_prompt, EVAL_SCHEMA, model=MODEL_EVAL)
+    data, usage = chat_json(SYSTEM_PROMPT_EVAL, user_prompt, EVAL_SCHEMA, model=MODEL_EVAL, return_usage=True)
+
+    if usage and "qeval" in st.session_state and st.session_state.qeval:
+        st.session_state.qeval.add_usage(
+            model=MODEL_EVAL,
+            input_tokens=usage["prompt_tokens"],
+            output_tokens=usage["completion_tokens"],
+        )
+
     if not data:
         raise ValueError("채점 LLM 결과 JSON 파싱 실패")
-
     return {
         "is_correct": bool(data.get("is_correct")),
         "feedback": str(data.get("feedback", "")).strip(),
@@ -189,7 +203,15 @@ def generate_level_summary_llm(level_eng: str, history: list[dict], total_weight
         history_json=json.dumps(compact, ensure_ascii=False),
         topic_json=json.dumps(topic_json, ensure_ascii=False)
     )
-    data = chat_json(SYSTEM_PROMPT_SUMMARY, user_prompt, SUMMARY_SCHEMA, model=MODEL_SUMMARY)
+    data, usage = chat_json(SYSTEM_PROMPT_SUMMARY, user_prompt, SUMMARY_SCHEMA, model=MODEL_SUMMARY, return_usage=True)
+
+    if usage and "qeval" in st.session_state and st.session_state.qeval:
+        st.session_state.qeval.add_usage(
+            model=MODEL_SUMMARY,
+            input_tokens=usage["prompt_tokens"],
+            output_tokens=usage["completion_tokens"],
+        )
+
     if not data:
         return None
     level = str(data.get("level", "")).strip()

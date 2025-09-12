@@ -74,13 +74,13 @@ PAGE_ICONS = {
 # 사용자 역할별 메뉴 구성 - 새로운 메뉴 추가시 여기서 수정
 USER_MENUS = {
     "User": [
-        ("홈 화면", "home"),
+        ("Home", "home"),
         ("사용자 메타 분석", "chatbot"),
-        ("오늘의 퀴즈", "quiz"),
+        ("금융 레벨 테스트", "quiz"),
         ("맞춤 금융 지식", "content"),
-        ("맞춤 상품 추천", "rag_recommendation"),
-        ("현재 보유주식 AI코칭", "simulation"),
-        ("종목 피드백", "analysis"),
+        ("주식·ETF 추천", "rag_recommendation"),
+        ("보유주식 AI코칭", "simulation"),
+        ("관심 종목 분석", "analysis"),
         ("Settings", "settings"),
         ("Logout", "logout"),
     ],
@@ -523,11 +523,11 @@ def route_to_page():
     try:
         if current_page == "home":
             try:
-                from ui.home.home import render
+                from ui.home.home import render  # type: ignore
 
                 render()
             except Exception as e:
-                st.title("🏠 홈")
+                st.title("🏠 home")
                 st.error("홈 모듈 임포트 중 오류가 발생했습니다.")
                 st.exception(e)
                 st.stop()
@@ -566,7 +566,7 @@ def route_to_page():
 
                 render()
             except Exception as e:
-                st.title("🧠 오늘의 퀴즈")
+                st.title("🧠 금융 레벨 테스트")
                 st.error("퀴즈 모듈 임포트 중 오류가 발생했습니다.")
                 st.exception(e)
                 st.stop()
@@ -578,7 +578,7 @@ def route_to_page():
 
                 render()
             except ImportError as e:
-                st.title("🔥 맞춤 금융 지식")
+                st.title("맞춤 금융 지식")
                 st.error(f"페이지를 불러올 수 없습니다: {e}")
                 st.info("ui/contents/user_recommender.py 파일을 확인해주세요.")
 
@@ -589,8 +589,8 @@ def route_to_page():
 
                 render()
             except ImportError:
-                st.title("🤖 RAG 맞춤 추천")
-                st.info("/ui/recommendation/rag_recommendation.py 파일을 생성해주세요.")
+                st.title("주식·ETF 추천")
+                st.info("ui/recommendation/rag_recommendation.py 파일을 생성해주세요.")
 
         elif current_page == "simulation":
             try:
@@ -602,7 +602,7 @@ def route_to_page():
                 st.error(f"{e} 모듈 임포트 중 오류가 발생했습니다.")
                 st.exception(e)
             # except ImportError:
-            #     st.title("📈 현재 보유주식 AI코칭")
+            #     st.title("📈 보유주식 AI코칭")
             #     st.info("ui/trading/trading_ui.py 파일을 생성해주세요.")
         elif current_page == "analysis":
             try:

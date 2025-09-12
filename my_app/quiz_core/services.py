@@ -54,55 +54,38 @@ def _with_retry(fn, max_tries=4):
             if i == max_tries - 1: raise
             time.sleep((2 ** i) + random.random() * 0.5)
 
-def chat_json(system_prompt: str, user_prompt: str, json_schema: dict | None = None, model: str = "gpt-4o-mini"):
+def chat_json(system: str, user: str, schema: dict, *, model: str, return_usage: bool=False):
     """
-    Chat Completions로 JSON 결과 받기.
-    - response_format(json_schema) 먼저 시도 -> 안 되면 평문 JSON 강제 프롬프트
+    기존과 동일하게 JSON 파싱된 dict를 반환.
+    return_usage=True면 (data, usage_dict) 튜플을 반환.
+    usage_dict = {"prompt_tokens": int, "completion_tokens": int, "total_tokens": int}
     """
     messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_prompt},
+        {"role":"system", "content": system},
+        {"role":"user", "content": user},
     ]
-
-    def _call_with_schema():
-        kwargs = {"model": model, "messages": messages}
-        if json_schema:
-            kwargs["response_format"] = {
-                "type": "json_schema",
-                "json_schema": {"name": "structured_output", "schema": json_schema, "strict": True}
-            }
-        return client.chat.completions.create(**kwargs)
-
+    # response_format=json_object 쓰는 기존 로직 유지
+    resp = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        response_format={"type":"json_object"},
+    )
+    text = (resp.choices[0].message.content or "").strip()
     try:
-        resp = cast(ChatCompletion, _with_retry(_call_with_schema))
-        if not getattr(resp, "choices", None):
-            return None
-        raw = (resp.choices[0].message.content or "").strip()
-        js = _safe_json_loads(_extract_json(raw), None)
-        if js is not None:
-            return js
+        data = json.loads(text)
     except Exception:
-        pass
+        data = {}
 
-    def _call_plain():
-        msgs: List[ChatCompletionMessageParam] = cast(
-            List[ChatCompletionMessageParam],
-            [
-                {"role": "system", "content": system_prompt + "\n반드시 JSON만 출력하세요."},
-                {"role": "user", "content": user_prompt + "\nJSON 외 텍스트/마크다운/설명 금지."},
-            ]
-        )
+    if not return_usage:
+        return data
 
-        return client.chat.completions.create(model=model, messages=msgs)
-
-    resp = cast(ChatCompletion, _with_retry(_call_plain))
-    if not getattr(resp, "choices", None):
-        return None
-    raw = (resp.choices[0].message.content or "").strip()
-    js = _safe_json_loads(_extract_json(raw), None)
-    if js is None and raw and raw.startswith("{") and raw.endswith("}"):
-        js = _safe_json_loads(raw, None)
-    return js
+    u = getattr(resp, "usage", None)
+    usage = {
+        "prompt_tokens": getattr(u, "prompt_tokens", 0) if u else 0,
+        "completion_tokens": getattr(u, "completion_tokens", 0) if u else 0,
+        "total_tokens": getattr(u, "total_tokens", 0) if u else 0,
+    }
+    return data, usage
 
 # 현재 상태를 모두 반영하는 롤링 요약 갱신
 def update_rolling_summary(

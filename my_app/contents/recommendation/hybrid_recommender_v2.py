@@ -102,7 +102,7 @@ DEFAULT_PARAMS = {
     "beta": 0.3,
     "gamma": 0.1,
     "sim_threshold": 0.15,
-    "level_strict": True,
+    "level_strict": False,  # Ablation Study 결과: vector_only 전략으로 완화
     "use_llm_rerank": True
 }
 

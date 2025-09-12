@@ -124,9 +124,6 @@ def inject_home_styles():
       .chip{background:var(--chip);color:var(--chip-text);border:1px solid var(--border);border-radius:999px;padding:4px 10px;font-size:.85rem}
       .mini-grid{display:grid;gap:12px;grid-template-columns:1fr 1fr;margin-top:12px}
       @media (max-width:1300px){.mini-grid{grid-template-columns:1fr}}
-      .ring{--p:0;width:90px;height:90px;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p)*1%),#e2e8f0 0);position:relative}
-      .ring::before{content:"";position:absolute;inset:10px;border-radius:50%;background:#fff}
-      .ring .v{position:absolute;inset:0;display:grid;place-items:center;font-weight:900;font-size:.95rem;color:var(--ink)}
       .sum{border:1px solid var(--border);border-radius:14px;background:#fff;padding:14px;font-size:.94rem}
       .sum h4{margin:0 0 8px 0;font-size:.95rem}
 
@@ -137,6 +134,7 @@ def inject_home_styles():
       .feature-desc{font-size:.95rem;opacity:.9;margin-top:6px}
       .card-link,.card-link:link,.card-link:visited,.card-link:hover,.card-link:active{text-decoration:none!important;color:inherit!important;display:block!important}
       .card-link .feature-card{cursor:pointer}
+      
       .arrow-col{text-align:center;font-size:2rem;line-height:150px;opacity:.6;user-select:none}
       .down-arrow{text-align:center;font-size:2rem;margin:10px 0;opacity:.6;user-select:none}
 
@@ -170,6 +168,7 @@ def inject_home_styles():
       @media (max-width: 1100px){
         .sq-row{ grid-template-columns: 1fr; }
         .sq-inner .ring{ --size: clamp(120px, 38vw, 180px); --thick: 20px; }
+        .sq-row{ grid-template-columns: 1fr; }
         .emotion-card .radar-img{ max-width: clamp(200px, 60vw, 420px); }
       }
 
@@ -282,26 +281,21 @@ def inject_home_styles():
         color: var(--ink);
         margin-bottom: 10px;
       }
+    
 
       /* 리스크 카드: 제목은 위, 도넛과 설명은 아래 가로배치 */
       .square-card.risk-card{
-        display:flex; flex-direction:column; align-items:flex-start;
+        display:grid;
+        grid-template-rows: auto 1fr;
+        grid-template-columns: 1fr;
+        align-items:center;
       }
       .square-card.risk-card .sq-inner{
-        width:100%;
-        display:flex; align-items:center; gap:16px;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 16px;
       }
-      .square-card.risk-card .ring{
-        /* 크기 살짝 줄여 반반 느낌 유지 */
-        --size: clamp(140px, 20vw, 190px);
-        --thick: 24px;
-        width: var(--size); height: var(--size);
-        border-radius:50%;
-        background: conic-gradient(var(--accent) calc(var(--p)*1%), #e2e8f0 0);
-        position: relative;
-      }
-      .square-card.risk-card .ring::before{ content:""; position:absolute; inset: var(--thick); border-radius:50%; background:#fff; }
-      .square-card.risk-card .ring .v{ position:absolute; inset:0; display:grid; place-items:center; font-weight:900; }
 
       /* 감정분석 카드: 제목을 위 가로, 그래프는 크게 중앙 */
       .square-card.emotion-card{
@@ -316,17 +310,18 @@ def inject_home_styles():
       .square-card.emotion-card .radar-img{
         grid-row:2; grid-column:1; justify-self:center;
         /* 그래프 조금 더 키움 */
-        max-width: clamp(280px, 40vw, 560px);
+        max-width: clamp(200px, 30vw, 400px);
         height:auto;
       }
       .emotion-card .radar-img{
         flex:1 1 auto;
-        max-width: clamp(220px, 34vw, 460px);   /* 화면에 맞게 반응형 */
+        max-width: clamp(200px, 30vw, 400px);   /* 화면에 맞게 반응형 */
         height:auto;
       }
       /* 세로 레일(감정분석 글자) */
       .sq-rail-title{ display:none !important; }
 
+      .square-card{ min-height: 320px; }
 
       /* 카드 안 레이아웃 */
       .sq-inner{
@@ -339,25 +334,15 @@ def inject_home_styles():
 
       /* 큰 도넛 */
       .ring{
-        --p:0; --size:260px; --thick:28px;
+        --p:0; --size:130px; --thick:20px;
         width: var(--size);
         height: var(--size);
-        border-radius:50%;
+        border-radius: 50%;
         background: conic-gradient(var(--accent) calc(var(--p)*1%), #e2e8f0 0);
         position: relative;
       }
-      .sq-inner .ring{
-        /* 화면에 따라: 최소 140px ~ 최대 200px */
-        --size: clamp(140px, 22vw, 200px);
-        --thick: 24px;
-        width: var(--size);
-        height: var(--size);
-        border-radius:50%;
-        background: conic-gradient(var(--accent) calc(var(--p)*1%), #e2e8f0 0);
-        position: relative;
-        flex: 0 0 auto;          /* 텍스트 영역과 반반 느낌 */
-      }
-      .ring::before{ content:""; position:absolute; inset: var(--thick); border-radius:50%; background:#fff; }
+      .ring::before{ content:""; position:absolute; inset:var(--thick); border-radius:50%; background:#fff; }
+
       .ring .v{ position:absolute; inset:0; display:grid; place-items:center; font-weight:900; }
 
       /* 레이더 이미지가 카드 안에서 깔끔히 보이게 */
@@ -371,10 +356,7 @@ def inject_home_styles():
       }
                 
       
-                
-
-      
-
+    
     </style>
     """, unsafe_allow_html=True)
 

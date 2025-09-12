@@ -1,0 +1,242 @@
+[
+  {
+    "experiment_id": "ko-sroberta_vector_plus_rules_gpt-4o-mini_generic",
+    "user_name": "최지우",
+    "success": true,
+    "num_recommendations": 1,
+    "response_time_ms": 3338.5980129241943,
+    "error": null
+  },
+  {
+    "experiment_id": "ko-sroberta_vector_plus_rules_gpt-4o-mini_generic",
+    "user_name": "강지민",
+    "success": true,
+    "num_recommendations": 0,
+    "response_time_ms": 27.442216873168945,
+    "error": null
+  },
+  {
+    "experiment_id": "ko-sroberta_vector_plus_rules_gpt-4o-mini_generic",
+    "user_name": "문아린",
+    "success": true,
+    "num_recommendations": 0,
+    "response_time_ms": 30.85780143737793,
+    "error": null
+  },
+  {
+    "experiment_id": "ko-sroberta_vector_plus_rules_gpt-4o-mini_generic",
+    "user_name": "오수아",
+    "success": true,
+    "num_recommendations": 0,
+    "response_time_ms": 10.226964950561523,
+    "error": null
+  },
+  {
+    "experiment_id": "ko-sroberta_vector_plus_rules_gpt-4o-mini_generic",
+    "user_name": "윤채원",
+    "success": true,
+    "num_recommendations": 1,
+    "response_time_ms": 31.625986099243164,
+    "error": null
+  },
+  {
+    "experiment_id": "bge-m3_vector_plus_rules_gpt-4o-mini_generic",
+    "user_name": "최지우",
+    "success": true,
+    "num_recommendations": 0,
+    "response_time_ms": 4658.934593200684,
+    "error": null
+  },
+  {
+    "experiment_id": "bge-m3_vector_plus_rules_gpt-4o-mini_generic",
+    "user_name": "강지민",
+    "success": true,
+    "num_recommendations": 0,
+    "response_time_ms": 26.9010066986084,
+    "error": null
+  },
+  {
+    "experiment_id": "bge-m3_vector_plus_rules_gpt-4o-mini_generic",
+    "user_name": "문아린",
+    "success": true,
+    "num_recommendations": 0,
+    "response_time_ms": 34.94000434875488,
+    "error": null
+  },
+  {
+    "experiment_id": "bge-m3_vector_plus_rules_gpt-4o-mini_generic",
+    "user_name": "오수아",
+    "success": true,
+    "num_recommendations": 0,
+    "response_time_ms": 33.35213661193848,
+    "error": null
+  },
+  {
+    "experiment_id": "bge-m3_vector_plus_rules_gpt-4o-mini_generic",
+    "user_name": "윤채원",
+    "success": true,
+    "num_recommendations": 1,
+    "response_time_ms": 34.28792953491211,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_plus_rules_gpt-4o-mini_generic",
+    "user_name": "최지우",
+    "success": true,
+    "num_recommendations": 1,
+    "response_time_ms": 348.16980361938477,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_plus_rules_gpt-4o-mini_generic",
+    "user_name": "강지민",
+    "success": true,
+    "num_recommendations": 0,
+    "response_time_ms": 247.78223037719727,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_plus_rules_gpt-4o-mini_generic",
+    "user_name": "문아린",
+    "success": true,
+    "num_recommendations": 0,
+    "response_time_ms": 266.59202575683594,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_plus_rules_gpt-4o-mini_generic",
+    "user_name": "오수아",
+    "success": true,
+    "num_recommendations": 0,
+    "response_time_ms": 248.5830783843994,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_plus_rules_gpt-4o-mini_generic",
+    "user_name": "윤채원",
+    "success": true,
+    "num_recommendations": 1,
+    "response_time_ms": 262.80808448791504,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_only_gpt-4o-mini_generic",
+    "user_name": "최지우",
+    "success": true,
+    "num_recommendations": 5,
+    "response_time_ms": 261.3492012023926,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_only_gpt-4o-mini_generic",
+    "user_name": "강지민",
+    "success": true,
+    "num_recommendations": 5,
+    "response_time_ms": 275.8653163909912,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_only_gpt-4o-mini_generic",
+    "user_name": "문아린",
+    "success": true,
+    "num_recommendations": 5,
+    "response_time_ms": 214.47014808654785,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_only_gpt-4o-mini_generic",
+    "user_name": "오수아",
+    "success": true,
+    "num_recommendations": 5,
+    "response_time_ms": 184.80420112609863,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_only_gpt-4o-mini_generic",
+    "user_name": "윤채원",
+    "success": true,
+    "num_recommendations": 5,
+    "response_time_ms": 195.89900970458984,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_plus_rules_gemini-flash_generic",
+    "user_name": "최지우",
+    "success": true,
+    "num_recommendations": 1,
+    "response_time_ms": 223.56510162353516,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_plus_rules_gemini-flash_generic",
+    "user_name": "강지민",
+    "success": true,
+    "num_recommendations": 0,
+    "response_time_ms": 237.64300346374512,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_plus_rules_gemini-flash_generic",
+    "user_name": "문아린",
+    "success": true,
+    "num_recommendations": 0,
+    "response_time_ms": 192.20924377441406,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_plus_rules_gemini-flash_generic",
+    "user_name": "오수아",
+    "success": true,
+    "num_recommendations": 0,
+    "response_time_ms": 186.26093864440918,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_plus_rules_gemini-flash_generic",
+    "user_name": "윤채원",
+    "success": true,
+    "num_recommendations": 1,
+    "response_time_ms": 220.51525115966797,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_plus_rules_claude-3-haiku_generic",
+    "user_name": "최지우",
+    "success": true,
+    "num_recommendations": 1,
+    "response_time_ms": 282.01913833618164,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_plus_rules_claude-3-haiku_generic",
+    "user_name": "강지민",
+    "success": true,
+    "num_recommendations": 0,
+    "response_time_ms": 225.0659465789795,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_plus_rules_claude-3-haiku_generic",
+    "user_name": "문아린",
+    "success": true,
+    "num_recommendations": 0,
+    "response_time_ms": 229.53486442565918,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_plus_rules_claude-3-haiku_generic",
+    "user_name": "오수아",
+    "success": true,
+    "num_recommendations": 0,
+    "response_time_ms": 185.87017059326172,
+    "error": null
+  },
+  {
+    "experiment_id": "hybrid_vector_plus_rules_claude-3-haiku_generic",
+    "user_name": "윤채원",
+    "success": true,
+    "num_recommendations": 1,
+    "response_time_ms": 201.8721103668213,
+    "error": null
+  }
+]

@@ -319,7 +319,7 @@ def update_trade(trade_id, new_date, new_action, new_symbol, new_market,
 
 def render ():
 
-    st.title("📊 현재 보유주식 AI코칭")
+    st.title("📊 보유주식 AI코칭")
 
     # ① 총 손익 영역
     holdings_df, total_inv, total_val = get_holdings_data(USER_ID)
@@ -337,12 +337,12 @@ def render ():
 
     # ▶ 매수 탭
     with tab_buy:
-        st.subheader("① 보유주식 입력 (매수)")
+        st.subheader("보유주식 입력 (매수)")
         with st.form("buy_form"):
             col1, col2 = st.columns(2)
             with col1:
-                buy_symbol = st.text_input("종목코드", placeholder="005930 or AAPL")
-                buy_market = st.selectbox("시장", ["KR", "US"], key="buy_market")
+                buy_symbol = st.text_input("종목코드", placeholder="AAPL")
+                buy_market = st.selectbox("시장", ["US", "KR"], key="buy_market")
                 buy_date   = st.date_input("구매일", value=date.today(), key="buy_date")
             with col2:
                 buy_price = st.number_input("매입단가", min_value=0.0, step=0.01, key="buy_price")
@@ -443,7 +443,7 @@ def render ():
 
 
     # ③ 보유 종목 테이블
-    st.subheader("현재 보유주식 현황")
+    st.subheader("보유주식 현황")
     if holdings_df.empty:
         st.info("보유종목이 없습니다.")
     else:
@@ -673,7 +673,7 @@ def render ():
         # st.text_area("프롬프트", full_prompt, height=300)
         
         # 5) OpenAI API 호출
-        with st.spinner("AI 코칭 생성 중..."):
+        with st.spinner("AI가 회원님의 프로필에 맞는 코칭을 생성중입니다..."):
             # 2) 새 인터페이스로 호출
             response = client.chat.completions.create(
                 model="gpt-5",    # 혹은 gpt-5-2025-08-07
