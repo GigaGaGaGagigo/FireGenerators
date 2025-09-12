@@ -11,6 +11,7 @@ import pandas_ta as ta
 import json
 from openai import OpenAI
 import datetime
+import random
 
 
 # .env 로드
@@ -273,160 +274,209 @@ with st.expander("▶ 1년치 주간 시뮬레이션 설정"):
 
 if run_btn:
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    # 7일 후를 추적해볼 기간 (예: action="buy" 후 7일간)
-    forward_window = 7
+    forward_window = 30   # 매수 후 최대 며칠까지 관찰 (예: 30일)
+    monte_carlo_k = 5     # 각 스냅샷마다 랜덤 매도 시점 개수
 
-    # 1) 매주 1회, pandas.date_range로 생성
+    # 기간을 3개월로 변경
+    end_date = date.today()
+    start_date = end_date - datetime.timedelta(days=90)
+    st.write(f"테스트 기간 (3개월): {start_date} ~ {end_date}")
+
+    # 주간 스냅샷 (매주 1번)
     week_dates = pd.date_range(start=start_date, end=end_date, freq='7D').to_pydatetime().tolist()
     records = []
 
     for snapshot_date in week_dates:
         snapshot_str = snapshot_date.strftime("%Y-%m-%d")
-        # 2) 그 시점까지의 가격 데이터만 로드
+
+        # 그 시점까지의 가격 데이터를 불러옵니다
         if test_market == "US":
-            df_price = yf.Ticker(test_symbol).history(start=start_date - datetime.timedelta(days=10),
-                                                       end=snapshot_date + datetime.timedelta(days=1))
+            df_price = yf.Ticker(test_symbol).history(
+                start=start_date - datetime.timedelta(days=10),
+                end=snapshot_date + datetime.timedelta(days=1)
+            )
         else:
             df_price = fdr.DataReader(test_symbol, start=start_date - datetime.timedelta(days=10),
                                       end=snapshot_date)
 
         if df_price.empty:
             continue
+
         df_price = df_price.rename(columns={"Close":"종가","High":"고가","Low":"저가","Volume":"거래량"})
         df_price.index = df_price.index.tz_localize(None)
         df_price = df_price.loc[:snapshot_date].dropna()
-        if len(df_price) < 30:  # 최소 데이터량 체크
+        if len(df_price) < 30:
             continue
 
-        # 3) 인덱스, 현재가
         idx = len(df_price) - 1
         cur_price = float(df_price['종가'].iloc[-1])
 
-        # 4) 지표 & 펀더멘털 계산
+        # 지표 및 펀더멘털 계산
         stats = compute_advanced_stats(df_price, trade_price=cur_price, trade_idx=idx, action="buy")
         fnd   = fetch_fundamentals(test_symbol, test_market)
 
-        print("--------------------------------")
-        print(stats)
-
-        # 5) AI 에 질의 (매매 제안 받기)
-        #    – prompt 생성은 기존 코드와 동일하게 재사용
+        # LLM에 매수 타이밍(buy_t)만 묻도록 프롬프트 구성
         prompt = []
         prompt.append(f"=== 입력 데이터 ===\n시점: {snapshot_str}")
         prompt.append(f"-- {test_symbol}/{test_market} --")
         prompt.append(json.dumps(stats, ensure_ascii=False))
         prompt.append(f"PER: {fnd['PER']}, PBR: {fnd['PBR']}, EPS: {fnd['EPS']}")
-        prompt.append("=== 응답 JSON 스키마 ===")
-        role_json = {
-        "symbol":      "종목코드/시장 (예: AAPU/US)",
-        "buy_timing":  "구체적인 매수 시점 제안 float값으로 표시",
-        "sell_timing": "구체적인 매도 시점 제안 float값으로 표시",
-        "stop_loss":   "손절가 제안 float값으로 표시",
-        "rationale":   "제안 근거를 간략하게 설명"
-        }
-        role_json = json.dumps(role_json, ensure_ascii=False, indent=2)
-
-        prompt.append("\n=== 응답 JSON 스키마 ===")
-        prompt.append("결과는 반드시 각 기술지표 & 펀더멘털당 하나씩 아래 JSON 형태로만 반환하세요.")
-        prompt.append(role_json)
+        prompt.append("\n질문: 이 시점에서 권하는 **매수 가격(buy_t)** 을 float으로만 숫자 형태로 알려주세요. (예: 123.45). 만약 매수를 권하지 않으면 NaN으로 반환하세요.")
 
         full_prompt = "\n".join(prompt)
-        # st.write("프롬프트확인:", full_prompt)
-
-        system_message = [
-        "당신은 친절하고 논리적인 투자 코치입니다.",
-        "사용자가 제시한 과거 거래내역과 기술지표·펀더멘털 데이터를 보고,",
-        "매수·매도 타이밍과 손절가를 제안해주세요.",
-        "출력은 반드시 아래 JSON 스키마를 준수해야 합니다."
-        "출력은 오직 하나의 JSON 오브젝트만, 배열도, 코드펜스도 없이 깔끔하게 주십시오."
-        ]
-        full_system_message = "\n".join(system_message)
-
-        # 실제 API 호출 (테스트 양이 많으면 속도/비용을 고려하세요)
-        response = client.chat.completions.create(
-            model="gpt-5",
-            messages=[
-                {"role":"system","content":full_system_message},
-                {"role":"user","content": full_prompt}
-            ],
-            timeout=None
+        system_message = (
+            "당신은 친절하고 논리적인 투자 코치입니다.\n"
+            "사용자가 제시한 기술지표·펀더멘털 데이터를 보고, 매수 타이밍(가격)을 제안해 주세요.\n"
+            "출력은 오직 하나의 숫자(또는 NaN)로만 응답하세요."
         )
-        ai_json = response.choices[0].message.content
-        # st.write("각결과 확인:", ai_json)
-        # 6) AI 제안 파싱
-        cleaned = ai_json.replace("```json", "").replace("```", "").strip()
-        st.write("클린드", cleaned)
-        suggestion = json.loads(cleaned)
+
+        # LLM 호출
         try:
-            parsed = json.loads(cleaned)
-            # 리스트로 나올 수도, dict(객체)로 나올 수도 있다
-            if isinstance(parsed, list):
-                # 첫 번째 제안만 쓸 거라면
-                suggestion = parsed[0]
-            elif isinstance(parsed, dict):
-                suggestion = parsed
-            else:
-                raise ValueError("알 수 없는 JSON 타입")
-            buy_t  = float(suggestion.get("buy_timing", np.nan))
-            sell_t = float(suggestion.get("sell_timing", np.nan))
-            sl_t   = float(suggestion.get("stop_loss", np.nan))
+            response = client.chat.completions.create(
+                model="gpt-5",
+                messages=[
+                    {"role":"system","content":system_message},
+                    {"role":"user","content": full_prompt}
+                ],
+                timeout=None
+            )
+            ai_text = response.choices[0].message.content.strip()
+            cleaned = ai_text.replace("```", "").strip()
+            # 숫자 파싱: NaN 또는 float
+            try:
+                buy_t = float(cleaned)
+            except Exception:
+                buy_t = np.nan
         except Exception as e:
-            st.warning(f"JSON 파싱 실패: {e}")
-            buy_t, sell_t, sl_t = np.nan, np.nan, np.nan
-        
-        st.write("타이밍", buy_t, sell_t, sl_t)
+            st.warning(f"LLM 호출 실패 (스냅샷 {snapshot_str}): {e}")
+            buy_t = np.nan
 
-        # 7) 실제 다음 forward_window일간 가격으로 성과 측정
-        #    pandas.Series.append() 는 pandas 2.x 에서 제거되었으므로 pd.concat() 사용
+        # 매수 권고가 NaN이면 스킵 (Monte Carlo 시뮬레이션 불필요)
+        if np.isnan(buy_t):
+            records.append({
+                "snapshot_date": snapshot_str,
+                "cur_price": cur_price,
+                "buy_t": np.nan,
+                "mc_avg_return(%)": np.nan,
+                "mc_samples": []
+            })
+            continue
+
+        # 매수 시점 이후 forward_window 일간의 실제 가격(종가) 시계열 확보
         if test_market == "US":
-            fut = yf.Ticker(test_symbol).history(period=f"{forward_window}d")['Close']
+            fut = yf.Ticker(test_symbol).history(
+                start=snapshot_date + datetime.timedelta(days=1),
+                end=snapshot_date + datetime.timedelta(days=forward_window+1)
+            )['Close']
         else:
-            fut = fdr.DataReader(test_symbol).iloc[-forward_window:]['Close']
-        fut = fut.rename("종가")
+            fut = fdr.DataReader(test_symbol,
+                                 start=snapshot_date + datetime.timedelta(days=1),
+                                 end=snapshot_date + datetime.timedelta(days=forward_window))['Close']
 
-         # concat 하면 인덱스가 꼬이지 않도록 ignore_index=False 또는 인덱스를 리셋해도 좋습니다.
-        future_series = pd.concat([df_price['종가'], fut])
-        future = future_series.reset_index(drop=True).iloc[idx+1 : idx+1+forward_window]
-        # 실제 수익률
-        real_buy_ret = (future.max() - buy_t)/buy_t*100 if not np.isnan(buy_t) else np.nan
-        real_sell_ret= (sell_t - future.min())/sell_t*100 if not np.isnan(sell_t) else np.nan
+        if fut.empty or len(fut) == 0:
+            records.append({
+                "snapshot_date": snapshot_str,
+                "cur_price": cur_price,
+                "buy_t": buy_t,
+                "mc_avg_return(%)": np.nan,
+                "mc_samples": []
+            })
+            continue
+
+        fut = fut.reset_index(drop=True)
+
+        # Monte Carlo: k개의 랜덤 매도 시점(최소 하루 뒤)을 뽑아 '매수 가격 = buy_t' 기준 수익률 계산
+        mc_returns = []
+        for _ in range(monte_carlo_k):
+            # fut 길이에 맞춰 랜덤 인덱스 선택 (1 .. len(fut)-1 포함)
+            sell_idx = random.randint(0, max(0, len(fut)-1))
+            sell_price = float(fut.iloc[sell_idx])
+            # 수익률 = (sell_price - buy_t) / buy_t * 100
+            ret_pct = (sell_price - buy_t) / buy_t * 100
+            mc_returns.append(round(ret_pct, 4))
+
+        avg_mc_return = float(np.mean(mc_returns)) if mc_returns else np.nan
 
         records.append({
             "snapshot_date": snapshot_str,
-            "cur_price":    cur_price,
-            "buy_t":        buy_t,
-            "sell_t":       sell_t,
-            "stop_loss":    sl_t,
-            "real_buy_pct": round(real_buy_ret,2),
-            "real_sell_pct":round(real_sell_ret,2)
+            "cur_price": cur_price,
+            "buy_t": buy_t,
+            "mc_avg_return(%)": round(avg_mc_return, 4),
+            "mc_samples": mc_returns
         })
 
-    # 8) 결과 DataFrame으로 보여주기
+        # 결과 DataFrame
     df_res = pd.DataFrame(records)
-    st.subheader("▶ 백테스트 결과 (주간 시뮬레이션)")
+    st.subheader("▶ LLM(매수) + Random Monte Carlo(매도) 백테스트 결과 (3개월)")
+
+    # 컬럼 설명
+    st.markdown("""
+    **컬럼 설명**
+    - `snapshot_date`: 백테스트 시점(매수 후보 시점)  
+    - `cur_price`: 해당 시점의 실제 종가  
+    - `buy_t`: LLM이 제안한 매수 가격 (숫자). NaN이면 LLM이 매수를 권하지 않음  
+    - `mc_avg_return(%)`: Monte Carlo로 K번 랜덤 매도했을 때의 평균 수익률(%) — **buy_t 기준**  
+    - `mc_samples`: 개별 Monte Carlo 샘플(각 샘플의 수익률 % 리스트)
+    """)
+
     st.dataframe(df_res)
 
-    # 요약 통계
-    mean_buy = df_res["real_buy_pct"].mean()
-    mean_sell = df_res["real_sell_pct"].mean()
-    st.write("평균 실제 매수 수익률: ", f"{mean_buy:.2f}%")
-    st.write("평균 실제 매도 수익률: ", f"{mean_sell:.2f}%")
+    # 요약 통계: Monte Carlo 평균 수익률 & Annualized Sharpe Ratio
+    valid_mc = df_res["mc_avg_return(%)"].dropna()
+    if len(valid_mc) > 0:
+        mean_mc = valid_mc.mean()
+        st.markdown(f"**📊 Monte Carlo 평균 수익률(스냅샷별 avg):** {mean_mc:.4f}%")
 
-    # ─── Sharpe Ratio 계산 ───
-    # 1) 퍼센트->소수(예: 5% → 0.05)
-    buy_rets  = df_res["real_buy_pct"].dropna()  / 100
-    sell_rets = df_res["real_sell_pct"].dropna() / 100
-
-    # 2) 샤프 비율: (평균수익 / 수익표준편차) * sqrt(주간 빈도 연환산 √52)
-    import numpy as np
-    if len(buy_rets) > 1:
-        sharpe_buy = buy_rets.mean() / buy_rets.std() * np.sqrt(52)
-        st.write("Annualized Sharpe Ratio (매수 시뮬레이션):", f"{sharpe_buy:.2f}")
+        # 샤프비율 계산: 퍼센트 -> 소수
+        mc_rets_decimal = valid_mc / 100.0
+        if len(mc_rets_decimal) > 1 and mc_rets_decimal.std() != 0:
+            sharpe_mc = mc_rets_decimal.mean() / mc_rets_decimal.std() * np.sqrt(52)  # 주간 스냅샷 기준 연환산
+            st.markdown(f"**📈 Annualized Sharpe Ratio (Monte Carlo):** {sharpe_mc:.4f}")
+        else:
+            st.markdown("Monte Carlo 샤프 계산: 데이터 부족 또는 표준편차 0")
     else:
-        st.write("매수 시뮬레이션 샤프 계산: 데이터 부족")
+        st.markdown("유효한 Monte Carlo 결과 없음")
 
-    if len(sell_rets) > 1:
-        sharpe_sell = sell_rets.mean() / sell_rets.std() * np.sqrt(52)
-        st.write("Annualized Sharpe Ratio (매도 시뮬레이션):", f"{sharpe_sell:.2f}")
-    else:
-        st.write("매도 시뮬레이션 샤프 계산: 데이터 부족")
+    # 발표용 해석 가이드 텍스트
+    st.markdown("""
+    **해석 가이드 (예시)**  
+    - Annualized Sharpe Ratio 해석:
+      - 1.0 이상 → 준수한 성과  
+      - 2.0 이상 → 펀드 매니저도 인정하는 매우 우수한 성과  
+      - 3.0 이상 → 뛰어난 전략 (월가 퀀트 수준)  
+    - 본 평가 방식은 **LLM이 제시한 매수(가격)** 을 고정한 뒤, **랜덤 매도 시점 K개**를 뽑아 얻은 평균 성과를 측정합니다.  
+      즉, 이 수치는 'LLM의 매수 타이밍이 랜덤 매도에 대해 어느 정도 유리한가'를 보여줍니다.
+    """)
+
+    # ===== 월별 수익률 비교 =====
+    st.subheader("📊 월별 평균 수익률 비교")
+
+    try:
+        # 1. 월별 수익률 계산
+        if test_market == "US":
+            df_month = yf.download(test_symbol, start=start_date, end=end_date, auto_adjust=False)
+        else:
+            df_month = fdr.DataReader(test_symbol, start=start_date, end=end_date)
+
+        if not df_month.empty:
+            df_month = df_month.rename(columns={"Close": "종가"})
+            monthly_returns = df_month["종가"].resample("ME").last().pct_change() * 100
+            monthly_avg = float(monthly_returns.mean())  # float으로 캐스팅
+
+            st.write(f"**{test_symbol}/{test_market} 월별 평균 수익률:** {monthly_avg:.2f}%")
+
+            # 2. 유저 Monte Carlo 결과 평균과 비교
+            valid_mc = df_res["mc_avg_return(%)"].dropna()
+            if len(valid_mc) > 0:
+                user_avg = valid_mc.mean()
+                diff = user_avg - monthly_avg
+                st.write(f"**유저 전략 평균 수익률:** {user_avg:.2f}%")
+                st.write(f"➡️ 유저 전략은 월평균 대비 **{diff:+.2f}%** {'높습니다' if diff>0 else '낮습니다'}")
+            
+            # 3. 상세 표 출력
+            st.dataframe(monthly_returns.rename("월별 수익률(%)").to_frame())
+        else:
+            st.warning("월별 수익률 데이터를 불러올 수 없습니다.")
+
+    except Exception as e:
+        st.error(f"월별 수익률 계산 실패: {e}")

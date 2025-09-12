@@ -52,7 +52,6 @@ h3, h4, h5 {
 }
 h3:after, h4:after, h5:after {
   content: ""; position: absolute; left: 0; bottom: -6px; width: 48px; height: 4px;
-  background: linear-gradient(90deg, var(--pri), var(--accent));
   border-radius: 999px;
 }
 
@@ -89,8 +88,8 @@ st.markdown(THEME_CSS, unsafe_allow_html=True)
 # ---------------------------------------
 # Supabase
 # ---------------------------------------
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_ANON_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_ANON_KEY")
 if not SUPABASE_URL or not SUPABASE_KEY:
     st.error("❗환경변수 SUPABASE_URL / SUPABASE_KEY 가 필요합니다.")
     st.stop()
@@ -203,7 +202,7 @@ def render():
     # ---------------------------------------
     colL, colR = st.columns([0.65, 0.35])
     with colL:
-        st.markdown("### 🔥 FIREgenerator")
+        st.markdown("### 📊 관심 종목 분석")
         st.caption("분석 엔진 + LLM 코칭으로 거래를 더 명확하게 복기하세요.")
     with colR:
         PERIOD_PRESET = st.selectbox("기간 선택", ["최근 7일", "최근 30일", "사용자 지정"], index=1)
@@ -215,16 +214,17 @@ def render():
             days = 7 if PERIOD_PRESET == "최근 7일" else 30
             user_range = ((datetime.today()-timedelta(days=days)).date(), datetime.today().date())
         tone_global = st.selectbox("코칭 톤", ["friendly", "expert", "youth", "serious"], index=0)
-        use_llm_global = st.toggle("LLM 코칭 활성화", value=True, help="키/환경이 없으면 자동 스킵")
+        # use_llm_global = st.toggle("LLM 코칭 활성화", value=True, help="키/환경이 없으면 자동 스킵")
 
-    user_id = st.text_input("User ID", value=os.environ.get("FIXED_USER_ID",""), help="프로필·거래를 이 ID로 조회합니다.")
-    if not user_id:
-        st.info("먼저 User ID 를 입력하세요.")
-        st.stop()
-    profile = fetch_user_profile(user_id)
-    if not profile:
-        st.error("해당 User ID의 프로필을 찾을 수 없습니다.")
-        st.stop()
+    user_id = st.session_state.user.id
+    # user_id = st.text_input("User ID", value=os.getenv("FIXED_USER_ID",""), help="프로필·거래를 이 ID로 조회합니다.")
+    # if not user_id:
+    #     st.info("먼저 User ID 를 입력하세요.")
+    #     st.stop()
+    # profile = fetch_user_profile(user_id)
+    # if not profile:
+    #     st.error("해당 User ID의 프로필을 찾을 수 없습니다.")
+    #     st.stop()
 
     # ---------------------------------------
     # 탭
@@ -235,7 +235,7 @@ def render():
     # 탭 1: 개별 종목 피드백
     # =========================================================
     with tab1:
-        st.markdown("#### 1) 개별 종목 피드백 <span class='badge'>Symbol-wise</span>", unsafe_allow_html=True)
+        st.markdown("#### 개별 종목 피드백 <span class='badge'>Symbol-wise</span>", unsafe_allow_html=True)
         syms = fetch_user_traded_symbols(user_id)
         if not syms:
             st.warning("해당 사용자 거래 종목이 없습니다.")
@@ -247,13 +247,13 @@ def render():
                 action_filter = st.multiselect("액션", ["buy","sell"], default=["buy","sell"])
             with c3:
                 st.write("")
-                run_btn = st.button("분석 실행", type="primary", width="stretch")
+                run_btn = st.button("분석 실행", type="primary", use_container_width=True)
 
             start_iso, end_iso = date_range_to_iso(user_range)
-            st.caption(f"분석 기간: {start_iso} ~ {end_iso}")
+            st.caption(f"분석 기간: {start_iso[:10]} ~ {end_iso[:10]}")
 
             if run_btn:
-                with st.spinner("분석 중..."):
+                with st.spinner("AI가 회원님의 프로필에 맞는 관심 종목을 분석중입니다..."):
                     try:
                         batch = auto_trade_feedback_batch(
                             user_id=user_id,
@@ -280,7 +280,7 @@ def render():
                     st.markdown("##### 거래 목록")
                     df = pd.DataFrame(batch["per_trade"])
                     disp_cols = ["trade_id","trade_time","symbol","action","price","qty","benchmark_return_pct","rank_percentile","chart_url","style_type"]
-                    st.dataframe(df[disp_cols], width="stretch", hide_index=True)
+                    st.dataframe(df[disp_cols], use_container_width=True, hide_index=True)
 
                     # ---- 최근 거래 LLM 코칭: app.py에서 직접 생성(모델명 오류 방지) ----
                     latest = batch["per_trade"][-1]
@@ -301,7 +301,7 @@ def render():
 
                     with co1:
                         ai_text2 = None
-                        if use_llm_global:
+                        if True:
                             ctx = {
                                 **latest,
                                 "stats": stats2,
@@ -330,17 +330,17 @@ def render():
     # 탭 2: 기간별 전체 피드백
     # =========================================================
     with tab2:
-        st.markdown("#### 2) 기간별 전체 피드백 <span class='badge'>Portfolio</span>", unsafe_allow_html=True)
+        st.markdown("#### 기간별 전체 피드백 <span class='badge'>Portfolio</span>", unsafe_allow_html=True)
         c1, c2 = st.columns([0.75, 0.25])
         with c2:
-            run_all = st.button("전체 분석 실행", type="primary", width="stretch")
+            run_all = st.button("전체 분석 실행", type="primary", use_container_width=True)
         with c1:
             st.caption("기간 내 모든 거래에 대한 요약/히스토/누적 P&L")
 
         start_iso, end_iso = date_range_to_iso(user_range)
 
         if run_all:
-            with st.spinner("전체 분석 중..."):
+            with st.spinner("AI가 회원님의 프로필에 맞는 관심 종목을 분석중입니다..."):
                 try:
                     batch = auto_trade_feedback_batch(
                         user_id=user_id,
@@ -373,7 +373,7 @@ def render():
                     st.markdown("##### 종목별 요약")
                     if by_group:
                         df_by = pd.DataFrame.from_dict(by_group, orient="index").reset_index(names=["symbol"])
-                        st.dataframe(df_by, width="stretch", hide_index=True)
+                        st.dataframe(df_by, use_container_width=True, hide_index=True)
                     else:
                         st.info("그룹 요약이 없습니다.")
                 with cB:
@@ -387,7 +387,7 @@ def render():
                 with st.expander("거래 상세 목록", expanded=False):
                     if not per_trade.empty:
                         keep = ["trade_id","trade_time","symbol","market","action","price","qty","benchmark_return_pct","rank_percentile","style_type"]
-                        st.dataframe(per_trade[keep], width="stretch", hide_index=True)
+                        st.dataframe(per_trade[keep], use_container_width=True, hide_index=True)
                     else:
                         st.info("표시할 거래가 없습니다.")
             else:
@@ -397,7 +397,7 @@ def render():
     # 탭 3: 단일 거래 피드백
     # =========================================================
     with tab3:
-        st.markdown("#### 3) 단일 거래 피드백 <span class='badge'>Single Trade</span>", unsafe_allow_html=True)
+        st.markdown("#### 단일 거래 피드백 <span class='badge'>Single Trade</span>", unsafe_allow_html=True)
         start_iso, end_iso = date_range_to_iso(user_range)
         trades_df = fetch_user_trades(user_id, start_iso, end_iso)
         if trades_df.empty:
@@ -405,18 +405,18 @@ def render():
         else:
             trades_df["trade_time"] = pd.to_datetime(trades_df["trade_time"])
             show = trades_df[["id","trade_time","symbol","market","action","price","qty","commission"]].sort_values("trade_time", ascending=False)
-            st.dataframe(show, width="stretch", hide_index=True, height=280)
+            st.dataframe(show, use_container_width=True, hide_index=True, height=280)
             trade_id = st.number_input("분석할 trade_id 입력", min_value=int(show["id"].min()), max_value=int(show["id"].max()))
             c1, c2, c3 = st.columns([0.35, 0.35, 0.3])
             with c1:
-                btn = st.button("선택 거래 분석", type="primary", width="stretch")
+                btn = st.button("선택 거래 분석", type="primary", use_container_width=True)
             with c2:
                 tone3 = st.selectbox("코칭 톤(이 탭 전용)", ["friendly","expert","youth","serious"], index=0)
             with c3:
                 llm3 = st.toggle("LLM 코칭", value=True)
 
             if btn:
-                with st.spinner("단일 거래 분석 중..."):
+                with st.spinner("AI가 회원님의 프로필에 맞는 관심 종목을 분석중입니다..."):
                     try:
                         # 내부 LLM은 끄고, 아래에서 app.py가 직접 코칭 생성
                         fb_text, chart_url, _ai_text_ignored, stats = auto_trade_feedback(
@@ -428,42 +428,52 @@ def render():
                     except Exception as e:
                         st.error(f"분석 실패: {e}")
                         fb_text, chart_url, _ai_text_ignored, stats = None, None, None, {}
+                        
+                st.markdown("##### 규칙 기반 피드백")
+                if fb_text:
+                    st.markdown(f'<div class="card">{fb_text}</div>', unsafe_allow_html=True)
+                else:
+                    st.info("피드백이 없습니다.")
+                if stats:
+                    s_keys = ["stop_price","tp1_price","tp2_price","tp3_price","recommended_size_capped","slippage_bps_est","peer_rank_percentile","signal_quality"]
+                    s_view = {k: stats.get(k) for k in s_keys}
+                    st.json(s_view)
 
-                colA, colB = st.columns([0.55, 0.45])
-                with colA:
-                    st.markdown("##### 규칙 기반 피드백")
-                    if fb_text:
-                        st.markdown(f'<div class="card">{fb_text}</div>', unsafe_allow_html=True)
-                    else:
-                        st.info("피드백이 없습니다.")
-                    if stats:
-                        s_keys = ["stop_price","tp1_price","tp2_price","tp3_price","recommended_size_capped","slippage_bps_est","peer_rank_percentile","signal_quality"]
-                        s_view = {k: stats.get(k) for k in s_keys}
-                        st.json(s_view)
-                with colB:
-                    st.markdown("##### 차트")
-                    if chart_url:
-                        st.image(chart_url, use_column_width=True)
-                    else:
-                        st.info("차트 이미지가 없습니다.")
-                    st.markdown("##### AI 코칭")
-                    ai_text = None
-                    if llm3:
-                        # trades_df에서 해당 trade_id 레코드 가져와 컨텍스트 구성
-                        row = trades_df.loc[trades_df["id"] == int(trade_id)]
-                        base_ctx = row.iloc[0].to_dict() if not row.empty else {}
-                        base_ctx.update({"stats": stats, "feedback": fb_text})
-                        ai_text = gen_ai_coaching_message(base_ctx, tone=tone3)
+                # colA, colB = st.columns([0.55, 0.45])
+                # with colA:
+                #     st.markdown("##### 규칙 기반 피드백")
+                #     if fb_text:
+                #         st.markdown(f'<div class="card">{fb_text}</div>', unsafe_allow_html=True)
+                #     else:
+                #         st.info("피드백이 없습니다.")
+                #     if stats:
+                #         s_keys = ["stop_price","tp1_price","tp2_price","tp3_price","recommended_size_capped","slippage_bps_est","peer_rank_percentile","signal_quality"]
+                #         s_view = {k: stats.get(k) for k in s_keys}
+                #         st.json(s_view)
+                # with colB:
+                #     st.markdown("##### 차트")
+                #     if chart_url:
+                #         st.image(chart_url, use_column_width=True)
+                #     else:
+                #         st.info("차트 이미지가 없습니다.")
+                #     st.markdown("##### AI 코칭")
+                #     ai_text = None
+                #     if llm3:
+                #         # trades_df에서 해당 trade_id 레코드 가져와 컨텍스트 구성
+                #         row = trades_df.loc[trades_df["id"] == int(trade_id)]
+                #         base_ctx = row.iloc[0].to_dict() if not row.empty else {}
+                #         base_ctx.update({"stats": stats, "feedback": fb_text})
+                #         ai_text = gen_ai_coaching_message(base_ctx, tone=tone3)
 
-                    if ai_text:
-                        st.markdown(f'<div class="card">{ai_text}</div>', unsafe_allow_html=True)
-                        st.success("✅ LLM 코칭 메시지 생성이 완료되었습니다.")
-                        st.toast("✅ LLM 코칭 메시지 생성 완료", icon="✅")
-                    else:
-                        if llm3:
-                            st.caption("⚠️ AI 코칭이 제공되지 않았습니다. (OpenAI 키/모델 확인 필요)")
-                        else:
-                            st.caption("LLM 코칭 비활성화 상태입니다.")
+                #     if ai_text:
+                #         st.markdown(f'<div class="card">{ai_text}</div>', unsafe_allow_html=True)
+                #         st.success("✅ LLM 코칭 메시지 생성이 완료되었습니다.")
+                #         st.toast("✅ LLM 코칭 메시지 생성 완료", icon="✅")
+                #     else:
+                #         if llm3:
+                #             st.caption("⚠️ AI 코칭이 제공되지 않았습니다. (OpenAI 키/모델 확인 필요)")
+                #         else:
+                #             st.caption("LLM 코칭 비활성화 상태입니다.")
 
 # ---------------------------------------
 # 앱 실행
