@@ -14,7 +14,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from my_app.quiz_core.offline_eval import export_recent_questions_judgement, export_monthly_cost
 from my_app.quiz_core.eval_quality import default_pricing
 
-
 # (있으면) 우측 챗봇 샘플
 try:
     from ui.chatbot.chatbot import generate_simple_response, stream_data
@@ -63,8 +62,6 @@ def parallel_eval_and_qgen(
     반환 형식 고정:
     (eval_res: dict, next_question: dict|None, user_answer: str, correct: str, weight: int, eval_dt: float, qgen_dt: float)
     """
-    import time
-    from concurrent.futures import ThreadPoolExecutor, as_completed
 
     # --- 입력 정규화 ---
     options_list = options if isinstance(options, list) else []
@@ -176,6 +173,33 @@ def _ensure_number_session_key(key: str, default: int | float = 0):
     if key not in st.session_state or not isinstance(st.session_state[key], (int, float)):
         st.session_state[key] = default
 
+def format_correct_answer(correct, options):
+    # 1) O/X는 그대로
+    if isinstance(correct, bool):
+        return "O" if correct else "X"
+    if isinstance(correct, str) and correct.strip().upper() in ("O", "X"):
+        return correct.strip().upper()
+
+    # 2) 숫자면 옵션 텍스트로 치환
+    if isinstance(correct, (int, float)) or (isinstance(correct, str) and correct.strip().isdigit()):
+        idx = int(correct)
+        if options:
+            if 1 <= idx <= len(options):       # 1-based
+                return str(options[idx - 1])
+            if 0 <= idx < len(options):        # 0-based
+                return str(options[idx])
+
+    # 3) 그 외는 원문 그대로
+    return str(correct)
+
+def _strip_leading_num(s: str) -> str:
+    """앞쪽 번호/기호 제거 (예: '3. 보기' → '보기')"""
+    return re.sub(r'^\s*[\(\[]?\d+[\)\.\-]?\s*', '', s)
+
+def _strip_trailing_punct(s: str) -> str:
+    """끝쪽 마침표/기호 제거"""
+    return re.sub(r'[\.。．!?！？…\s]+$', '', s)
+
 def render_quiz_section():
     inject_styles()
     init_quiz_state()
@@ -193,6 +217,12 @@ def render_quiz_section():
     _ensure_list_session_key("history")
     _ensure_number_session_key("generated_count", 0)
     _ensure_number_session_key("total_weight", 0)
+
+    # [추가] 평가 세션(판사/비용 집계용) 1회 초기화
+    from my_app.quiz_core.eval_quality import QuizEvalSession
+    if "qeval" not in st.session_state or st.session_state.qeval is None:
+        st.session_state.qeval = QuizEvalSession(judge_model="gpt-5")
+        st.session_state.eval_done = False      # 완료 후 내보내기 1회만
 
     # 최초 진입 시(빈 상태) 공통문항 적재
     if len(st.session_state.quiz_questions) == 0 and st.session_state.quiz_index == 0:
@@ -411,7 +441,13 @@ def render_quiz_section():
                 "proficiency_after": st.session_state.proficiency
             })
 
-            feedback_text = "정답입니다! ✅" if is_correct else f"오답입니다 ❌ . 정답은 {correct}입니다."
+            if is_correct:
+                feedback_text = "정답입니다! ✅"
+            else:
+                raw = format_correct_answer(correct, options)
+                ans_txt = _strip_trailing_punct(_strip_leading_num(raw))
+                feedback_text = f"오답입니다 ❌.\n **정답은 {ans_txt}**입니다."
+
             full_feedback = f"{feedback_text}\n{feedback_text_model}".strip()
             _ensure_list_session_key("messages")
             st.session_state.messages.append({
@@ -427,11 +463,74 @@ def render_quiz_section():
                 total_weight = sum(q_.get("weight", 1) for q_ in st.session_state.quiz_questions)
                 st.session_state.total_weight = total_weight
 
+            if "qeval" in st.session_state and st.session_state.qeval:
+                payload = {
+                    "question_id": quiz.get("id") or f"q_{st.session_state.quiz_index+1}",
+                    "question_text": quiz.get("question_text") or quiz.get("text"),
+                    "options": options,
+                    "answer": correct,
+                    "user_answer": user_answer,
+                    "is_correct": int(is_correct),
+                    "question_type": quiz.get("question_type", "mcq"),
+                    "weight": quiz.get("weight", 1),
+                    "category": quiz.get("category", "기타"),
+                    "served_level": quiz.get("level") or quiz.get("served_level", "중"),
+                    "user_proficiency_before": st.session_state.proficiency,
+                    "response_time_ms": None,              # 있으면 채워도 됨
+                    "model_gen_time_ms": None,             # 있으면 채워도 됨
+                    "explanation_text": quiz.get("explanation", ""),
+                }
+                st.session_state.qeval.add(payload)
+
+            # (선택) 토큰 사용량 누적 가능하면
+            # st.session_state.qeval.add_usage(model="gpt-4o-mini", input_tokens=pt, output_tokens=ct)
+
             st.session_state.processing = False
             st.session_state.quiz_index += 1
             st.rerun()
 
     else:
+        # [추가] 퀴즈 완료 시, 한 번만 판사/비용 집계 + 파일 저장
+        if not st.session_state.get("eval_done"):
+            result = st.session_state.qeval.finalize()   # ← 여기서 gpt-5 판사 '한 번' 호출
+            judged = result["judged_questions"]
+            cost_est = result["cost_estimate"]
+
+            import pathlib, json, pandas as pd
+            ts = time.strftime("%Y%m%d_%H%M%S")
+
+            # judge 결과 저장
+            judge_dir = pathlib.Path("my_app/quiz_core/exports/judge")
+            judge_dir.mkdir(parents=True, exist_ok=True)
+
+            jsonl_path = judge_dir / f"judged_{ts}.jsonl"
+            with open(jsonl_path, "w", encoding="utf-8") as f:
+                for row in judged:
+                    f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+            df = pd.DataFrame(judged)
+            if "judge" in df.columns:
+                jdf = pd.json_normalize(df["judge"]).add_prefix("judge.")
+                df = pd.concat([df.drop(columns=["judge"]), jdf], axis=1)
+
+
+            summary = {}
+            for k in ["judge.clarity","judge.correctness","judge.difficulty_fit","judge.ambiguity","judge.justification","judge.overall"]:
+                if k in df.columns:
+                    summary[k.split(".",1)[1]] = float(df[k].mean())
+            summary_path = judge_dir / f"judged_summary_{ts}.json"
+            with open(summary_path, "w", encoding="utf-8") as f:
+                json.dump(summary, f, ensure_ascii=False, indent=2)
+
+            # 비용 저장
+            eval_dir = pathlib.Path("my_app/quiz_core/exports/eval")
+            eval_dir.mkdir(parents=True, exist_ok=True)
+            cost_path = eval_dir / f"cost_{ts}.json"
+            with open(cost_path, "w", encoding="utf-8") as f:
+                json.dump({"timestamp": ts, **cost_est}, f, ensure_ascii=False, indent=2)
+
+            st.session_state.eval_done = True
+
         # 완료
         total_weight = sum(q.get("weight", 1) for q in st.session_state.quiz_questions)
         st.session_state.total_weight = total_weight
@@ -738,19 +837,6 @@ def render():
             })
             st.session_state.streaming = True
             st.rerun()
-    # 1) 최근 문항 10개 품질 평가 → 파일 저장
-    paths = export_recent_questions_judgement(
-        questions=st.session_state.get("quiz_questions", []),
-        outdir="my_app/quiz_core/exports/judge",  # 원하는 폴더
-        n=10,
-        judge_model="gpt-5",    # 느리지만 판사 용도
-        examples_to_show=3,
-    )
-    print(paths)  # {'jsonl': '...', 'csv': '...', 'summary': '...'}
-
-    # 2) 월별 비용 추산 → 파일 저장
-    cost_path = export_monthly_cost(outdir="my_app/quiz_core/exports/eval")
-    print(cost_path)  # 'exports/eval/cost_YYYYmmdd_HHMMSS.json'
 
 # Streamlit 엔트리
 if __name__ == "__main__":

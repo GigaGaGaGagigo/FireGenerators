@@ -199,7 +199,7 @@ def render_user_panel():
 
       <div class="p-body">
         <div class="sq-row">
-            <div class="square-card emotion-card">
+            <div class="square-card risk-card">
               <div class="card-head">리스크 허용도</div>
               <div class="sq-inner">
                 <div class="ring lg" style="--p:{risk};"><div class="v">{risk}%</div></div>

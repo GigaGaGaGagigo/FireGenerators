@@ -170,6 +170,7 @@ def inject_home_styles():
       @media (max-width: 1100px){
         .sq-row{ grid-template-columns: 1fr; }
         .sq-inner .ring{ --size: clamp(120px, 38vw, 180px); --thick: 20px; }
+        .sq-row{ grid-template-columns: 1fr; }
         .emotion-card .radar-img{ max-width: clamp(200px, 60vw, 420px); }
       }
 
@@ -282,26 +283,47 @@ def inject_home_styles():
         color: var(--ink);
         margin-bottom: 10px;
       }
+    
 
       /* 리스크 카드: 제목은 위, 도넛과 설명은 아래 가로배치 */
       .square-card.risk-card{
-        display:flex; flex-direction:column; align-items:flex-start;
+        display:grid;
+        grid-template-rows: auto 1fr;
+        grid-template-columns: 1fr;
+        align-items:center;
       }
       .square-card.risk-card .sq-inner{
-        width:100%;
-        display:flex; align-items:center; gap:16px;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 16px;
       }
-      .square-card.risk-card .ring{
-        /* 크기 살짝 줄여 반반 느낌 유지 */
-        --size: clamp(140px, 20vw, 190px);
-        --thick: 24px;
-        width: var(--size); height: var(--size);
-        border-radius:50%;
+      .square-card.risk-card .ring {
+        /* 감정분석처럼 vw 기준 반응형 */ 
+        width: clamp(120px, 28vw, 180px);
+        height: clamp(120px, 28vw, 180px);
+        --thick: 26px;
+        border-radius: 50%;
         background: conic-gradient(var(--accent) calc(var(--p)*1%), #e2e8f0 0);
         position: relative;
       }
-      .square-card.risk-card .ring::before{ content:""; position:absolute; inset: var(--thick); border-radius:50%; background:#fff; }
-      .square-card.risk-card .ring .v{ position:absolute; inset:0; display:grid; place-items:center; font-weight:900; }
+
+      .square-card.risk-card .ring::before {
+        content:"";
+        position:absolute;
+        inset: var(--thick);
+        border-radius: 50%;
+        background:#fff;
+      }
+
+      .square-card.risk-card .ring .v {
+        position:absolute;
+        inset:0;
+        display:grid;
+        place-items:center;
+        font-weight:900;
+      }
+      
 
       /* 감정분석 카드: 제목을 위 가로, 그래프는 크게 중앙 */
       .square-card.emotion-card{
@@ -316,12 +338,12 @@ def inject_home_styles():
       .square-card.emotion-card .radar-img{
         grid-row:2; grid-column:1; justify-self:center;
         /* 그래프 조금 더 키움 */
-        max-width: clamp(280px, 40vw, 560px);
+        max-width: clamp(200px, 30vw, 400px);
         height:auto;
       }
       .emotion-card .radar-img{
         flex:1 1 auto;
-        max-width: clamp(220px, 34vw, 460px);   /* 화면에 맞게 반응형 */
+        max-width: clamp(200px, 30vw, 400px);   /* 화면에 맞게 반응형 */
         height:auto;
       }
       /* 세로 레일(감정분석 글자) */
@@ -371,10 +393,7 @@ def inject_home_styles():
       }
                 
       
-                
-
-      
-
+    
     </style>
     """, unsafe_allow_html=True)
 
