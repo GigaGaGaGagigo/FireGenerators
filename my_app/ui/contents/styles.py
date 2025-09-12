@@ -154,7 +154,7 @@ def get_ai_explanation_style(explanation: str) -> str:
 
 def get_profile_card_style(content: str, height: int = 385) -> str:
     """프로필 카드 스타일 반환"""
-    return f'<div class="profile-card" style="height: {height}px;">{content}</div>'
+    return f'<div class="profile-card" style="max-height: {height}px; overflow-y: auto;">{content}</div>'
 
 
 def get_quiz_card_style(header: str, content: str) -> str:

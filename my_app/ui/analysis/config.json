@@ -118,7 +118,7 @@
   "ai_coaching_goal": "사용자의 매매 타이밍을 개선하고, 전략적 인사이트를 제공한다.",
 
   "llm": {
-    "enabled_default": false,
-    "model": "gemini-1.5-flash-latest"
+    "enabled_default": true,
+    "model": "gpt-5"
   }
 }
