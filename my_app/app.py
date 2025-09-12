@@ -78,7 +78,7 @@ USER_MENUS = {
         ("사용자 메타 분석", "chatbot"),
         ("오늘의 퀴즈", "quiz"),
         ("맞춤 금융 지식", "content"),
-        ("맞춤형 상품 추천", "rag_recommendation"),
+        ("맞춤 상품 추천", "rag_recommendation"),
         ("현재 보유주식 AI코칭", "simulation"),
         ("종목 피드백", "analysis"),
         ("Settings", "settings"),
@@ -590,7 +590,7 @@ def route_to_page():
                 render()
             except ImportError:
                 st.title("🤖 RAG 맞춤 추천")
-                st.info("ui/recommendation/rag_recommendation.py 파일을 생성해주세요.")
+                st.info("/ui/recommendation/rag_recommendation.py 파일을 생성해주세요.")
 
         elif current_page == "simulation":
             try:
