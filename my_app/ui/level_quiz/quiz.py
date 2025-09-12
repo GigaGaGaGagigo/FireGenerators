@@ -491,45 +491,7 @@ def render_quiz_section():
 
     else:
         # [추가] 퀴즈 완료 시, 한 번만 판사/비용 집계 + 파일 저장
-        if not st.session_state.get("eval_done"):
-            result = st.session_state.qeval.finalize()   # ← 여기서 gpt-5 판사 '한 번' 호출
-            judged = result["judged_questions"]
-            cost_est = result["cost_estimate"]
-
-            import pathlib, json, pandas as pd
-            ts = time.strftime("%Y%m%d_%H%M%S")
-
-            # judge 결과 저장
-            judge_dir = pathlib.Path("my_app/quiz_core/exports/judge")
-            judge_dir.mkdir(parents=True, exist_ok=True)
-
-            jsonl_path = judge_dir / f"judged_{ts}.jsonl"
-            with open(jsonl_path, "w", encoding="utf-8") as f:
-                for row in judged:
-                    f.write(json.dumps(row, ensure_ascii=False) + "\n")
-
-            df = pd.DataFrame(judged)
-            if "judge" in df.columns:
-                jdf = pd.json_normalize(df["judge"]).add_prefix("judge.")
-                df = pd.concat([df.drop(columns=["judge"]), jdf], axis=1)
-
-
-            summary = {}
-            for k in ["judge.clarity","judge.correctness","judge.difficulty_fit","judge.ambiguity","judge.justification","judge.overall"]:
-                if k in df.columns:
-                    summary[k.split(".",1)[1]] = float(df[k].mean())
-            summary_path = judge_dir / f"judged_summary_{ts}.json"
-            with open(summary_path, "w", encoding="utf-8") as f:
-                json.dump(summary, f, ensure_ascii=False, indent=2)
-
-            # 비용 저장
-            eval_dir = pathlib.Path("my_app/quiz_core/exports/eval")
-            eval_dir.mkdir(parents=True, exist_ok=True)
-            cost_path = eval_dir / f"cost_{ts}.json"
-            with open(cost_path, "w", encoding="utf-8") as f:
-                json.dump({"timestamp": ts, **cost_est}, f, ensure_ascii=False, indent=2)
-
-            st.session_state.eval_done = True
+        
 
         # 완료
         total_weight = sum(q.get("weight", 1) for q in st.session_state.quiz_questions)
