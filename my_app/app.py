@@ -566,7 +566,7 @@ def route_to_page():
 
                 render()
             except Exception as e:
-                st.title("금융 레벨 테스트")
+                st.title("🧠 금융 레벨 테스트")
                 st.error("퀴즈 모듈 임포트 중 오류가 발생했습니다.")
                 st.exception(e)
                 st.stop()

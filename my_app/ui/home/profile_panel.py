@@ -88,11 +88,9 @@ def render_missing_toast(missing_fields: list[str], auto_hide_sec: int = 12):
     </div>
     """)
 
-def render_emotion_card(emotions, score_map=None, size_in=3.8):
+def render_emotion_card(emotions, score_map=None, size_in=4.0, scale=2):
     """
-    emotions: ["아쉬움","불안",...]
-    score_map: {"아쉬움":0.7, ...} (0~1) 없으면 간단 규칙으로 0.25/0.6 생성
-    width_px: IMG 최대 너비(px) — 그래프 작게 보이게 360 기본
+    감정분석 레이더 차트를 카드 안에 꽉 차게 렌더링
     """
     set_korean_font()
 
@@ -106,7 +104,7 @@ def render_emotion_card(emotions, score_map=None, size_in=3.8):
         "욕심": {"욕심","욕구","탐욕"},
     }
 
-    def _norm(x): 
+    def _norm(x):
         try: return max(0.0, min(1.0, float(x)))
         except: return 0.0
 
@@ -116,7 +114,6 @@ def render_emotion_card(emotions, score_map=None, size_in=3.8):
         if score_map and k in score_map:
             v = _norm(score_map[k])
         else:
-            # 감정 단어가 동의어에 몇 개나 걸리는지로 강도 추정 (0.35/0.55/0.75)
             hit = sum(1 for e in emo_list for syn in synonyms[k] if syn in str(e))
             v = 0.35 + min(hit, 2) * 0.20
         scores.append(_norm(v))
@@ -124,22 +121,39 @@ def render_emotion_card(emotions, score_map=None, size_in=3.8):
     vals = scores + [scores[0]]
     angs = np.linspace(0, 2*np.pi, len(axes)+1)
 
-    fig = plt.figure(figsize=(size_in, size_in), dpi=220)
+    # === 카드에 꽉 차게 ===
+    figsize = (size_in * scale, size_in * scale)
+    fig = plt.figure(figsize=figsize, dpi=int(220 * scale))
     ax = fig.add_subplot(111, polar=True)
-    ax.set_position([0.04, 0.04, 0.92, 0.92])   # 원 영역 크게
 
-    ax.plot(angs, vals, linewidth=2.2)
-    ax.fill(angs, vals, alpha=0.18)
-    ax.set_thetagrids(angs[:-1]*180/np.pi, axes, fontsize=40)  # 글씨 키움
-    ax.tick_params(axis="x", pad=30) 
+    # 여백 최소화
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.95, bottom=0.02)
+    ax.set_position([0.0, 0.0, 1.0, 1.0])  # plot이 figure 전체를 채우게
+
+    # 스타일
+    lw = 2.0 * scale
+    ax.plot(angs, vals, linewidth=lw)
+    ax.fill(angs, vals, alpha=0.20)
+
+    label_fs = int(40 * scale)
+    ax.set_thetagrids(angs[:-1] * 180/np.pi, axes, fontsize=label_fs)
+    ax.tick_params(axis="x", pad=int(22 * scale))
     ax.set_ylim(0, 1)
-    ax.grid(True, linestyle="--", alpha=0.35)
+
+    # 그리드
+    for gridline in ax.yaxis.get_gridlines() + ax.xaxis.get_gridlines():
+        gridline.set_linestyle("--")
+        gridline.set_alpha(0.35)
+        gridline.set_linewidth(0.8 * scale)
+
+    # r축 라벨 숨김
+    ax.set_yticklabels([])
 
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=190, bbox_inches="tight", facecolor="white")
+    # pad_inches=0 으로 불필요한 바깥여백 제거
+    fig.savefig(buf, format="png", dpi=int(200 * scale), bbox_inches="tight", pad_inches=0, facecolor="white")
     plt.close(fig)
     return base64.b64encode(buf.getvalue()).decode("ascii")
-
 
 
 def render_user_panel():
@@ -199,10 +213,13 @@ def render_user_panel():
 
       <div class="p-body">
         <div class="sq-row">
-            <div class="square-card emotion-card">
+            <div class="square-card risk-card">
               <div class="card-head">리스크 허용도</div>
               <div class="sq-inner">
-                <div class="ring lg" style="--p:{risk};"><div class="v">{risk}%</div></div>
+                <div class="ring"
+                    style="--p:{risk};">
+                  <div class="v">{risk}%</div>
+                </div>
               </div>
             </div>
             <div class="square-card emotion-card">
@@ -211,7 +228,7 @@ def render_user_panel():
                   src="data:image/png;base64,{render_emotion_card(
                         emotions,
                         score_map=profile.get('investment_emotions_score'),
-                        size_in=6.0)}"
+                        size_in=5.2)}"
                   alt="감정분석"/>
             </div>
           </div>
