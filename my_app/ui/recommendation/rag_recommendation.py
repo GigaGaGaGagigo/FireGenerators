@@ -310,7 +310,7 @@ def get_pinecone_index(_pinecone_client, index_name: str):
 # --- 메인 렌더링 함수 ---
 
 def render():
-    st.title("🤖 AI 맞춤 상품 추천")
+    st.title("🤖 주식·ETF 추천")
     
     llm, embeddings, supabase, pinecone = init_clients()
     user_id = st.session_state.user.id if "user" in st.session_state else None
