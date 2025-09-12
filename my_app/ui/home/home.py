@@ -93,5 +93,3 @@ def render():
         html('<div class="arrow-col">←</div>')
     with row2[0]:
         render_link_card("종목 피드백", "관심 종목별로 세부 피드백을 받아 전략을 개선하세요.", "📊", PAGE_KEYS["종목 피드백"])
-
-    st.divider()
