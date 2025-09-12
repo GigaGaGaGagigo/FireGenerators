@@ -310,7 +310,7 @@ def get_pinecone_index(_pinecone_client, index_name: str):
 # --- 메인 렌더링 함수 ---
 
 def render():
-    st.title("🤖 AI 맞춤형 상품 추천")
+    st.title("🤖 주식·ETF 추천")
     
     llm, embeddings, supabase, pinecone = init_clients()
     user_id = st.session_state.user.id if "user" in st.session_state else None
@@ -319,7 +319,7 @@ def render():
 
     with tab1:
         st.header("AI 주식 추천")
-        st.info("회원님의 투자 성향을 기반으로 맞춤형 주식을 추천해 드립니다.")
+        st.info("회원님의 투자 성향에 맞는 주식을 추천해 드립니다.")
         
         # 시가총액 필터 옵션 추가
         col1, col2 = st.columns([1, 2])
@@ -537,7 +537,7 @@ def render():
 
     with tab2:
         st.header("AI ETF 추천")
-        st.info("회원님의 투자 성향에 맞는 ETF 상품을 찾아드립니다.")
+        st.info("회원님의 투자 성향에 맞는 ETF를 추천해 드립니다.")
         etf_index = get_pinecone_index(pinecone, "rag-etf")
 
         if 'etf_recommendations' not in st.session_state:

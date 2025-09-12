@@ -1,0 +1,172 @@
+{
+  "metadata": {
+    "timestamp": "2025-09-09T15:20:58.372083",
+    "total_time_seconds": 12.924903869628906,
+    "total_experiments": 6,
+    "total_cases": 30,
+    "successful_cases": 30,
+    "success_rate": 100.0,
+    "content_db_size": 225,
+    "available_models": [
+      "ko-sroberta",
+      "bge-m3"
+    ]
+  },
+  "performance_summary": {
+    "ko-sroberta_vector_plus_rules_gpt-4o-mini_generic": {
+      "experiment_id": "ko-sroberta_vector_plus_rules_gpt-4o-mini_generic",
+      "search_model": "ko-sroberta",
+      "filtering_strategy": "vector_plus_rules",
+      "reranking_params": {
+        "alpha": 0.7,
+        "beta": 0.2,
+        "gamma": 0.1
+      },
+      "total_cases": 5,
+      "avg_recommendations": 0.4,
+      "std_recommendations": 0.48989794855663565,
+      "avg_response_time": 687.7501964569092,
+      "std_response_time": 1325.4467247878433,
+      "avg_relevance": 0.08,
+      "std_relevance": 0.09797958971132713,
+      "avg_diversity": 0.4,
+      "std_diversity": 0.48989794855663565
+    },
+    "bge-m3_vector_plus_rules_gpt-4o-mini_generic": {
+      "experiment_id": "bge-m3_vector_plus_rules_gpt-4o-mini_generic",
+      "search_model": "bge-m3",
+      "filtering_strategy": "vector_plus_rules",
+      "reranking_params": {
+        "alpha": 0.7,
+        "beta": 0.2,
+        "gamma": 0.1
+      },
+      "total_cases": 5,
+      "avg_recommendations": 0.2,
+      "std_recommendations": 0.4,
+      "avg_response_time": 957.6831340789795,
+      "std_response_time": 1850.6279535562514,
+      "avg_relevance": 0.04,
+      "std_relevance": 0.08,
+      "avg_diversity": 0.2,
+      "std_diversity": 0.4
+    },
+    "hybrid_vector_plus_rules_gpt-4o-mini_generic": {
+      "experiment_id": "hybrid_vector_plus_rules_gpt-4o-mini_generic",
+      "search_model": "hybrid",
+      "filtering_strategy": "vector_plus_rules",
+      "reranking_params": {
+        "alpha": 0.7,
+        "beta": 0.2,
+        "gamma": 0.1
+      },
+      "total_cases": 5,
+      "avg_recommendations": 0.4,
+      "std_recommendations": 0.48989794855663565,
+      "avg_response_time": 274.7870445251465,
+      "std_response_time": 37.4475392439617,
+      "avg_relevance": 0.08,
+      "std_relevance": 0.09797958971132713,
+      "avg_diversity": 0.4,
+      "std_diversity": 0.48989794855663565
+    },
+    "hybrid_vector_only_gpt-4o-mini_generic": {
+      "experiment_id": "hybrid_vector_only_gpt-4o-mini_generic",
+      "search_model": "hybrid",
+      "filtering_strategy": "vector_only",
+      "reranking_params": {
+        "alpha": 0.7,
+        "beta": 0.2,
+        "gamma": 0.1
+      },
+      "total_cases": 5,
+      "avg_recommendations": 5.0,
+      "std_recommendations": 0.0,
+      "avg_response_time": 226.47757530212402,
+      "std_response_time": 35.975203572306135,
+      "avg_relevance": 1.0,
+      "std_relevance": 0.0,
+      "avg_diversity": 0.2,
+      "std_diversity": 0.0
+    },
+    "hybrid_vector_plus_rules_gemini-flash_generic": {
+      "experiment_id": "hybrid_vector_plus_rules_gemini-flash_generic",
+      "search_model": "hybrid",
+      "filtering_strategy": "vector_plus_rules",
+      "reranking_params": {
+        "alpha": 0.7,
+        "beta": 0.2,
+        "gamma": 0.1
+      },
+      "total_cases": 5,
+      "avg_recommendations": 0.4,
+      "std_recommendations": 0.48989794855663565,
+      "avg_response_time": 212.0387077331543,
+      "std_response_time": 19.58566069613672,
+      "avg_relevance": 0.08,
+      "std_relevance": 0.09797958971132713,
+      "avg_diversity": 0.4,
+      "std_diversity": 0.48989794855663565
+    },
+    "hybrid_vector_plus_rules_claude-3-haiku_generic": {
+      "experiment_id": "hybrid_vector_plus_rules_claude-3-haiku_generic",
+      "search_model": "hybrid",
+      "filtering_strategy": "vector_plus_rules",
+      "reranking_params": {
+        "alpha": 0.7,
+        "beta": 0.2,
+        "gamma": 0.1
+      },
+      "total_cases": 5,
+      "avg_recommendations": 0.4,
+      "std_recommendations": 0.48989794855663565,
+      "avg_response_time": 224.87244606018066,
+      "std_response_time": 32.67327029594107,
+      "avg_relevance": 0.08,
+      "std_relevance": 0.09797958971132713,
+      "avg_diversity": 0.4,
+      "std_diversity": 0.48989794855663565
+    }
+  },
+  "best_performers": {
+    "relevance": {
+      "experiment_id": "hybrid_vector_only_gpt-4o-mini_generic",
+      "score": 1.0,
+      "config": {
+        "search_model": "hybrid",
+        "filtering": "vector_only",
+        "reranking": {
+          "alpha": 0.7,
+          "beta": 0.2,
+          "gamma": 0.1
+        }
+      }
+    },
+    "speed": {
+      "experiment_id": "hybrid_vector_plus_rules_gemini-flash_generic",
+      "response_time_ms": 212.0387077331543,
+      "config": {
+        "search_model": "hybrid",
+        "filtering": "vector_plus_rules",
+        "reranking": {
+          "alpha": 0.7,
+          "beta": 0.2,
+          "gamma": 0.1
+        }
+      }
+    },
+    "diversity": {
+      "experiment_id": "ko-sroberta_vector_plus_rules_gpt-4o-mini_generic",
+      "score": 0.4,
+      "config": {
+        "search_model": "ko-sroberta",
+        "filtering": "vector_plus_rules",
+        "reranking": {
+          "alpha": 0.7,
+          "beta": 0.2,
+          "gamma": 0.1
+        }
+      }
+    }
+  }
+}

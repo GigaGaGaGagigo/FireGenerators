@@ -389,7 +389,7 @@ def render():
     css_path = str(Path(__file__).parents[2] / "assets" / "style.css")
     load_css(css_path)
 
-    _, left_screen, right_screen, _ = st.columns([0.1, 0.4, 0.4, 0.1], border=False)
+    _, left_screen, right_screen, _ = st.columns([0.03, 0.47, 0.47, 0.03], border=False)
 
     # 왼쪽에서 두 번째 열에 Jasan Rescue 텍스트 배치
     with left_screen:
@@ -399,10 +399,10 @@ def render():
         )
 
     with left_screen:
-        st.session_state["quiz_placeholder"] = st.container(border=True, height=400)
+        st.session_state["quiz_placeholder"] = st.container(border=True, height=680)
 
     with right_screen:
-        st.session_state["chat_placeholder"] = st.container(border=True, height=480)
+        st.session_state["chat_placeholder"] = st.container(border=True, height=760)
 
     if not st.session_state.get("ai", {}).get("initialized", False):
         user_data: dict = st.session_state.user_data

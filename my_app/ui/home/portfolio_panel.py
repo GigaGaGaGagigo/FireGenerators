@@ -66,7 +66,7 @@ def render_portfolio_panel(user_id: str, base_ccy_init: str | None = None, fx_ra
 
     html(
         f'<div class="port-card"><div class="port-title">📊 현재 자산 '
-        f'<span class="badge-soft">user_id: {user_id or "—"}</span></div>'
+        # f'<span class="badge-soft">user_id: {user_id or "—"}</span></div>'
     )
 
     # 1) 환율/기준통화를 항상 먼저 확정
