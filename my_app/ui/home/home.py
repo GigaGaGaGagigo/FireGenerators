@@ -65,15 +65,15 @@ def render():
     except TypeError:
         row1 = st.columns([3,1,3,1,3])
     with row1[0]:
-        render_link_card("Chatbot", "투자 목표·감정·관심사·투자 수준을 입력하고 상담을 시작하세요.", "💬", PAGE_KEYS["Chatbot"])
+        render_link_card("사용자 메타 분석", "투자 목표·감정·관심사·투자 수준을 입력하고 상담을 시작하세요.", "💬")
     with row1[1]:
         html('<div class="arrow-col">→</div>')
     with row1[2]:
-        render_link_card("오늘의 퀴즈", "관심 카테고리에 맞춘 퀴즈로 지식을 점검하세요.", "🧠", PAGE_KEYS["오늘의 퀴즈"])
+        render_link_card("금융 레벨 테스트", "관심 카테고리에 맞춘 퀴즈로 지식을 점검하세요.", "🧠")
     with row1[3]:
         html('<div class="arrow-col">→</div>')
     with row1[4]:
-        render_link_card("맞춤형 금융 지식", "퀴즈 결과와 관심사에 따라 개인화된 콘텐츠를 학습하세요.", "📖", PAGE_KEYS["맞춤형 금융 지식"])
+        render_link_card("맞춤형 금융 지식", "퀴즈 결과와 관심사에 따라 개인화된 콘텐츠를 학습하세요.", "📖")
 
     down = st.columns([3,1,3,1,3])
     with down[4]:
@@ -84,12 +84,12 @@ def render():
     except TypeError:
         row2 = st.columns([3,1,3,1,3])
     with row2[4]:
-        render_link_card("맞춤형 상품 추천", "투자 성향을 반영한 주식·상품을 추천받으세요.", "🎁", PAGE_KEYS["맞춤형 상품 추천"])
+        render_link_card("주식·ETF 추천", "투자 성향을 반영한 주식·상품을 추천받으세요.", "🎁")
     with row2[3]:
         html('<div class="arrow-col">←</div>')
     with row2[2]:
-        render_link_card("현재 보유주식 AI코칭", "보유 종목을 등록해 진단과 코칭을 받으세요.", "📈", PAGE_KEYS["현재 보유주식 AI코칭"])
+        render_link_card("보유주식 AI 코칭", "보유 종목을 등록해 진단과 코칭을 받으세요.", "📈")
     with row2[1]:
         html('<div class="arrow-col">←</div>')
     with row2[0]:
-        render_link_card("종목 피드백", "관심 종목별로 세부 피드백을 받아 전략을 개선하세요.", "📊", PAGE_KEYS["종목 피드백"])
+        render_link_card("관심 종목 분석", "관심 종목별로 세부 피드백을 받아 전략을 개선하세요.", "📊")

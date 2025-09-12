@@ -722,7 +722,7 @@ def render():
             r = m["role"].strip().lower()
             m["role"] = r if r in ("assistant", "user") else "assistant"
 
-    st.title("🧠 오늘의 퀴즈")
+    st.title("🧠 금융 레벨 테스트")
     st.caption("공통문항 + LLM 맞춤 문항으로 금융 지식을 빠르게 점검합니다.")
 
     left_screen, right_screen = st.columns([0.55, 0.45], border=True)
@@ -756,7 +756,7 @@ def render():
             render_quiz_section()
 
     with right_screen:
-        st.title("🚒 금융 구조대")
+        st.title("🚒 Jasan Rescue")
 
         chat_container = st.container(border=True, height=500)
         with chat_container:

@@ -124,9 +124,6 @@ def inject_home_styles():
       .chip{background:var(--chip);color:var(--chip-text);border:1px solid var(--border);border-radius:999px;padding:4px 10px;font-size:.85rem}
       .mini-grid{display:grid;gap:12px;grid-template-columns:1fr 1fr;margin-top:12px}
       @media (max-width:1300px){.mini-grid{grid-template-columns:1fr}}
-      .ring{--p:0;width:90px;height:90px;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p)*1%),#e2e8f0 0);position:relative}
-      .ring::before{content:"";position:absolute;inset:10px;border-radius:50%;background:#fff}
-      .ring .v{position:absolute;inset:0;display:grid;place-items:center;font-weight:900;font-size:.95rem;color:var(--ink)}
       .sum{border:1px solid var(--border);border-radius:14px;background:#fff;padding:14px;font-size:.94rem}
       .sum h4{margin:0 0 8px 0;font-size:.95rem}
 
@@ -137,6 +134,7 @@ def inject_home_styles():
       .feature-desc{font-size:.95rem;opacity:.9;margin-top:6px}
       .card-link,.card-link:link,.card-link:visited,.card-link:hover,.card-link:active{text-decoration:none!important;color:inherit!important;display:block!important}
       .card-link .feature-card{cursor:pointer}
+      
       .arrow-col{text-align:center;font-size:2rem;line-height:150px;opacity:.6;user-select:none}
       .down-arrow{text-align:center;font-size:2rem;margin:10px 0;opacity:.6;user-select:none}
 
@@ -298,32 +296,6 @@ def inject_home_styles():
         align-items: center;
         gap: 16px;
       }
-      .square-card.risk-card .ring {
-        /* 감정분석처럼 vw 기준 반응형 */ 
-        width: clamp(120px, 28vw, 180px);
-        height: clamp(120px, 28vw, 180px);
-        --thick: 26px;
-        border-radius: 50%;
-        background: conic-gradient(var(--accent) calc(var(--p)*1%), #e2e8f0 0);
-        position: relative;
-      }
-
-      .square-card.risk-card .ring::before {
-        content:"";
-        position:absolute;
-        inset: var(--thick);
-        border-radius: 50%;
-        background:#fff;
-      }
-
-      .square-card.risk-card .ring .v {
-        position:absolute;
-        inset:0;
-        display:grid;
-        place-items:center;
-        font-weight:900;
-      }
-      
 
       /* 감정분석 카드: 제목을 위 가로, 그래프는 크게 중앙 */
       .square-card.emotion-card{
@@ -349,6 +321,7 @@ def inject_home_styles():
       /* 세로 레일(감정분석 글자) */
       .sq-rail-title{ display:none !important; }
 
+      .square-card{ min-height: 320px; }
 
       /* 카드 안 레이아웃 */
       .sq-inner{
@@ -361,25 +334,15 @@ def inject_home_styles():
 
       /* 큰 도넛 */
       .ring{
-        --p:0; --size:260px; --thick:28px;
+        --p:0; --size:130px; --thick:20px;
         width: var(--size);
         height: var(--size);
-        border-radius:50%;
+        border-radius: 50%;
         background: conic-gradient(var(--accent) calc(var(--p)*1%), #e2e8f0 0);
         position: relative;
       }
-      .sq-inner .ring{
-        /* 화면에 따라: 최소 140px ~ 최대 200px */
-        --size: clamp(140px, 22vw, 200px);
-        --thick: 24px;
-        width: var(--size);
-        height: var(--size);
-        border-radius:50%;
-        background: conic-gradient(var(--accent) calc(var(--p)*1%), #e2e8f0 0);
-        position: relative;
-        flex: 0 0 auto;          /* 텍스트 영역과 반반 느낌 */
-      }
-      .ring::before{ content:""; position:absolute; inset: var(--thick); border-radius:50%; background:#fff; }
+      .ring::before{ content:""; position:absolute; inset:var(--thick); border-radius:50%; background:#fff; }
+
       .ring .v{ position:absolute; inset:0; display:grid; place-items:center; font-weight:900; }
 
       /* 레이더 이미지가 카드 안에서 깔끔히 보이게 */
