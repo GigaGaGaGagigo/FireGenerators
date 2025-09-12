@@ -523,7 +523,7 @@ def route_to_page():
     try:
         if current_page == "home":
             try:
-                from ui.home.home import render
+                from ui.home.home import render  # type: ignore
 
                 render()
             except Exception as e:
