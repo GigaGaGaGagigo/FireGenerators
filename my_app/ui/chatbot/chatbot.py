@@ -49,7 +49,7 @@ STREAMLIT_SLEEP_S = 0.5
 
 def load_css(file_path: str) -> None:
     """Injects custom CSS into the Streamlit app."""
-    with open(file_path, "r") as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 
@@ -319,7 +319,7 @@ def render_quiz(container):
 
 def render_finished_chat(container):
     with container:
-        st.image(FINISHED_CHAT_IMAGE_PATH, width="stretch")
+        st.image(FINISHED_CHAT_IMAGE_PATH)
 
 
 def reset_data():

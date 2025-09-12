@@ -41,7 +41,11 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-import pandas_ta as ta
+try:
+    import pandas_ta as ta            # 공식 패키지(파이썬 3.12+)
+except ModuleNotFoundError:
+    import pandas_ta_classic as ta    # 포크(파이썬 3.10/3.11 호환)
+
 from dotenv import load_dotenv
 
 from supabase import create_client
@@ -72,9 +76,10 @@ except Exception:
     ValidationError = Exception
 
 try:
-    import google.generativeai as genai
+     # OpenAI SDK (optional)
+     from openai import OpenAI
 except Exception:
-    genai = None
+     OpenAI = None
 # -----------------------------------
 
 try:
@@ -116,7 +121,6 @@ if BaseModel:
         enabled: bool = False
         provider: str = "none"         # e.g., "alpaca|polygon|ibkr|kite|none"
         tz_policy: str = "exchange"    # "exchange"|"local"
-        # any provider-specific params could be nested here
 
     class CostRow(BaseModel):
         market: str = Field(..., pattern="^(KR|US)$")
@@ -136,7 +140,6 @@ if BaseModel:
         tp1_atr_mult: float = 2.0
         allow_fractional: Dict[str, bool] = {"KR": False, "US": True}
         kr_tick_table: Optional[List[List[float]]] = None  # [[lo,hi,step], ...]
-        # tables are sourced from DB primarily; below provide static defaults
         static_cost_table: List[CostRow] = []
 
     class FeedbackCfg(BaseModel):
@@ -146,14 +149,12 @@ if BaseModel:
         analysis_window_days: int = 7
         peer_min_samples: int = 60
         peer_window_days: int = 3
-        # peer sampling controls
         peer_same_session: bool = True
         peer_timebox_minutes: int = 60
         peer_halflife_minutes: int = 60
-        # robust outlier filter
         outlier_filter: str = "iqr"      # "iqr"|"mad"|"none"
-        outlier_k: float = 1.5           # IQR multiplier or MAD factor
-        min_effective_peers: int = 25    # reliability threshold
+        outlier_k: float = 1.5
+        min_effective_peers: int = 25
 
     class CalcCfg(BaseModel):
         winsorize_sigma: float = 4.0
@@ -172,7 +173,7 @@ if BaseModel:
 
     class LlmCfg(BaseModel):
         enabled_default: bool = False
-        model: str = "gemini-1.5-flash-latest"
+        model: str = "gpt-5"
 
     class PortfolioCaps(BaseModel):
         per_trade_risk: float = 0.0025
@@ -250,7 +251,7 @@ EXCHANGE_CODES: Dict[str, str] = CAL_CFG.get("exchange_codes", {"KR": "XKRX", "U
 
 LLM_CFG = service_config.get("llm", {})
 LLM_ENABLED_DEFAULT: bool = bool(LLM_CFG.get("enabled_default", False))
-LLM_MODEL_NAME: str = LLM_CFG.get("model", "gemini-1.5-flash-latest")
+LLM_MODEL_NAME: str = LLM_CFG.get("model", "gpt-5")
 
 PORT_CAPS = service_config.get("portfolio_caps", {
     "per_trade_risk": 0.0025,
@@ -370,7 +371,6 @@ def snap_to_index_or_next(idx: pd.DatetimeIndex, t: pd.Timestamp) -> pd.Timestam
     m = idx >= t
     return idx[m][0] if m.any() else idx[-1]
 
-
 def snap_to_index_or_prev(idx: pd.DatetimeIndex, t: pd.Timestamp) -> pd.Timestamp:
     """가장 가까운 과거(<=t) 인덱스 반환; 없으면 첫 인덱스."""
     if t in idx: return t
@@ -388,7 +388,6 @@ def event_cutoff_for_daily(trade_time_iso: str, market: str) -> pd.Timestamp:
     ts_local = ts.tz_convert(tz) if (tz and ts.tzinfo) else (ts.tz_localize(tz) if tz else ts)
     code = _calendar_code(market)
     if not code:
-        # mcal 없음: 전일 23:59:59 기준으로 자르기
         return (ts_local.normalize() - pd.Timedelta(days=1)).tz_localize(None) if ts_local.tzinfo else (pd.to_datetime(ts_local.date()) - pd.Timedelta(days=1))
     try:
         cal = mcal.get_calendar(code)
@@ -397,7 +396,6 @@ def event_cutoff_for_daily(trade_time_iso: str, market: str) -> pd.Timestamp:
             end_date=ts_local.date() + dt.timedelta(days=120)
         ).copy()
         cl = sched["market_close"].dt.tz_convert(ts_local.tz)
-        # ts_local 이전의 마지막 종가
         before = cl[cl < ts_local]
         if len(before):
             cutoff = before.iloc[-1]
@@ -571,7 +569,6 @@ def _tick_equalize(series: pd.Series, market: str) -> pd.Series:
 # =========================================================
 # JSON/PII utilities
 # =========================================================
-
 def _sanitize_for_json(obj: Any) -> Any:
     import numpy as np
     import pandas as pd
@@ -604,7 +601,6 @@ def _sanitize_for_json(obj: Any) -> Any:
         pass
     return obj
 
-
 def _mask_user(u: Dict[str, Any]) -> Dict[str, Any]:
     if not u: return u
     v = dict(u)
@@ -633,7 +629,6 @@ def required_lookback_days(cfg: Dict[str, Any]) -> int:
 # =========================================================
 # Data layer (daily + intraday hook) & harmonize
 # =========================================================
-
 def _normalize_index(df: pd.DataFrame) -> pd.DataFrame:
     """
     Robust index normalization:
@@ -656,7 +651,6 @@ def _normalize_index(df: pd.DataFrame) -> pd.DataFrame:
     except Exception:
         pass
     return df
-
 
 def _harmonize(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -697,15 +691,12 @@ def _harmonize(df: pd.DataFrame) -> pd.DataFrame:
     out["저가"]   = low
     out["거래량"] = vol
 
-
-
     for c in ["시가","종가","고가","저가","거래량"]:
         out[c] = pd.to_numeric(out[c], errors="coerce").astype("float64")
 
     out = out.dropna(subset=["종가","고가","저가"])
 
     return out
-
 
 def _kr_primary(symbol: str, start: str, end: str) -> pd.DataFrame:
     """
@@ -722,7 +713,6 @@ def _kr_primary(symbol: str, start: str, end: str) -> pd.DataFrame:
     except Exception:
         return pd.DataFrame()
 
-
 def _kr_secondary(symbol: str, start: str, end: str) -> pd.DataFrame:
     """
     Secondary KR daily source: FinanceDataReader (if available)
@@ -737,7 +727,6 @@ def _kr_secondary(symbol: str, start: str, end: str) -> pd.DataFrame:
     except Exception:
         return pd.DataFrame()
 
-
 def _us_primary(symbol: str, start: str, end: str) -> pd.DataFrame:
     """
     Primary US daily source: yfinance (auto_adjust=True)
@@ -747,7 +736,6 @@ def _us_primary(symbol: str, start: str, end: str) -> pd.DataFrame:
         return _harmonize(df)
     except Exception:
         return pd.DataFrame()
-
 
 def _us_secondary(symbol: str, start: str, end: str) -> pd.DataFrame:
     """
@@ -760,7 +748,6 @@ def _us_secondary(symbol: str, start: str, end: str) -> pd.DataFrame:
         return _harmonize(df)
     except Exception:
         return pd.DataFrame()
-
 
 @lru_cache(maxsize=256)
 def get_stock_price_cached(symbol: str, market: str, start_date: str, end_date: str) -> pd.DataFrame:
@@ -780,16 +767,13 @@ def get_stock_price_cached(symbol: str, market: str, start_date: str, end_date: 
                 return df
     return pd.DataFrame()
 
-
 def get_stock_price(symbol: str, market: str, start: str, end: str) -> pd.DataFrame:
     """
     Public wrapper returning a copy (to avoid mutability surprises).
     """
     return get_stock_price_cached(symbol, market, str(start), str(end)).copy()
 
-
 # ------------------ Intraday hook (optional) ------------------
-
 def get_intraday_prices(symbol: str, market: str, start_dt: pd.Timestamp, end_dt: pd.Timestamp) -> pd.DataFrame:
     """
     Intraday (minute) data hook.
@@ -804,7 +788,6 @@ def get_intraday_prices(symbol: str, market: str, start_dt: pd.Timestamp, end_dt
     # TODO: implement specific providers (alpaca/polygon/ibkr/etc.)
     logger.info(f"[INTRADAY] provider '{cfg.get('provider')}' not implemented; fallback to daily-only.")
     return pd.DataFrame()
-
 
 def _session_vwap_from_intraday(df_min: pd.DataFrame) -> pd.Series:
     """
@@ -827,11 +810,9 @@ def _session_vwap_from_intraday(df_min: pd.DataFrame) -> pd.Series:
     vwap_daily.name = "VWAP"
     return vwap_daily
 
-
 # =========================================================
 # Indicators (snapshot, no leakage) with true session VWAP policy
 # =========================================================
-
 def compute_indicators_snapshot(
     df_hist: pd.DataFrame,
     cfg: Dict[str, Any],
@@ -925,7 +906,6 @@ def compute_indicators_snapshot(
     mu_obv  = df["OBV"].rolling(OBV_Z_WINDOW, min_periods=OBV_Z_WINDOW).mean()
     sd_obv  = df["OBV"].rolling(OBV_Z_WINDOW, min_periods=OBV_Z_WINDOW).std(ddof=0).replace(0, np.nan)
     df["OBV_Z"] = ((df["OBV"] - mu_obv) / sd_obv).clip(lower=-WINSOR_SIGMA, upper=WINSOR_SIGMA)
-
     vol_ma  = df["거래량"].rolling(VOL_Z_WINDOW, min_periods=VOL_Z_WINDOW).mean()
     vol_sd  = df["거래량"].rolling(VOL_Z_WINDOW, min_periods=VOL_Z_WINDOW).std(ddof=0).replace(0, np.nan)
     df["VOL_Z"] = ((df["거래량"] - vol_ma) / vol_sd).clip(lower=-WINSOR_SIGMA, upper=WINSOR_SIGMA)
@@ -982,11 +962,9 @@ def compute_indicators_snapshot(
 
     return snap, df
 
-
 # =========================================================
 # Multi-timeframe helper
 # =========================================================
-
 def weekly_trend_confluence(df_hist: pd.DataFrame) -> float:
     """
     Confluence between weekly and daily EMA(20) trend directions.
@@ -1004,11 +982,9 @@ def weekly_trend_confluence(df_hist: pd.DataFrame) -> float:
     except Exception:
         return 0.0
 
-
 # =========================================================
 # Peer sampling (timebox + decay + tick-equality + robust outlier filter + quality weighting)
 # =========================================================
-
 def fetch_peer_trades(
     symbol: str,
     market: str,
@@ -1043,7 +1019,6 @@ def fetch_peer_trades(
         logger.error(f"fetch_peer_trades failed: {e}")
         return []
 
-
 def fetch_peer_quality_map(user_ids: List[str]) -> Dict[str, float]:
     """
     Fetch per-user quality weights from 'peer_stats' table.
@@ -1071,7 +1046,6 @@ def fetch_peer_quality_map(user_ids: List[str]) -> Dict[str, float]:
         out[uid] = float(np.clip(wq, 0.25, 2.0))
     return out
 
-
 def _to_local(ts_iso: str, market: str) -> pd.Timestamp:
     tz = ZoneInfo(market_tz(market)) if ZoneInfo else None
     t = pd.to_datetime(ts_iso)
@@ -1079,7 +1053,6 @@ def _to_local(ts_iso: str, market: str) -> pd.Timestamp:
 
 def _same_session_local(trade_ts_local: pd.Timestamp, other_ts_local: pd.Timestamp) -> bool:
     return trade_ts_local.date() == other_ts_local.date()
-
 
 def _robust_filter_prices(x: pd.Series, method: str = "iqr", k: float = 1.5) -> pd.Series:
     """
@@ -1103,7 +1076,6 @@ def _robust_filter_prices(x: pd.Series, method: str = "iqr", k: float = 1.5) -> 
     mad = np.nanmedian(np.abs(xv - med)) + 1e-12
     z = 0.6745 * (xv - med) / mad
     return np.abs(z) <= k
-
 
 def user_weighted_peer_prices_timeboxed(
     peers: List[Dict[str, Any]],
@@ -1137,7 +1109,6 @@ def user_weighted_peer_prices_timeboxed(
     from collections import defaultdict
     acc_pv = defaultdict(float)   # sum(price * weight)
     acc_w  = defaultdict(float)   # sum(weight)
-    raw_ids = set()
 
     def time_decay_w(dt_peer_local: pd.Timestamp) -> float:
         if halflife_min <= 0:
@@ -1158,12 +1129,9 @@ def user_weighted_peer_prices_timeboxed(
         w = float(q) * time_decay_w(peer_local)
         acc_pv[uid] += float(px) * w
         acc_w[uid]  += w
-        raw_ids.add(uid)
 
     # Build user-level price & weight
-    prices = []
-    weights = []
-    user_ids = []
+    prices, weights, user_ids = [], [], []
     for uid, w in acc_w.items():
         if w > 0:
             prices.append(acc_pv[uid]/w)
@@ -1199,7 +1167,6 @@ def user_weighted_peer_prices_timeboxed(
     info = {"count": int(len(s_prices)), "eff_count": eff, "removed_outliers": removed, "quality_used": quality_used}
     return s_prices, s_weights, info
 
-
 def weighted_median(x: pd.Series, w: pd.Series) -> Optional[float]:
     """
     Weighted median of user-level prices.
@@ -1212,7 +1179,6 @@ def weighted_median(x: pd.Series, w: pd.Series) -> Optional[float]:
     idx = np.searchsorted(cdf, 0.5)
     idx = np.clip(idx, 0, len(xv)-1)
     return float(xv[idx])
-
 
 def weighted_percentile_rank_by_action(
     action: str,
@@ -1242,9 +1208,8 @@ def weighted_percentile_rank_by_action(
     return 100.0 * float(np.sum(sel) / wsum)
 
 # =========================================================
-# Cost model / FX / Slippage
+# Cost model / FX / Slippage (per-order min fee + effective px)
 # =========================================================
-
 def per_order_min_fee(notional_ccy: float, market: str, side: str,
                       broker: str = "generic", account_type: str = "cash",
                       trade_ccy: str = None, trade_date: Optional[dt.date] = None) -> Tuple[float, str]:
@@ -1266,14 +1231,11 @@ def per_order_min_fee(notional_ccy: float, market: str, side: str,
     fee_in_trade = min_fee * rate
     return float(fee_in_trade), trade_ccy
 
-
 def _percent_fee_rate_for_side(cm: Dict[str, float], action: str) -> float:
-    
     if action == "buy":
         return float(cm.get("fee_buy", 0.0))
     else:
         return float(cm.get("fee_sell", 0.0))
-
 
 def compute_fee_ps_and_apply_flag(price: float, qty: float, action: str, market: str,
                                   broker: str, account_type: str, trade_ccy: str,
@@ -1281,9 +1243,9 @@ def compute_fee_ps_and_apply_flag(price: float, qty: float, action: str, market:
     """
     반환: (per_share_fee_extra, apply_percent)
       - 퍼센트 총액(price * pct * qty)과 '최소 수수료 총액'을 비교.
-      - 최소 수수료가 더 크면: per_share_fee_extra 를 (min_fee_total/qty)로 지급,
+      - 최소 수수료가 더 크면: per-share fee extra 를 (min_fee_total/qty)로 지급,
         퍼센트는 비활성화(apply_percent=False).
-      - 퍼센트가 더 크면: per_share_fee_extra=0, 퍼센트 활성화(apply_percent=True).
+      - 퍼센트가 더 크면: per-share extra=0, 퍼센트 활성화(apply_percent=True).
     """
     cm = fetch_cost_model((market or "US").upper(), broker, account_type)
     pct = _percent_fee_rate_for_side(cm, action)
@@ -1303,7 +1265,6 @@ def compute_fee_ps_and_apply_flag(price: float, qty: float, action: str, market:
         # 퍼센트 우세 → per-share extra 없음, 퍼센트만 적용
         return 0.0, True
 
-
 def adaptive_slippage_bps(symbol: str, market: str, df_hist: pd.DataFrame) -> float:
     """
     a + 1e4*(b*intraday_spread_pct + c*avg_abs_ret + d*last_abs_ret)
@@ -1317,7 +1278,7 @@ def adaptive_slippage_bps(symbol: str, market: str, df_hist: pd.DataFrame) -> fl
     d = float(params.get("d", 0.0))
     try:
         win = min(10, len(df_hist))
-        if win <= 0: 
+        if win <= 0:
             return max(0.0, a)
         close = df_hist["종가"].iloc[-win:]
         high = df_hist["고가"].iloc[-win:]
@@ -1329,7 +1290,6 @@ def adaptive_slippage_bps(symbol: str, market: str, df_hist: pd.DataFrame) -> fl
         return float(max(0.0, slip))
     except Exception:
         return float(max(0.0, a))
-
 
 def effective_unit_price(px: float, action: str, market: str, slippage_bps: float,
                          broker: str = "generic", account_type: str = "cash",
@@ -1362,11 +1322,9 @@ def effective_unit_price(px: float, action: str, market: str, slippage_bps: floa
 
     return float(eff + per_share_fee_extra)
 
-
 # =========================================================
 # Portfolio context & caps / sizing
 # =========================================================
-
 def fetch_positions_and_meta(user_id: str) -> Dict[str, Any]:
     """
     Loads user's portfolio context. Expected optional tables:
@@ -1409,7 +1367,6 @@ def fetch_positions_and_meta(user_id: str) -> Dict[str, Any]:
     except Exception:
         pass
     return out
-
 
 def cap_position_sizing(req_qty: int, symbol: str, price: float,
                         market: str, stop_dist: float, user_ctx: Dict[str, Any]) -> int:
@@ -1454,11 +1411,9 @@ def cap_position_sizing(req_qty: int, symbol: str, price: float,
         qty = int(qty)  # enforce integer
     return qty
 
-
 # =========================================================
 # Rule-based benchmark simulator (gap-aware next-bar execution)
 # =========================================================
-
 def _exec_price_next_bar(entry_side: str, trigger_price: float,
                          next_open: float, next_high: float, next_low: float,
                          slippage_bps: float, market: str,
@@ -1485,7 +1440,6 @@ def _exec_price_next_bar(entry_side: str, trigger_price: float,
         per_share_fee_extra=ps_extra, apply_percent=apply_pct
     )
     return float(eff)
-
 
 def simulate_trade_path(
     df_after: pd.DataFrame,
@@ -1525,7 +1479,6 @@ def simulate_trade_path(
             hit_tp   = hi >= tp1_price
             if hit_stop or hit_tp:
                 # next bar execution from this day's "open" proxy
-              
                 level = "stop" if hit_stop else "tp"
 
                 # long(=buy) 포지션 청산 → entry_side는 "buy"로 넘겨야 함
@@ -1541,7 +1494,6 @@ def simulate_trade_path(
                 return {"realized_return_pct": float(pnl_pct),
                         "exit_reason": "stop" if hit_stop else "tp1",
                         "exit_day_index": i, "exit_price": float(fill)}
-            
 
         else:
             # sell entry → buy to cover
@@ -1570,9 +1522,6 @@ def simulate_trade_path(
                        "exit_price": float(fill)
                        }
 
-
-
-
     # If not exited within window, close at last available price
     last = df_after.iloc[min(max_holding_days-1, len(df_after)-1)]
     px = float(last["종가"])
@@ -1596,11 +1545,9 @@ def simulate_trade_path(
             "exit_reason": "time_expiry", "exit_day_index": int(min(max_holding_days-1, len(df_after)-1)),
             "exit_price": float(fill_last)}
 
-
 # =========================================================
 # Charting
 # =========================================================
-
 def make_trade_chart(
     df: pd.DataFrame,
     xpt: pd.Timestamp,
@@ -1651,11 +1598,9 @@ def make_trade_chart(
     buf.seek(0)
     return buf
 
-
 # =========================================================
 # LLM context builder (quantified blocks + disclaimer)
 # =========================================================
-
 def build_llm_context(
     user: Dict[str, Any],
     trade: Dict[str, Any],
@@ -1710,8 +1655,8 @@ def build_llm_context(
     peer_med = stats.get("peer_median")
 
     acct_sz  = stats.get("account_size")
-    acct_src = stats.get("account_size_source", "config")   
-    base_ccy = trade.get("currency", "USD")                 
+    acct_src = stats.get("account_size_source", "config")
+    base_ccy = trade.get("currency", "USD")
     acct_label = "추정" if acct_src == "equity" else "설정값"
     acct_rpt = stats.get("account_risk_per_trade")
     atr_mult = stats.get("atr_stop_mult")
@@ -1781,41 +1726,55 @@ def build_llm_context(
 
     return ctx
 
-# =========================================================
-# AI commentary (optional, safe wrapper)
-# =========================================================
-
-def ai_commentary(context: str, tries: int = 2, timeout: int = 20) -> Optional[str]:
-    if genai is None:
-        logger.info("[LLM] google.generativeai not installed; skipping.")
+# ===== OpenAI 기반 LLM 코멘터리 (Responses API) =====
+def ai_commentary(context: str, tries: int = 2, timeout: int = 60) -> Optional[str]:
+    """
+    OpenAI Responses API로 코멘트 생성.
+    - 환경변수: OPENAI_API_KEY
+    """
+    if OpenAI is None:
+        logger.info("[LLM] openai SDK not installed; skipping.")
         return None
-    api_key = os.environ.get("GOOGLE_API_KEY")
+    api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        logger.info("[LLM] GOOGLE_API_KEY not set; skipping.")
+        logger.info("[LLM] OPENAI_API_KEY not set; skipping.")
         return None
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(LLM_MODEL_NAME)
+        client = OpenAI(api_key=api_key, timeout=timeout)
     except Exception as e:
-        logger.warning(f"[LLM] init failed: {e}")
+        logger.warning(f"[LLM] openai init failed: {type(e).__name__}: {e}")
         return None
 
     last_err = None
     for _ in range(max(1, tries)):
         try:
-            resp = model.generate_content(context, request_options={"timeout": timeout})
-            return getattr(resp, "text", None)
+            resp = client.responses.create(
+                model=LLM_MODEL_NAME or "gpt-5",
+                input=context,
+            )
+            # 표준 속성 (SDK 버전에 따라 없을 수 있어 안전 추출)
+            text = getattr(resp, "output_text", None)
+            if not text:
+                try:
+                    # 보강: content 트리를 순회해 텍스트 조합
+                    parts = []
+                    for item in getattr(resp, "output", []) or []:
+                        for c in getattr(item, "content", []) or []:
+                            t = getattr(c, "text", None)
+                            if t: parts.append(t)
+                    text = "\n".join(parts) if parts else None
+                except Exception:
+                    text = None
+            return text
         except Exception as e:
             last_err = e
             time.sleep(0.6)
-    logger.warning(f"[LLM] commentary failed after retries: {last_err}")
+    logger.warning(f"[LLM] openai commentary failed after retries: {last_err}")
     return None
-
 
 # =========================================================
 # Main analysis & feedback (expert-grade)
 # =========================================================
-
 def analyze_and_feedback(
     trade: Dict[str, Any],
     user: Dict[str, Any],
@@ -1828,7 +1787,6 @@ def analyze_and_feedback(
     Returns:
       feedback_text, chart_url, stats(dict), style_type, rank_percentile, bench_ret_pct, ai_msg
     """
-
     # ---------- Normalize inputs ----------
     symbol = trade["symbol"]
     market_raw = (trade.get("market") or "").upper()
@@ -1916,7 +1874,7 @@ def analyze_and_feedback(
     # ---------- Indicators snapshot ----------
     snap, df_enriched_hist = compute_indicators_snapshot(df_hist, cfg, intraday_vwap_daily)
     vwap_session_available = (
-    "VWAP" in df_enriched_hist.columns and df_enriched_hist["VWAP"].notna().any()
+        "VWAP" in df_enriched_hist.columns and df_enriched_hist["VWAP"].notna().any()
     )
 
     # ---------- Weekly confluence ----------
@@ -1936,20 +1894,17 @@ def analyze_and_feedback(
     )
     p50 = weighted_median(peer_prices, peer_w)
     rank_percentile = weighted_percentile_rank_by_action(action, peer_prices, peer_w, price, market=market)
-
     peer_reliability = "high" if pinfo.get("eff_count", 0) >= MIN_EFFECTIVE_PEERS else "low"
 
     # ---------- After window for simulator (backtest mode) ----------
     df_after = pd.DataFrame()
     if ANALYSIS_MODE != "realtime":
         df_after = df.loc[xpt:].copy()  # includes entry bar at index 0
-        # Clamp to window
         if len(df_after) > (ANALYSIS_WINDOW_DAYS + 1):
             df_after = df_after.iloc[:(ANALYSIS_WINDOW_DAYS + 1)]
 
     # ---------- Slippage & fees ----------
     slip_bps = adaptive_slippage_bps(symbol, market, df_enriched_hist)
-
 
     # Fee application (mutually exclusive: percent vs min-fee)
     commission_total = 0.0
@@ -1964,7 +1919,6 @@ def analyze_and_feedback(
                                                                                market, broker, account_type, trade_ccy, t_date)
         per_share_fee_sell, apply_percent_sell = compute_fee_ps_and_apply_flag(price, max(1.0, qty), "sell",
                                                                                market, broker, account_type, trade_ccy, t_date)
-        # 통계용 합계는 체결 사이드 기준으로만 채움
         commission_total = (per_share_fee_buy if action=="buy" else per_share_fee_sell) * max(1.0, qty)
 
     eff_buy  = effective_unit_price(price, "buy",  market, slip_bps, broker=broker, account_type=account_type,
@@ -1973,7 +1927,7 @@ def analyze_and_feedback(
     eff_sell = effective_unit_price(price, "sell", market, slip_bps, broker=broker, account_type=account_type,
                                     trade_ccy=trade_ccy, trade_date=t_date,
                                     per_share_fee_extra=per_share_fee_sell, apply_percent=apply_percent_sell)
-    
+
     # ---------- Risk: ATR stop & targets ----------
     atr = snap.get("ATR")
     stop_dist = (atr or 0.0) * STOP_ATR_MULT if atr is not None else 0.0
@@ -1992,7 +1946,6 @@ def analyze_and_feedback(
     tp3  = round_to_tick(price + (r1 * 3.0) if action == "buy" else price - (r1 * 3.0), market)
 
     # ---------- Sizing & caps ----------
-    # Base sizing by risk & cash relative to EXEC account_size
     risk_cash = ACCOUNT_SIZE * ACCOUNT_RISK
     denom = max(abs(price - stop), 1e-6)
     size_by_risk = int(max(risk_cash // denom, 0))
@@ -2004,8 +1957,7 @@ def analyze_and_feedback(
     acct_src = "equity" if user_ctx.get("equity") is not None else "config"
     size_capped = cap_position_sizing(base_size, symbol, price, market, abs(price - stop), user_ctx)
 
-    # KR integer enforcement at final (defensive)
-    if not ALLOW_FRACTIONAL.get(market, False):
+    if not ALLOW_FRACTIONAL.get(market, False):  # KR 등 정수주 강제
         size_capped = int(size_capped)
 
     # ---------- Simulator (gap-aware) ----------
@@ -2074,25 +2026,21 @@ def analyze_and_feedback(
     else:
         parts.append(f"피어 표본 부족(유효 {pinfo.get('eff_count',0)}명)으로 신뢰도 제한.")
 
-    # VWAP 안내 (분봉 미연결 시 명시)
     if not vwap_session_available:
         parts.append("세션 VWAP 데이터 없음(분봉 미연결).")
 
-    # Simulator outcome
     if bench_ret is not None:
         parts.append(f"룰-기반 시뮬 결과(비용·슬리피지 반영): {bench_ret:.2f}% ({bench_reason}).")
 
-    # Costs hint
     if commission_total > 0:
         parts.append(f"수수료/최소수수료 반영: 총 {commission_total:.2f} {trade_ccy}.")
 
-    # Risk plan
     parts.append(
         f"손절 {round(stop, 4)}, 익절 1R {round(tp1, 4)} / 2R {round(tp2, 4)} / 3R {round(tp3, 4)}, "
         f"권장수량 {size_capped} (캡 전 {base_size})."
     )
 
-    # Signal quality score (composite)
+    # Signal quality score
     quality = 0.0
     quality += min(1.0, pinfo.get("eff_count",0) / max(1.0, PEER_MIN_SAMPLES)) * 0.25
     quality += (1.0 if regime_trend else 0.5) * 0.20
@@ -2119,7 +2067,6 @@ def analyze_and_feedback(
     feedback_text = " ".join([p for p in parts if p]).strip()
 
     # ---------- Stats payload ----------
-
     acct_sz_val = float(user_ctx.get("equity", ACCOUNT_SIZE))
     has_pos = False
     try:
@@ -2128,9 +2075,8 @@ def analyze_and_feedback(
     except Exception:
         pass
     acct_src = "positions_equity" if (has_pos and acct_sz_val > 0) else "config_default"
-    
-    acct_ccy = trade_ccy  # USD/KRW 등, 위에서 trade의 currency를 이미 구했습니다.
 
+    acct_ccy = trade_ccy
     per_share_fee_effective = per_share_fee_buy if action == "buy" else per_share_fee_sell
 
     stats: Dict[str, Any] = dict(snap)
@@ -2142,8 +2088,8 @@ def analyze_and_feedback(
         "recommended_size_base": int(base_size),
         "recommended_size_capped": int(size_capped),
         "account_size": float(acct_sz_val),
-        "account_size_source": acct_src,           
-        "account_currency": acct_ccy,           
+        "account_size_source": acct_src,
+        "account_currency": acct_ccy,
         "account_risk_per_trade": float(ACCOUNT_RISK),
         "atr_stop_mult": float(STOP_ATR_MULT),
         "tp1_atr_mult": float(TP1_ATR_MULT),
@@ -2153,9 +2099,9 @@ def analyze_and_feedback(
         "commission_total": float(commission_total) if np.isfinite(commission_total) else None,
         "trade_qty": float(qty) if np.isfinite(qty) else None,
         "per_share_fee": (
-        float(per_share_fee_effective)
-        if np.isfinite(per_share_fee_effective) and per_share_fee_effective > 0
-        else None
+            float(per_share_fee_effective)
+            if np.isfinite(per_share_fee_effective) and per_share_fee_effective > 0
+            else None
         ),
         "apply_percent_flags": {"buy": bool(apply_percent_buy), "sell": bool(apply_percent_sell)},
         "risk_cash_amount": float(acct_sz_val * ACCOUNT_RISK),
@@ -2172,7 +2118,6 @@ def analyze_and_feedback(
     chart_url = None
     if generate_chart:
         try:
-            # Merge historical indicators into full df for plotting
             df_plot = df.copy()
             for col in ["EMA_FAST","EMA_MID","EMA_SLOW","BB_UPPER","BB_LOWER","KC_UPPER","KC_LOWER",
                         "AVWAP_YTD","AVWAP_MTD","VWAP","VWAP_CUM","DONCH_H","DONCH_L"]:
@@ -2184,12 +2129,12 @@ def analyze_and_feedback(
                                    bench_price=bench_exit_px,
                                    show_vwap=vwap_session_available)
             filename = f"{trade.get('id','trade')}.png"
-            # Try multiple upload option syntaxes for compatibility
+            # 업로드 (SDK 버전 차이 대비)
             try:
                 supabase.storage.from_(STORAGE_BUCKET_NAME).upload(
                     path=filename,
                     file=buf.getvalue(),
-                    file_options={"contentType":"image/png", "upsert":"true"}  # 값은 문자열
+                    file_options={"contentType":"image/png", "upsert":"true"}
                 )
             except Exception:
                 try:
@@ -2220,6 +2165,7 @@ def analyze_and_feedback(
     # ---------- LLM coaching (optional) ----------
     ai_msg: Optional[str] = None
     _use_llm = bool(use_llm or LLM_ENABLED_DEFAULT)
+    logger.info(f"[LLM] enabled={_use_llm} provider=openai model={LLM_MODEL_NAME} openai_sdk={OpenAI is not None}")
     if _use_llm:
         try:
             stats_for_llm = _sanitize_for_json(stats)
@@ -2236,14 +2182,12 @@ def analyze_and_feedback(
 
     return feedback_text, chart_url, stats, style_type, rank_percentile, bench_ret, ai_msg
 
-
 # =========================================================
 # Endpoint wrapper with storage/upsert & DLQ
 # =========================================================
-
 def fetch_trade(trade_id: int) -> Optional[Dict[str, Any]]:
     """
-    Re-declared here to ensure availability when importing this module standalone.
+    Simple fetch wrapper from trade_history.
     """
     try:
         res = (supabase.table("trade_history").select("*").eq("id", trade_id).single().execute())
@@ -2251,7 +2195,6 @@ def fetch_trade(trade_id: int) -> Optional[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"fetch_trade failed: {e}")
         return None
-
 
 def fetch_and_normalize_user(user_id: str) -> Optional[Dict[str, Any]]:
     try:
@@ -2271,7 +2214,6 @@ def fetch_and_normalize_user(user_id: str) -> Optional[Dict[str, Any]]:
     user.setdefault("preferred_tone", "friendly")
     user.setdefault("risk_profile", "normal")
     return user
-
 
 def auto_trade_feedback(
     trade_id: int,
@@ -2332,7 +2274,6 @@ def auto_trade_feedback(
         "created_at": dt.datetime.now().isoformat(),
     })
 
-
     # Persist feedback with upsert; DLQ on failure
     try:
         supabase.table("trade_feedback").upsert(payload, on_conflict="trade_id").execute()
@@ -2356,18 +2297,15 @@ def auto_trade_feedback(
 # =========================================================
 # Batch feedback extensions (a~e)
 # =========================================================
-
 def _attach_virtual_product(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     (a) 가상 product 필드 부여: DB 스키마 변경 없이 런타임에서 라우팅용 분류를 추가.
-    규칙은 예시이며, 네 환경에 맞게 바꿔도 됨.
     """
     out = []
     for r in rows:
         sym = (r.get("symbol") or "").upper()
         mkt = (r.get("market") or "").upper()
         product = None
-        # 예시 규칙: 심볼/마켓 기반 간단 분류
         if mkt == "KR":
             product = "KR_STOCK"
         elif mkt == "US":
@@ -2384,7 +2322,6 @@ def _attach_virtual_product(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         r2["product"] = product
         out.append(r2)
     return out
-
 
 def fetch_trades_by_filter(
     user_id: str,
@@ -2406,7 +2343,6 @@ def fetch_trades_by_filter(
         if end_iso:
             q = q.lte("trade_time", end_iso)
         if markets:
-            # 시장 표준화
             mk = []
             for m in markets:
                 mm = (m or "").upper()
@@ -2429,7 +2365,6 @@ def fetch_trades_by_filter(
         logger.error(f"fetch_trades_by_filter failed: {e}")
         return []
 
-
 def analyze_many(
     rows: List[Dict[str, Any]],
     user: Dict[str, Any],
@@ -2444,7 +2379,6 @@ def analyze_many(
     results = []
     for r in rows:
         try:
-            # 기존 normalize 규칙과 일치하도록 시장 표준화
             m = (r.get("market") or "").upper()
             if m in ["KRX", "KOSPI", "KOSDAQ"]:
                 r["market"] = "KR"
@@ -2471,7 +2405,7 @@ def analyze_many(
                 "trade_time": r.get("trade_time"),
                 "feedback": fb,
                 "rank_percentile": rank,
-                "benchmark_return_pct": bench_ret,  # 시뮬 기준 수익률(%)
+                "benchmark_return_pct": bench_ret,
                 "chart_url": (img if not fast else None),
                 "style_type": stype,
                 "stats": _sanitize_for_json(stats),
@@ -2480,13 +2414,12 @@ def analyze_many(
             logger.warning(f"[batch] analyze fail trade_id={r.get('id')}: {e}")
     return results
 
-
 def aggregate_batch_results(
     rows: List[Dict[str, Any]],
     group_by: str = "none"  # "none"|"day"|"symbol"|"product"|"period"
 ) -> Dict[str, Any]:
     """
-    (d) 종합 요약 생성. 새 컬럼 없이 메모리 내 계산만.
+    (d) 종합 요약 생성. 메모리 내 계산만.
     - P&L은 benchmark_return_pct(%)를 price*qty에 곱해 금액으로 근사.
     - 히스토그램은 rank_percentile을 사용 (피어 대비 체결가 분포).
     """
@@ -2494,17 +2427,14 @@ def aggregate_batch_results(
         return {"overview": {}, "by_group": {}, "histogram": {}}
 
     df = pd.DataFrame(rows)
-    # 안전 변환
     for col in ["price","qty","benchmark_return_pct","rank_percentile"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # 금액 기반 근사 P&L (수수료/세금은 analyze_and_feedback 내부에 반영된 시뮬 수익률에 포함)
     notional = (df["price"] * df["qty"]).fillna(0.0)
     pnl_amt = (notional * (df["benchmark_return_pct"].fillna(0.0) / 100.0)).rename("pnl_amt")
     df["pnl_amt"] = pnl_amt
 
-    # 개요 통계
     overview = {
         "num_trades": int(len(df)),
         "sum_pnl": float(df["pnl_amt"].sum()),
@@ -2514,7 +2444,7 @@ def aggregate_batch_results(
         "median_peer_percentile": float(df["rank_percentile"].median()) if "rank_percentile" in df.columns else None,
     }
 
-    # 그룹핑 키 생성
+    # 그룹 키
     gb_key = None
     if group_by == "day":
         df["day"] = pd.to_datetime(df["trade_time"]).dt.date
@@ -2524,7 +2454,6 @@ def aggregate_batch_results(
     elif group_by == "product":
         gb_key = "product"
     elif group_by == "period":
-        # 주/월 등 기간 단위 예시: 주(ISO week)
         df["period"] = pd.to_datetime(df["trade_time"]).dt.to_period("W").astype(str)
         gb_key = "period"
 
@@ -2550,14 +2479,12 @@ def aggregate_batch_results(
     # 퍼센타일 히스토그램 (0~100)
     hist = {}
     if "rank_percentile" in df.columns:
-        bins = list(range(0, 101, 10))  # 10단위
+        bins = list(range(0, 101, 10))
         cut = pd.cut(df["rank_percentile"].dropna(), bins=bins, include_lowest=True, right=True)
         hist = cut.value_counts().sort_index().to_dict()
-        # key를 문자열로
         hist = {f"{interval.left:.0f}-{interval.right:.0f}": int(cnt) for interval, cnt in hist.items()}
 
     return {"overview": overview, "by_group": by_group, "histogram": hist}
-
 
 def build_cum_pnl_series(rows: List[Dict[str, Any]]) -> List[Tuple[str, float]]:
     """
@@ -2574,7 +2501,6 @@ def build_cum_pnl_series(rows: List[Dict[str, Any]]) -> List[Tuple[str, float]]:
     df["pnl_amt"] = (df["price"] * df["qty"]).fillna(0.0) * (df["benchmark_return_pct"].fillna(0.0)/100.0)
     df["cum_pnl"] = df["pnl_amt"].cumsum()
     return [(ts.isoformat(), float(v)) for ts, v in zip(df["trade_time"], df["cum_pnl"])]
-
 
 def auto_trade_feedback_batch(
     user_id: str,
