@@ -341,7 +341,7 @@ def render_numerical_reranking_tab() -> None:
 
 def render_llm_reranking_tab() -> None:
     """LLM 리랭킹 탭 렌더링"""
-    st.markdown("#### GPT-4o-mini 컨텍스트 리랭킹")
+    st.markdown("#### LLM 컨텍스트 리랭킹")
     
     col1, col2 = st.columns([2, 1])
     
