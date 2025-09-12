@@ -656,9 +656,7 @@ streamlit run my_app/ui/home/home.py
 | <img width="100" src="https://avatars.githubusercontent.com/u/201884235?v=4"/> | <img width="100" src="https://avatars.githubusercontent.com/u/19996013?v=4"/> | <img width="100" src="https://avatars.githubusercontent.com/u/214776472?v=4"/> | <img width="100" src="https://avatars.githubusercontent.com/u/127065983?v=4"/> | <img width="100" src="https://avatars.githubusercontent.com/u/37144187?v=4"/> | <img width="100" src="https://avatars.githubusercontent.com/u/151559909?v=4"/> |
 |                              팀장, PM <br>맞춤형 금융 지식                              |                              백엔드 설계<br>사용자 데이터 분석                             |                               커뮤니케이션<br>주식·ETF 추천                              |                              깃허브 관리 <br>금융 레벨 테스트                              |                             데이터 관리 <br>보유주식 AI 코칭                             |                               문서 관리 <br> 관심 종목 분석                              |
 
-> (필요 시 팀 단체 사진 자리: `docs/photos/team.jpg`)
 
-  
 
 ## 9. 기대 효과(상세)
 
@@ -696,7 +694,7 @@ streamlit run my_app/ui/home/home.py
 
   
 
-## 11. 참고문헌(예시)
+## 11. 참고문헌
 
 * 한국금융연구원(2023). 청년 세대 금융투자 현황.
 * 금융감독원(2024). 개인투자자 보호와 금융 교육 필요성.
@@ -705,7 +703,6 @@ streamlit run my_app/ui/home/home.py
   
 
 ## 12. 프로젝트 회고
-
 
 * **이초록**: 
 * **강요셉**: 
