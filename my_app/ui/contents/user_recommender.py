@@ -145,7 +145,7 @@ def render():
         st.session_state['top_n'] = top_n
         st.session_state['use_llm_rerank'] = use_llm_rerank
 
-    tab1, tab2 = st.tabs(["맞춤 금융 지식", "추천 시스템 분석"])
+    tab1, tab2 = st.tabs(["맞춤 금융 지식", "관리자 모드"])
 
     with tab1:
         render_user_view()

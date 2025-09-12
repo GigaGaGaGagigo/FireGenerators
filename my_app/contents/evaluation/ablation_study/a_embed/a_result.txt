@@ -1,0 +1,65 @@
+# A. 검색 모델 비교 실험 📊
+
+## 🎯 실험 목적
+Ko-SRoBERTa vs BGE-M3 vs Hybrid(병합) 임베딩 모델의 성능 비교
+
+## 📁 파일 구조
+```
+a_embed/
+├── test/
+│   ├── ablation_study.py           # 실험 계획 생성
+│   ├── run_ablation_study.py       # 통합 실험 실행
+│   ├── connect_with_rec.py         # 추천 시스템 연동
+│   ├── user_profiles_sample.json   # 테스트용 사용자 프로필
+│   └── profiles_test_rows.csv      # 실제 사용자 프로필 데이터
+└── result/
+    ├── ablation_study_plan.csv           # 실험 계획표
+    ├── ablation_report_20250909_152058.json     # 종합 리포트
+    ├── ablation_summary_20250909_152058.csv     # 성능 요약
+    └── ablation_detailed_20250909_152058.json   # 상세 결과
+```
+
+## 🧪 실험 설계
+
+### 검색 모델 비교
+1. **ko-sroberta**: 한국어 특화 임베딩 모델
+2. **bge-m3**: 다국어 임베딩 모델  
+3. **hybrid**: ko-sroberta + bge-m3 병합
+
+### 측정 지표
+- **정확도**: 벡터 유사도 점수
+- **응답 속도**: 검색 처리 시간
+- **추천 수**: 생성된 추천 개수
+- **다양성**: 추천 콘텐츠의 다양성
+
+## 📈 주요 결과
+
+### 🏆 최고 성능: Hybrid 모델
+- **평균 추천수**: 5.0개 (레벨 필터링 완화)
+- **관련성 점수**: 1.0 (완벽)
+- **응답 속도**: 226ms (적절)
+
+### 개별 모델 성능
+- **ko-sroberta**: 평균 0.4개 추천, 다양성 우수
+- **bge-m3**: 평균 0.2개 추천, 상대적 저조
+- **hybrid**: 속도와 관련성의 최적 균형
+
+## 💡 핵심 인사이트
+1. **하이브리드 방식**이 단일 모델보다 우수
+2. **레벨 필터링 완화** (`level_strict=False`)가 추천 수 증대에 효과적  
+3. 한국어 특화 모델(ko-sroberta)이 다국어 모델보다 우수
+
+## 🚀 실행 방법
+```bash
+# 실험 계획 생성
+python a_embed/test/ablation_study.py
+
+# 추천 시스템 연동 테스트
+python a_embed/test/connect_with_rec.py
+
+# 통합 실험 실행
+python a_embed/test/run_ablation_study.py
+```
+
+## 📊 결론
+**Ko-SRoBERTa + BGE-M3 하이브리드 방식**이 최적의 성능을 보이며, 현재 시스템 설정이 적절함을 확인했습니다.

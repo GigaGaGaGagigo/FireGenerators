@@ -159,7 +159,7 @@ def render_user_profile_card(profile_data: Dict[str, Any]) -> None:
     
     main_profile_text = f"""
     <p>👋 안녕하세요, <strong>{user_name}</strong>님! 챗봇과 퀴즈로 분석한 당신의 금융 프로필을 알려드릴게요.</p>
-    <p>*상세한 프로필 내용은 홈 화면에서 확인 가능합니다.</p>
+    <p>*상세한 프로필 내용은 home 메뉴에서 확인 가능합니다.</p>
     <br>
     <p>🏦 <strong>금융 지식 수준:</strong> {user_level} ({knowledge_level})</p>
     <p>💭 <strong>현재 투자 심리:</strong> {emotion_info['emoji']} {emotion_info['status']}</p>
@@ -216,7 +216,7 @@ def render_recommendation_button(
             if not get_hybrid_recommendations:
                 return
             
-            spinner_text = "🐾 AI가 맞춤 정보를 찾고 있어요..." if use_llm_rerank else "🚥 맞춤 정보를 찾고 있어요..."
+            spinner_text = "AI가 회원님 프로필에 맞는 금융 지식을 찾고 있습니다..." if use_llm_rerank else "🚥 맞춤 정보를 찾고 있어요..."
             with st.spinner(spinner_text):
                 rec_result = get_hybrid_recommendations({
                     "user_id": f"user_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}",
