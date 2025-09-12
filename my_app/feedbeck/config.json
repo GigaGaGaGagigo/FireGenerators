@@ -1,0 +1,124 @@
+{
+  "version": "indicators-v2.2.0",
+
+  "intraday": {
+    "enabled": false,
+    "provider": "none",
+    "tz_policy": "exchange"
+  },
+
+  "indicator_settings": {
+    "EMA": [5, 20, 60],
+    "RSI": [14],
+    "MACD": { "fast": 12, "slow": 26, "signal": 9 },
+    "BBANDS": { "period": 20, "stddev": 2.0 },
+    "STOCH": { "k": 14, "d": 3, "smooth": 3 },
+    "KELTNER": { "period": 20, "mult": 1.5 }
+  },
+
+  "feedback_policy": {
+    "analysis_mode": "backtest",
+    "peer_group_size": 100,
+    "peer_min_samples": 30,
+    "peer_window_days": 3,
+    "min_data_period_days": 60,
+    "analysis_window_days": 7,
+
+    "peer_same_session": true,
+    "peer_timebox_minutes": 60,
+    "peer_halflife_minutes": 60,
+
+    "outlier_filter": "iqr",
+    "outlier_k": 1.5,
+    "min_effective_peers": 25
+  },
+
+  "execution": {
+    "slippage_bps_default": 5,
+    "account_risk_per_trade": 0.01,
+    "account_size": 10000000,
+    "stop_atr_mult": 1.2,
+    "tp1_atr_mult": 2.0,
+
+    "kr_tick_table": [
+      [0, 1000, 1],
+      [1000, 5000, 5],
+      [5000, 10000, 10],
+      [10000, 50000, 50],
+      [50000, 100000, 100],
+      [100000, 1000000000, 500]
+    ],
+
+    "static_cost_table": [
+      {
+        "market": "KR",
+        "broker": "generic",
+        "account_type": "cash",
+        "fee_buy": 0.00015,
+        "fee_sell": 0.00015,
+        "tax_sell": 0.002,
+        "min_fee": 0.0,
+        "currency": "KRW"
+      },
+      {
+        "market": "US",
+        "broker": "generic",
+        "account_type": "cash",
+        "fee_buy": 0.0005,
+        "fee_sell": 0.0005,
+        "tax_sell": 0.0,
+        "min_fee": 0.0,
+        "currency": "USD"
+      }
+    ]
+  },
+
+  "calc": {
+    "winsorize_sigma": 4.0,
+    "min_consecutive_bars": 200,
+    "obv_z_window": 20,
+    "vol_z_window": 20,
+    "ewma_lambda": 0.94,
+    "donchian_n": 20,
+    "swing_window": 5,
+    "regime_adx": 25.0,
+    "regime_atr_pct": 0.01
+  },
+
+  "calendar": {
+    "use_market_calendars": true,
+    "exchange_codes": { "KR": "XKRX", "US": "XNYS" }
+  },
+
+  "portfolio_caps": {
+    "per_trade_risk": 0.0025,
+    "daily_drawdown_limit": 0.005,
+    "symbol_cap": 0.05,
+    "sector_cap": 0.20,
+    "beta_expo_cap": 0.50,
+    "cash_buffer": 0.02
+  },
+
+  "tone_guide": {
+    "friendly": "최대한 쉽고, 친절하고, 일상 대화체로 설명합니다.",
+    "expert": "투자 전문가/애널리스트 보고서 스타일. 디테일과 논리 중심.",
+    "youth": "요즘 MZ가 좋아하는 캐주얼하고 짧은 말투. 핵심만 콕!",
+    "serious": "단호하고 정중하게. 리스크 경고에 집중."
+  },
+
+  "investor_level_guide": {
+    "beginner": "투자 입문자 – 기초 지식부터 설명 필요.",
+    "intermediate": "경험 보유 – 개념 설명보다 전략 중심 코칭.",
+    "advanced": "시장 경험 多 – 고급 지표 해석 가능.",
+    "expert": "전문가 수준 – 기술적/퀀트 기반의 고급 설명 선호."
+  },
+
+  "user_customization": { "default_tone": "friendly" },
+
+  "ai_coaching_goal": "사용자의 매매 타이밍을 개선하고, 전략적 인사이트를 제공한다.",
+
+  "llm": {
+    "enabled_default": false,
+    "model": "gemini-1.5-flash-latest"
+  }
+}

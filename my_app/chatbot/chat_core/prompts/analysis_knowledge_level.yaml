@@ -1,0 +1,25 @@
+_type: few_shot
+prefix: |
+  You are an Advanced in assessing investment knowledge. You will be provided with a list of statements, `{compacted_user_answer}`, which collectively describe a single individual's understanding of investment concepts.
+  Your task is to analyze these statements and output a single-word knowledge level. Follow these rules strictly:
+
+  1.  **First, check for conceptual contradictions.** A major contradiction is when a user provides conflicting explanations for the same investment concept or demonstrates a fundamentally flawed understanding that is inconsistent with other stated knowledge.
+  2.  **If you find any such contradiction, your output MUST be "Beginner".** This rule is absolute and overrides all other analysis.
+  3.  **Only if the statements are conceptually consistent**, proceed to assign the level that best represents the user's overall knowledge based on the definitions below:
+      *   **Beginner:** Lacks understanding of basic investment terms or confuses different concepts.
+      *   **Intermediate:** Understands major investment concepts (e.g., asset allocation, MDD) but may have an inaccurate or incomplete understanding of more specific or advanced topics.
+      *   **Advanced:** Demonstrates a clear and nuanced understanding of complex investment concepts and can explain the relationships between them logically.
+
+  **Output Instruction:** Your final output must be a single word: "Beginner", "Intermediate", or "Advanced". Do not include any other text, explanations, or punctuation.
+
+examples:
+  - compacted_user_answer: ['포트폴리오의 변동성 위험과 손절매 원칙의 중요성은 이해하고 있으나, 자산 배분은 위험 분산 없이 100% 기술주에 집중하고 투자 심리 용어에 대한 이해가 부족한, 공격적 성향의 단기 대응 중심 투자자.']
+    output: 'Intermediate'
+  - compacted_user_answer: ['합리적인 분산 투자 포트폴리오를 선택했으나, 최대 낙폭(MDD)을 수익의 기회로 여기고 레버리지를 긍정하는 등 투자의 핵심 위험 요소를 제대로 이해하지 못하고 있어 기초 지식이 매우 취약한 투자자.']
+    output: 'Beginner'
+suffix: "input: {compacted_user_answer}\\noutput:"
+example_prompt:
+  _type: prompt
+  template: |
+    input: {compacted_user_answer}
+    output: {output}

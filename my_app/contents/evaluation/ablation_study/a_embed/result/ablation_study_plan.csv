@@ -1,0 +1,9 @@
+﻿experiment_id,config_id,search_model,filtering,alpha,beta,gamma,llm_model,prompt_strategy,phase,priority
+1,ko-sroberta_vector_plus_rules_gpt-4o-mini_generic,ko-sroberta,vector_plus_rules,0.7,0.2,0.1,gpt-4o-mini,generic,Phase1_Search,2
+2,bge-m3_vector_plus_rules_gpt-4o-mini_generic,bge-m3,vector_plus_rules,0.7,0.2,0.1,gpt-4o-mini,generic,Phase1_Search,2
+3,hybrid_vector_plus_rules_gpt-4o-mini_generic,hybrid,vector_plus_rules,0.7,0.2,0.1,gpt-4o-mini,generic,Phase2_Filtering,1
+4,hybrid_vector_only_gpt-4o-mini_generic,hybrid,vector_only,0.7,0.2,0.1,gpt-4o-mini,generic,Phase2_Filtering,1
+5,hybrid_vector_plus_rules_gemini-flash_generic,hybrid,vector_plus_rules,0.7,0.2,0.1,gemini-flash,generic,Phase2_Filtering,1
+6,hybrid_vector_plus_rules_claude-3-haiku_generic,hybrid,vector_plus_rules,0.7,0.2,0.1,claude-3-haiku,generic,Phase2_Filtering,1
+7,hybrid_vector_plus_rules_gpt-4o-mini_level_specific,hybrid,vector_plus_rules,0.7,0.2,0.1,gpt-4o-mini,level_specific,Phase2_Filtering,1
+8,hybrid_vector_plus_rules_gpt-4o-mini_adaptive,hybrid,vector_plus_rules,0.7,0.2,0.1,gpt-4o-mini,adaptive,Phase2_Filtering,1

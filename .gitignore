@@ -1,0 +1,62 @@
+# ============== Environment ==============
+
+# API
+api_test/
+
+# environment
+.env
+
+# virtual environment
+.venv/
+venv/
+
+# metadata in macOS
+.DS_Store
+
+# pycache
+*.pyc
+__pycache__/
+
+
+# ================== Data ==================
+
+# sqlite data
+db.sqlite3
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# test files
+test.json
+test.py
+
+# ================ Settings ================
+
+# Streamlit settings
+.streamlit/
+
+# vscode settings
+.vscode/
+
+
+# ================ Extention ================
+
+
+# INFO: personal settings files when committing, turn on to ignore these files
+mcp server
+.mcp.json  
+*.md
+*.toml
+.claude**
+.gemini-clipboard**
+.ruff**
+.CLAUDE**
+.GEMINI**
+.pyproject.toml
+poetry.lock
+typings/
+my_app/chatbot/notebooks/
+my_app/ui/level_quiz/data/generated/
+my_app/ui/recommendation/data/recommendation_logs.jsonl
+my_app/quiz_core/exports
+my_app/quiz_core/eval
