@@ -49,6 +49,11 @@ def save_feedback_results(results):
             'human_comment': r['human_comment'],
             'timestamp': r['timestamp']
         }
+        # 세부 점수 추가
+        if 'human_detailed_scores' in r:
+            for key, score in r['human_detailed_scores'].items():
+                row[f'human_{key}_score'] = score
+        
         summary_data.append(row)
     df = pd.DataFrame(summary_data)
     csv_path = RESULT_DIR / f"human_feedback_summary_{timestamp}.csv"
@@ -98,11 +103,10 @@ def display_user_feedback(result, idx, total):
     st.markdown("세부 평가 (선택)")
     criteria_scores = {}
     criteria = [
-        ("relevance", "관련성"),
-        ("suitability", "적합성"),
-        ("diversity", "다양성"),
-        ("practicality", "실용성"),
-        ("explanation_quality", "설명 품질")
+        ("suitability", "적합성 - 사용자 지식 수준에 적합한가?"),
+        ("relevance", "관련성 - 사용자 관심사와 얼마나 관련있는 추천인가?"),
+        ("diversity", "다양성 - 추천 콘텐츠들이 다양한 관점을 제공하는가?"),
+        ("coherence", "일관성 - 콘텐츠와 맞춤 설명이 자연스럽고 논리적으로 연결되는가?")
     ]
     for key, label in criteria:
         criteria_scores[key] = st.slider(label, 1.0, 5.0, 3.0, 0.1, key=f"{key}_{idx}")

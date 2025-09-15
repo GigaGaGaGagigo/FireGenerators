@@ -2,10 +2,10 @@
 
 ## 📋 전체 개요
 
-FIREgenerator 금융 지식 추천 시스템의 **LLM Judge + Human Feedback 평가** 프로세스
+FIREgenerator 금융 지식 추천 시스템의 LLM Judge + Human Feedback 평가 프로세스
 
 ### 🎯 평가 목표
-복잡한 데이터베이스 연결 없이 **CSV 파일만으로 LLM Judge와 Human Feedback**을 통해 추천 시스템의 품질을 평가합니다.
+LLM Judge와 Human Feedback을 통해 추천 시스템의 품질을 평가합니다.
 
 ## 📊 2단계 간소화 프로세스
 
@@ -16,16 +16,11 @@ python llm_judge.py
 
 **목적**: CSV에서 사용자 데이터를 로드하여 LLM으로 추천 품질 평가
 
-**평가 기준** (9가지, 1-4 추천 품질, 5-9 설명 품질):
-- **1. 관련성 (Relevance)**: 사용자 관심사와 얼마나 잘 맞는가?
-- **2. 적합성 (Suitability)**: 사용자 지식 수준에 적합한가?
+**평가 기준** (4가지 핵심 기준):
+- **1. 적합성 (Suitability)**: 사용자 지식 수준에 적합한가?
+- **2. 관련성 (Relevance)**: 사용자 관심사와 얼마나 관련있는 추천인가?
 - **3. 다양성 (Diversity)**: 추천 콘텐츠들이 다양한 관점을 제공하는가?
-- **4 .실용성 (Practicality)**: 실제로 사용자에게 도움이 될 것인가?
-- **5. 정확성 (Accuracy)**: 추천이 사실에 부합하는가?
-- **6. 완결성 (Completeness)**: 필요한 정보를 모두 포함하고 있는가?
-- **7 .일관성 (Coherence)**: 설명이 자연스럽고 논리적인가?
-- **8. 안전성 (Safety)**: 유해하거나 편향된 내용을 포함하지 않는가?
-- **9. 어조 및 스타일 (Tone & Style)**: 의도한 페르소나를 잘 유지하는가?
+- **4. 일관성 (Coherence)**: 콘텐츠와 맞춤 설명이 자연스럽고 논리적으로 연결되는가?
 
 **결과 파일**:
 - `llm_evaluation_summary_YYYYMMDD_HHMMSS.csv`: LLM 평가 요약
@@ -42,9 +37,12 @@ python human_feedback.py
 
 **프로세스**:
 1. 1단계 LLM 결과 로드
-2. 각 추천 결과를 콘솔에 보기 좋게 표시
-3. 사용자가 1-5점 평가 + 코멘트 입력
+2. 각 추천 결과를 Streamlit UI에 보기 좋게 표시
+3. 사용자가 LLM과 동일한 4개 기준으로 1-5점 평가 + 코멘트 입력
 4. CSV/JSON으로 결과 저장
+
+**Human 평가 기준** (LLM과 동일):
+- 적합성, 관련성, 다양성, 일관성 (각 1-5점)
 
 **평가 표시 정보**:
 - 👤 사용자 정보 (이름)
@@ -69,7 +67,7 @@ CLAUDE_API_KEY=sk-ant-xxxxx
 
 ```
 evaluation/
-├── README.md                      # 이 파일 (간소화 가이드)
+├── plan_evaluation.txt            # 평가 계획서
 ├── profiles_test_rows.csv         # 사용자 테스트 데이터
 ├── llm_judge.py                   # 1단계: LLM Judge 평가
 ├── human_feedback.py              # 2단계: Human Feedback 수집
@@ -99,15 +97,15 @@ pip install pandas numpy  # 데이터 처리용
 ### ⚡ 빠른 시작
 ```bash
 # 간소화된 2단계 프로세스
-python llm_judge.py       # 약 5-10분 소요 (API 호출)
-python human_feedback.py  # 수동 입력 시간 소요
+python llm_judge.py          # 약 5-10분 소요 (API 호출)
+streamlit run human_feedback.py  # Streamlit UI로 Human 평가 수집
 ```
 
 ### 🔧 설정 조정
 ```python
 # llm_judge.py에서 조정 가능
 max_users = 30           # 테스트 사용자 수 (기본 30명)
-available_models = ["gpt-4o-mini", "gemini-flash", "claude"]  # 사용할 LLM 모델들
+available_models = ["gpt-4o-mini"] # 사용한 LM 모델
 
 # human_feedback.py에서 조정 가능
 max_evaluations = 30      # 사람이 평가할 최대 개수
@@ -118,11 +116,11 @@ max_evaluations = 30      # 사람이 평가할 최대 개수
 ### LLM vs Human 비교 분석
 1. **상관계수 분석**: LLM Judge와 Human 평가가 얼마나 일치하는지 확인
 2. **차이 케이스 분석**: 평가가 크게 다른 경우 원인 분석
-3. **모델별 성능 비교**: GPT, Gemini, Claude 각각의 평가 특성 파악
 
 ### 결과 활용 방법
-- **평균 점수**: 전반적인 추천 시스템 품질 수준 파악
-- **점수 분포**: 사용자별, 모델별 편차 확인
+- **전체 점수**: LLM 제공 또는 4개 기준 평균으로 계산된 종합 점수
+- **세부 점수**: 적합성, 관련성, 다양성, 일관성 각각의 점수 분석
+- **LLM vs Human 비교**: 동일한 4개 기준으로 평가한 결과 비교
 - **코멘트 분석**: Human Feedback의 정성적 인사이트 수집
 
 ### 개선 포인트 도출
@@ -130,6 +128,11 @@ max_evaluations = 30      # 사람이 평가할 최대 개수
 1. Human 점수가 높지만 LLM 점수가 낮은 경우 → 프롬프트 개선 필요
 2. 모든 점수가 낮은 경우 → 추천 알고리즘 전면 검토
 3. 점수 편차가 큰 경우 → 일관성 개선 필요
+4. 특정 기준(적합성/관련성/다양성/일관성) 점수가 낮은 경우:
+   - 적합성 낮음 → 사용자 레벨 매칭 로직 개선
+   - 관련성 낮음 → 관심사/목표 반영 로직 개선  
+   - 다양성 낮음 → 추천 다양성 알고리즘 개선
+   - 일관성 낮음 → 설명 생성 프롬프트 개선
 ```
 
 ## 🔄 지속적 개선
@@ -162,3 +165,32 @@ python human_feedback.py
 - 복잡한 파이프라인 없이 핵심 품질만 평가
 - 개발자 친화적 CSV 기반 워크플로우
 - 비용 효율적인 평가 프로세스
+- 4개 핵심 기준으로 간소화된 평가로 명확한 개선 포인트 파악
+
+## 📈 평가 기준 상세 설명
+
+### 🎯 4개 핵심 평가 기준
+1. **적합성 (Suitability)**
+   - 사용자의 지식 수준(Beginner/Intermediate/Advanced)에 맞는 난이도인가?
+   - 전문 용어 사용이 적절한가?
+   - 사용자가 이해할 수 있는 수준으로 설명되었는가?
+
+2. **관련성 (Relevance)**
+   - 사용자의 관심 카테고리와 얼마나 관련있는가?
+   - 사용자의 투자 목표와 부합하는가?
+   - 사용자의 감정적 성향을 반영했는가?
+
+3. **다양성 (Diversity)**
+   - 추천된 콘텐츠들이 다양한 주제를 다루는가?
+   - 서로 다른 관점이나 접근법을 제공하는가?
+   - 편향되지 않고 균형잡힌 정보를 제공하는가?
+
+4. **일관성 (Coherence)**
+   - 콘텐츠와 맞춤 설명이 논리적으로 연결되는가?
+   - 전체적인 추천의 흐름이 자연스러운가?
+   - 설명이 명확하고 이해하기 쉬운가?
+
+### 🔄 평가 프로세스 개선점
+- **9개 → 4개 기준**: 평가 복잡성 감소, 핵심 품질 요소에 집중
+- **LLM-Human 일치성**: 동일한 기준으로 평가하여 정확한 비교 가능
+- **overall_score 추가**: LLM이 직접 전체 점수 제공 또는 4개 평균으로 계산

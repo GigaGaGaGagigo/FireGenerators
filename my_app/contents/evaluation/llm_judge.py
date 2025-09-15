@@ -174,31 +174,19 @@ class SimpleLLMJudge:
 {recommendations_text}
 
 **평가 기준:**
-다음 9가지 관점에서 이 추천(콘텐츠)과 맞춤 설명의 품질을 1-5점으로 평가하세요:
-1, 2, 3, 4번 : 콘텐츠 추천 
-5, 6, 7, 8, 9번 : 맞춤 설명 
+다음 4가지 관점에서 이 추천(콘텐츠)과 맞춤 설명의 품질을 1-5점으로 평가하세요:
 
-1. **관련성 (Relevance)**: 사용자 관심사와 얼마나 관련있는 추천인가?
-2. **적합성 (Suitability)**: 사용자 지식 수준에 적합한가?
+1. **적합성 (Suitability)**: 사용자 지식 수준에 적합한가?
+2. **관련성 (Relevance)**: 사용자 관심사와 얼마나 관련있는 추천인가?
 3. **다양성 (Diversity)**: 추천 콘텐츠들이 다양한 관점을 제공하는가?
-4. **실용성 (Practicality)**: 실제로 사용자에게 도움이 될 것인가?
-5. **정확성 (Accuracy)**: 콘텐츠와 맞춤 설명이 사실에 부합하는가?
-6. **완결성 (Completeness)**: 추천과 설명에 필요한 정보를 모두 포함하고 있는가?
-7. **일관성 (Coherence)**: 콘텐츠와 맞춤 설명이 자연스럽고 논리적으로 연결되는가?
-8. **안전성 (Safety)**: 유해하거나 편향된 내용을 포함하지 않는가?
-9. **어조 및 스타일 (Tone & Style)**: 맞춤 설명이 사용자 레벨에 맞는 친근한 어조를 유지하는가?
+4. **일관성 (Coherence)**: 콘텐츠와 맞춤 설명이 자연스럽고 논리적으로 연결되는가?
 
 **응답 형식 (JSON):**
 {{
-    "relevance_score": [1-5],
     "suitability_score": [1-5], 
+    "relevance_score": [1-5],
     "diversity_score": [1-5],
-    "practicality_score": [1-5],
-    "accuracy_score": [1-5],
-    "completeness_score": [1-5],
     "coherence_score": [1-5],
-    "safety_score": [1-5],
-    "tone_style_score": [1-5],
     "overall_score": [1-5],
     "detailed_reasoning": "구체적인 평가 이유를 3-4문장으로 설명"
 }}
@@ -393,15 +381,10 @@ class SimpleLLMJudge:
                 
                 # 필수 필드 확인 및 기본값 설정
                 return {
-                    "relevance_score": float(parsed.get("relevance_score", 0)),
                     "suitability_score": float(parsed.get("suitability_score", 0)),
+                    "relevance_score": float(parsed.get("relevance_score", 0)),
                     "diversity_score": float(parsed.get("diversity_score", 0)),
-                    "practicality_score": float(parsed.get("practicality_score", 0)),
-                    "accuracy_score": float(parsed.get("accuracy_score", 0)),
-                    "completeness_score": float(parsed.get("completeness_score", 0)),
                     "coherence_score": float(parsed.get("coherence_score", 0)),
-                    "safety_score": float(parsed.get("safety_score", 0)),
-                    "tone_style_score": float(parsed.get("tone_style_score", 0)),
                     "overall_score": float(parsed.get("overall_score", 0)),
                     "detailed_reasoning": str(parsed.get("detailed_reasoning", "파싱 실패"))
                 }
@@ -409,18 +392,13 @@ class SimpleLLMJudge:
                 # JSON이 없으면 숫자만 추출
                 import re
                 numbers = re.findall(r'\b[1-5]\b', response)
-                if len(numbers) >= 10:  # 9개 세부 점수 + 1개 전체 점수
+                if len(numbers) >= 5:  # 4개 세부 점수 + 1개 전체 점수
                     return {
-                        "relevance_score": float(numbers[0]),
-                        "suitability_score": float(numbers[1]),
+                        "suitability_score": float(numbers[0]),
+                        "relevance_score": float(numbers[1]),
                         "diversity_score": float(numbers[2]),
-                        "practicality_score": float(numbers[3]),
-                        "accuracy_score": float(numbers[4]),
-                        "completeness_score": float(numbers[5]),
-                        "coherence_score": float(numbers[6]),
-                        "safety_score": float(numbers[7]),
-                        "tone_style_score": float(numbers[8]),
-                        "overall_score": float(numbers[9]),
+                        "coherence_score": float(numbers[3]),
+                        "overall_score": float(numbers[4]),
                         "detailed_reasoning": "숫자만 추출됨"
                     }
                 else:
@@ -429,15 +407,10 @@ class SimpleLLMJudge:
         except Exception as e:
             print(f"⚠️ LLM 응답 파싱 실패: {e}")
             return {
-                "relevance_score": 0.0,
                 "suitability_score": 0.0,
+                "relevance_score": 0.0,
                 "diversity_score": 0.0,
-                "practicality_score": 0.0,
-                "accuracy_score": 0.0,
-                "completeness_score": 0.0,
                 "coherence_score": 0.0,
-                "safety_score": 0.0,
-                "tone_style_score": 0.0,
                 "overall_score": 0.0,
                 "detailed_reasoning": f"파싱 실패: {str(e)}"
             }
@@ -481,26 +454,30 @@ class SimpleLLMJudge:
                     
                     if result['success']:
                         evaluation = result['evaluation']
-                        llm_scores[llm_model] = evaluation['overall_score']
+                        # LLM에서 제공한 overall_score 사용, 없으면 4개 점수의 평균으로 계산
+                        overall_score = evaluation.get('overall_score', 0)
+                        if overall_score == 0:
+                            overall_score = (
+                                evaluation.get('suitability_score', 0) +
+                                evaluation.get('relevance_score', 0) +
+                                evaluation.get('diversity_score', 0) +
+                                evaluation.get('coherence_score', 0)
+                            ) / 4.0
+                        
+                        llm_scores[llm_model] = overall_score
                         llm_detailed_scores[llm_model] = {
-                            'relevance': evaluation.get('relevance_score', 0),
                             'suitability': evaluation.get('suitability_score', 0),
+                            'relevance': evaluation.get('relevance_score', 0),
                             'diversity': evaluation.get('diversity_score', 0),
-                            'practicality': evaluation.get('practicality_score', 0),
-                            'accuracy': evaluation.get('accuracy_score', 0),
-                            'completeness': evaluation.get('completeness_score', 0),
-                            'coherence': evaluation.get('coherence_score', 0),
-                            'safety': evaluation.get('safety_score', 0),
-                            'tone_style': evaluation.get('tone_style_score', 0)
+                            'coherence': evaluation.get('coherence_score', 0)
                         }
                         llm_reasoning[llm_model] = evaluation['detailed_reasoning']
-                        print(f"      ✅ 전체: {evaluation['overall_score']:.1f} | 관련성: {evaluation.get('relevance_score', 0):.1f} | 적합성: {evaluation.get('suitability_score', 0):.1f}")
+                        print(f"      ✅ 전체: {overall_score:.1f} | 적합성: {evaluation.get('suitability_score', 0):.1f} | 관련성: {evaluation.get('relevance_score', 0):.1f}")
                     else:
                         print(f"      ❌ 평가 실패: {result['error']}")
                         llm_scores[llm_model] = 0.0
                         llm_detailed_scores[llm_model] = {
-                            'relevance': 0, 'suitability': 0, 'diversity': 0, 'practicality': 0,
-                            'accuracy': 0, 'completeness': 0, 'coherence': 0, 'safety': 0, 'tone_style': 0
+                            'suitability': 0, 'relevance': 0, 'diversity': 0, 'coherence': 0
                         }
                         llm_reasoning[llm_model] = f"평가 실패: {result['error']}"
                 
@@ -508,8 +485,7 @@ class SimpleLLMJudge:
                     print(f"      ❌ 평가 중 오류: {e}")
                     llm_scores[llm_model] = 0.0
                     llm_detailed_scores[llm_model] = {
-                        'relevance': 0, 'suitability': 0, 'diversity': 0, 'practicality': 0,
-                        'accuracy': 0, 'completeness': 0, 'coherence': 0, 'safety': 0, 'tone_style': 0
+                        'suitability': 0, 'relevance': 0, 'diversity': 0, 'coherence': 0
                     }
                     llm_reasoning[llm_model] = f"오류: {str(e)}"
                 
